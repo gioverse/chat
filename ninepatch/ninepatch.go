@@ -20,6 +20,10 @@ type Rectangle struct {
 
 // Layout content atop the 9-Patch themed rectangle.
 func (r Rectangle) Layout(gtx C, w layout.Widget) D {
+	// TODO(jfm):
+	// - decide how to specify stretch areas in code
+	// - layout stretch areas
+	// - decode stretch area data from 9-Patch image files (`9.png`)
 	return layout.Stack{}.Layout(
 		gtx,
 		layout.Expanded(func(gtx C) D {
