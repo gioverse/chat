@@ -18,18 +18,24 @@ import (
 )
 
 func main() {
-	go func() {
-		var (
-			w = app.NewWindow(
-				app.Title("Chat"),
-				app.Size(unit.Dp(800), unit.Dp(600)),
-			)
-			ops op.Ops
+	var (
+		w = app.NewWindow(
+			app.Title("Chat"),
+			app.Size(unit.Dp(800), unit.Dp(600)),
 		)
+		ops op.Ops
+	)
+	go func() {
 		// Event loop executes indefinitely, until the app is signalled to quit.
 		// Integrate external services here.
 		for event := range w.Events() {
 			switch event := event.(type) {
+			case system.DestroyEvent:
+				if err := event.Err; err != nil {
+					fmt.Printf("error: premature window close: %v\n", err)
+					os.Exit(1)
+				}
+				os.Exit(0)
 			case system.FrameEvent:
 				layoutUI(layout.NewContext(&ops, event))
 				event.Frame(&ops)
