@@ -1,4 +1,4 @@
-module git.sr.ht/~jackmordaunt/chat
+module git.sr.ht/~gioverse/chat
 
 go 1.16
 

@@ -14,7 +14,7 @@ import (
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget/material"
-	"git.sr.ht/~jackmordaunt/chat/ninepatch"
+	"git.sr.ht/~gioverse/chat/ninepatch"
 )
 
 func main() {
