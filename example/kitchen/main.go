@@ -58,7 +58,7 @@ var th = material.NewTheme(gofont.Collection())
 
 // patch is an example 9-Patch png for demonstration.
 var patch = (func() paint.ImageOp {
-	f, err := os.Open("res/9-patches/iap_blaster_asset.9.png")
+	f, err := os.Open("res/9-patches/sample.png")
 	if err != nil {
 		panic(fmt.Errorf("opening patch image file: %w", err))
 	}
@@ -72,11 +72,39 @@ var patch = (func() paint.ImageOp {
 
 // layoutUI renders the user interface.
 func layoutUI(gtx C) D {
-	return layout.Center.Layout(gtx, func(gtx C) D {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, layout.Rigid(func(gtx C) D {
-			return ninepatch.Rectangle{Src: patch}.Layout(gtx, func(gtx C) D {
-				return material.Label(th, unit.Dp(24), "lorem ipsum").Layout(gtx)
-			})
-		}))
+	return layout.UniformInset(unit.Dp(20)).Layout(gtx, func(gtx C) D {
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx C) D {
+				return layout.Center.Layout(gtx, func(gtx C) D {
+					return ninepatch.Rectangle{
+						Src:   patch,
+						Areas: []ninepatch.Area{
+							// {
+							// 	Rectangle: image.Rectangle{
+							// 		Min: image.Point{X: 60, Y: 0},
+							// 		Max: image.Point{X: 120, Y: 60},
+							// 	},
+							// 	Stretch: ninepatch.Horizontal,
+							// },
+							// {
+							// 	Rectangle: image.Rectangle{
+							// 		Min: image.Point{X: 60, Y: 60},
+							// 		Max: image.Point{X: 120, Y: 120},
+							// 	},
+							// 	Stretch: ninepatch.Horizontal,
+							// },
+							// {
+							// 	Rectangle: image.Rectangle{
+							// 		Min: image.Point{X: 60, Y: 120},
+							// 		Max: image.Point{X: 120, Y: 180},
+							// 	},
+							// 	Stretch: ninepatch.Horizontal,
+							// },
+						},
+					}.Layout(gtx, func(gtx C) D {
+						return material.Label(th, unit.Dp(24), "lorem ipsum").Layout(gtx)
+					})
+				})
+			}))
 	})
 }
