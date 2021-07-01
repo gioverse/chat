@@ -3,17 +3,19 @@ package main
 
 import (
 	"fmt"
-	"image/png"
+	"image/color"
 	"os"
+	"strings"
+	"sync"
 
 	"gioui.org/app"
 	"gioui.org/font/gofont"
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget/material"
+	"gioui.org/x/component"
 	"git.sr.ht/~gioverse/chat/ninepatch"
 )
 
@@ -56,55 +58,107 @@ type (
 // th is the active theme object.
 var th = material.NewTheme(gofont.Collection())
 
-// patch is an example 9-Patch png for demonstration.
-var patch = (func() paint.ImageOp {
-	f, err := os.Open("res/9-Patch/iap_platocookie_asset_2.png")
-	if err != nil {
-		panic(fmt.Errorf("opening patch image file: %w", err))
-	}
-	defer f.Close()
-	m, err := png.Decode(f)
-	if err != nil {
-		panic(fmt.Errorf("decoding pgn: %w", err))
-	}
-	return paint.NewImageOp(m)
-})()
+var (
+	input component.TextField
+	once  sync.Once
+)
 
 // layoutUI renders the user interface.
 func layoutUI(gtx C) D {
-	return layout.UniformInset(unit.Dp(20)).Layout(gtx, func(gtx C) D {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+	once.Do(func() {
+		input.SetText(strings.TrimSpace(`
+This is a 9-Patch layout.
+
+As the message wraps, the patches expand appropriately.
+
+Naturally, the corners are static, the horizontal gutters expand vertically, and the vertical gutters expand horizontally.
+
+Now all we need to do is stretch images across the patches to create a 9-Patch themed message. 
+		`))
+	})
+	return layout.UniformInset(unit.Dp(30)).Layout(gtx, func(gtx C) D {
+		return layout.Flex{Axis: layout.Vertical}.Layout(
+			gtx,
 			layout.Rigid(func(gtx C) D {
-				return layout.Center.Layout(gtx, func(gtx C) D {
-					return ninepatch.Rectangle{
-						Src:   patch,
-						Areas: []ninepatch.Area{
-							// {
-							// 	Rectangle: image.Rectangle{
-							// 		Min: image.Point{X: 60, Y: 0},
-							// 		Max: image.Point{X: 120, Y: 60},
-							// 	},
-							// 	Stretch: ninepatch.Horizontal,
-							// },
-							// {
-							// 	Rectangle: image.Rectangle{
-							// 		Min: image.Point{X: 60, Y: 60},
-							// 		Max: image.Point{X: 120, Y: 120},
-							// 	},
-							// 	Stretch: ninepatch.Horizontal,
-							// },
-							// {
-							// 	Rectangle: image.Rectangle{
-							// 		Min: image.Point{X: 60, Y: 120},
-							// 		Max: image.Point{X: 120, Y: 180},
-							// 	},
-							// 	Stretch: ninepatch.Horizontal,
-							// },
+				return material.H3(th, "9-Patch").Layout(gtx)
+			}),
+			layout.Rigid(func(gtx C) D {
+				return ninepatch.Layout{
+					CornerSize:            25,
+					VerticalGutterHeight:  25,
+					HorizontalGutterWidth: 25,
+					Patches: [3][3]layout.Widget{
+						{
+							func(gtx C) D {
+								return component.Rect{
+									Color: color.NRGBA{R: 200, B: 200, A: 100},
+									Size:  gtx.Constraints.Min,
+								}.Layout(gtx)
+							},
+							func(gtx C) D {
+								return component.Rect{
+									Color: color.NRGBA{R: 200, G: 200, A: 100},
+									Size:  gtx.Constraints.Min,
+								}.Layout(gtx)
+							},
+							func(gtx C) D {
+								return component.Rect{
+									Color: color.NRGBA{R: 200, B: 200, A: 100},
+									Size:  gtx.Constraints.Min,
+								}.Layout(gtx)
+							},
 						},
-					}.Layout(gtx, func(gtx C) D {
-						return material.Label(th, unit.Dp(24), "lorem ipsum").Layout(gtx)
-					})
+						{
+							func(gtx C) D {
+								return component.Rect{
+									Color: color.NRGBA{B: 200, A: 100},
+									Size:  gtx.Constraints.Min,
+								}.Layout(gtx)
+							},
+							func(gtx C) D {
+								return component.Rect{
+									Color: color.NRGBA{G: 200, A: 100},
+									Size:  gtx.Constraints.Min,
+								}.Layout(gtx)
+							},
+							func(gtx C) D {
+								return component.Rect{
+									Color: color.NRGBA{B: 200, A: 100},
+									Size:  gtx.Constraints.Min,
+								}.Layout(gtx)
+							},
+						},
+						{
+							func(gtx C) D {
+								return component.Rect{
+									Color: color.NRGBA{R: 200, B: 200, A: 100},
+									Size:  gtx.Constraints.Min,
+								}.Layout(gtx)
+							},
+							func(gtx C) D {
+								return component.Rect{
+									Color: color.NRGBA{R: 200, G: 200, A: 100},
+									Size:  gtx.Constraints.Min,
+								}.Layout(gtx)
+							},
+							func(gtx C) D {
+								return component.Rect{
+									Color: color.NRGBA{R: 200, B: 200, A: 100},
+									Size:  gtx.Constraints.Min,
+								}.Layout(gtx)
+							},
+						},
+					},
+				}.Layout(gtx, func(gtx C) D {
+					return material.Body1(th, input.Text()).Layout(gtx)
 				})
-			}))
+			}),
+			layout.Rigid(func(gtx C) D {
+				return layout.Spacer{Height: unit.Dp(10)}.Layout(gtx)
+			}),
+			layout.Rigid(func(gtx C) D {
+				return input.Layout(gtx, th, "type a thing")
+			}),
+		)
 	})
 }
