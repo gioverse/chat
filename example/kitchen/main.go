@@ -58,7 +58,7 @@ var th = material.NewTheme(gofont.Collection())
 
 // patch is an example 9-Patch png for demonstration.
 var patch = (func() paint.ImageOp {
-	f, err := os.Open("res/9-patches/sample.png")
+	f, err := os.Open("res/9-Patch/iap_platocookie_asset_2.png")
 	if err != nil {
 		panic(fmt.Errorf("opening patch image file: %w", err))
 	}
