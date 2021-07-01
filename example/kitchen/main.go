@@ -3,7 +3,6 @@ package main
 
 import (
 	"fmt"
-	"image"
 	"image/color"
 	"math/rand"
 	"os"
@@ -261,11 +260,14 @@ func (c MessageStyle) layoutTimeOrIcon(gtx C) D {
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx C) D {
 			return c.RightGutterPadding.Layout(gtx, func(gtx C) D {
-				if c.StatusIcon != nil {
-					return c.StatusIcon.Layout(gtx, c.IconSize)
-				}
 				sideLength := gtx.Px(c.IconSize)
-				return D{Size: image.Pt(sideLength, sideLength)}
+				gtx.Constraints.Max.X = sideLength
+				gtx.Constraints.Max.Y = sideLength
+				gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
+				if c.StatusIcon != nil {
+					return c.StatusIcon.Layout(gtx)
+				}
+				return D{Size: gtx.Constraints.Max}
 			})
 		}),
 		layout.Expanded(func(gtx C) D {
