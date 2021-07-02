@@ -369,6 +369,8 @@ type UI struct {
 func NewUI() *UI {
 	var ui UI
 
+	ui.RowsList.ScrollToEnd = true
+
 	ui.MessageManager = NewManager(
 		// Define an allocator function that can instaniate the appropriate
 		// state type for each kind of message data in our list.
@@ -404,7 +406,7 @@ func NewUI() *UI {
 		var rowData MessageData
 		if i%10 == 0 {
 			rowData = DateBoundary{Date: time.Now().Add(time.Hour * 24 * time.Duration(-(100 - i)))}
-		} else if i == 5 {
+		} else if i == max-3 {
 			rowData = UnreadBoundary{}
 		} else {
 			rowData = Message{
