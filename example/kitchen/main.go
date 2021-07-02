@@ -22,6 +22,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/richtext"
+	"git.sr.ht/~gioverse/chat"
 	lorem "github.com/drhodes/golorem"
 	colorful "github.com/lucasb-eyer/go-colorful"
 	"golang.org/x/exp/shiny/materialdesign/icons"
@@ -99,8 +100,8 @@ type Message struct {
 }
 
 // ID returns the unique identifier for this message.
-func (m Message) ID() MessageID {
-	return MessageID(m.Serial)
+func (m Message) ID() chat.RowID {
+	return chat.RowID(m.Serial)
 }
 
 // MessageInteraction holds the state necessary to facilitate user
@@ -157,8 +158,8 @@ type DateBoundary struct {
 }
 
 // ID returns the unique ID of the message.
-func (d DateBoundary) ID() MessageID {
-	return NoID
+func (d DateBoundary) ID() chat.RowID {
+	return chat.NoID
 }
 
 // UnreadBoundary represents the boundary between the last read message
@@ -166,8 +167,8 @@ func (d DateBoundary) ID() MessageID {
 type UnreadBoundary struct{}
 
 // ID returns the unique identifier for the boundary.
-func (u UnreadBoundary) ID() MessageID {
-	return NoID
+func (u UnreadBoundary) ID() chat.RowID {
+	return chat.NoID
 }
 
 // SeparatorStyle configures the presentation of the unread indicator.
@@ -362,7 +363,7 @@ func (c MessageStyle) layoutTimeOrIcon(gtx C) D {
 // UI manages the state for the entire application's UI.
 type UI struct {
 	RowsList layout.List
-	*MessageManager
+	*chat.RowManager
 	Bg color.NRGBA
 }
 
@@ -371,10 +372,10 @@ func NewUI() *UI {
 
 	ui.RowsList.ScrollToEnd = true
 
-	ui.MessageManager = NewManager(
+	ui.RowManager = chat.NewManager(
 		// Define an allocator function that can instaniate the appropriate
 		// state type for each kind of message data in our list.
-		func(data MessageData) interface{} {
+		func(data chat.Row) interface{} {
 			switch data.(type) {
 			case Message:
 				return &MessageInteraction{}
@@ -384,7 +385,7 @@ func NewUI() *UI {
 		},
 		// Define a presenter that can transform each kind of message data
 		// and state into a widget.
-		func(data MessageData, state interface{}) layout.Widget {
+		func(data chat.Row, state interface{}) layout.Widget {
 			switch data := data.(type) {
 			case Message:
 				return NewMessage(th, state.(*MessageInteraction), data).Layout
@@ -403,7 +404,7 @@ func NewUI() *UI {
 	// Populate the UI with dummy random messages.
 	max := 100
 	for i := 0; i < max; i++ {
-		var rowData MessageData
+		var rowData chat.Row
 		if i%10 == 0 {
 			rowData = DateBoundary{Date: time.Now().Add(time.Hour * 24 * time.Duration(-(100 - i)))}
 		} else if i == max-3 {
@@ -423,7 +424,7 @@ func NewUI() *UI {
 				}(),
 			}
 		}
-		ui.MessageManager.Messages = append(ui.MessageManager.Messages, rowData)
+		ui.RowManager.Rows = append(ui.RowManager.Rows, rowData)
 	}
 
 	return &ui
@@ -433,7 +434,7 @@ func NewUI() *UI {
 func (ui *UI) Layout(gtx C) D {
 	paint.Fill(gtx.Ops, ui.Bg)
 	ui.RowsList.Axis = layout.Vertical
-	return ui.RowsList.Layout(gtx, ui.MessageManager.Len(), ui.MessageManager.Layout)
+	return ui.RowsList.Layout(gtx, ui.RowManager.Len(), ui.RowManager.Layout)
 }
 
 // BubbleStyle defines the visual aspects of a material design surface
@@ -467,66 +468,4 @@ func (c BubbleStyle) Layout(gtx C, w layout.Widget) D {
 		}),
 		layout.Stacked(w),
 	)
-}
-
-// MessageID uniquely identifies a message (regardless of the kind of message).
-type MessageID string
-
-const NoID = MessageID("")
-
-// MessageData is a type that can be presented by a MessageManager.
-type MessageData interface {
-	ID() MessageID
-}
-
-// Presenter is a function that can transform the data for a chat
-// component into a widget to be laid out in the chat
-// interface.
-type Presenter func(current MessageData, state interface{}) layout.Widget
-
-// Allocator is a function that can allocate the appropriate state
-// type for a given MessageData.
-type Allocator func(current MessageData) (state interface{})
-
-// MessageManager presents heterogenous message data.
-type MessageManager struct {
-	// Messages is the list of data to present.
-	Messages []MessageData
-	// Presenter is a function that can transform a single MessageData into
-	// a presentable widget.
-	Presenter
-	// Allocator is a function that can instantiate the state for a particular
-	// MessageData.
-	Allocator
-	// MessageState is a map storing the state for the MessageDatas managed
-	// by the manager.
-	MessageState map[MessageID]interface{}
-}
-
-// NewManager constructs a manager with the given allocator and presenter.
-func NewManager(allocator Allocator, presenter Presenter) *MessageManager {
-	return &MessageManager{
-		Presenter:    presenter,
-		Allocator:    allocator,
-		MessageState: make(map[MessageID]interface{}),
-	}
-}
-
-// Layout the MessageData at position index within the manager's MessageData
-// list.
-func (m *MessageManager) Layout(gtx C, index int) D {
-	data := m.Messages[index]
-	id := data.ID()
-	state, ok := m.MessageState[id]
-	if !ok && id != NoID {
-		state = m.Allocator(data)
-		m.MessageState[id] = state
-	}
-	widget := m.Presenter(data, state)
-	return widget(gtx)
-}
-
-// Len returns the number of messages managed by this manager.
-func (m *MessageManager) Len() int {
-	return len(m.Messages)
 }
