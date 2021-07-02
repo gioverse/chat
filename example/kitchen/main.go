@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"math/rand"
 	"os"
@@ -91,9 +92,15 @@ var (
 
 // Message represents a chat message.
 type Message struct {
+	Serial                  string
 	Sender, Content, Status string
 	SentAt                  time.Time
 	Local                   bool
+}
+
+// ID returns the unique identifier for this message.
+func (m Message) ID() MessageID {
+	return MessageID(m.Serial)
 }
 
 // MessageInteraction holds the state necessary to facilitate user
@@ -142,6 +149,79 @@ func (t *Theme) UserColor(username string) UserColorData {
 	uc.Luminance = (0.299*float64(uc.NRGBA.R) + 0.587*float64(uc.NRGBA.G) + 0.114*float64(uc.NRGBA.B)) / 255
 	t.UserColors[username] = uc
 	return uc
+}
+
+// DateBoundary represents a change in the date during a chat.
+type DateBoundary struct {
+	Date time.Time
+}
+
+// ID returns the unique ID of the message.
+func (d DateBoundary) ID() MessageID {
+	return NoID
+}
+
+// UnreadBoundary represents the boundary between the last read message
+// in a chat and the next unread message.
+type UnreadBoundary struct{}
+
+// ID returns the unique identifier for the boundary.
+func (u UnreadBoundary) ID() MessageID {
+	return NoID
+}
+
+// SeparatorStyle configures the presentation of the unread indicator.
+type SeparatorStyle struct {
+	Message    material.LabelStyle
+	TextMargin layout.Inset
+	LineMargin layout.Inset
+	LineWidth  unit.Value
+}
+
+// UnreadSeparator fills in a SeparatorStyle with sensible defaults.
+func UnreadSeparator(th *material.Theme, ub UnreadBoundary) SeparatorStyle {
+	us := SeparatorStyle{
+		Message:    material.Body1(th, "New Messages"),
+		TextMargin: layout.UniformInset(unit.Dp(8)),
+		LineMargin: layout.UniformInset(unit.Dp(8)),
+		LineWidth:  unit.Dp(2),
+	}
+	us.Message.Color = th.ContrastBg
+	return us
+}
+
+// DateSeparator makes a SeparatorStyle with reasonable defaults out of
+// the provided DateBoundary.
+func DateSeparator(th *material.Theme, db DateBoundary) SeparatorStyle {
+	return SeparatorStyle{
+		Message:    material.Body1(th, db.Date.Format("Mon Jan 2, 2006")),
+		TextMargin: layout.UniformInset(unit.Dp(8)),
+		LineMargin: layout.UniformInset(unit.Dp(8)),
+		LineWidth:  unit.Dp(2),
+	}
+}
+
+// Layout the Separator.
+func (u SeparatorStyle) Layout(gtx C) D {
+	layoutLine := func(gtx C) D {
+		return u.LineMargin.Layout(gtx, func(gtx C) D {
+			size := image.Point{
+				X: gtx.Constraints.Max.X,
+				Y: gtx.Px(u.LineWidth),
+			}
+			paint.FillShape(gtx.Ops, u.Message.Color, clip.Rect(image.Rectangle{Max: size}).Op())
+			return D{Size: size}
+		})
+	}
+	return layout.Flex{
+		Alignment: layout.Middle,
+	}.Layout(gtx,
+		layout.Flexed(.5, layoutLine),
+		layout.Rigid(func(gtx C) D {
+			return u.TextMargin.Layout(gtx, u.Message.Layout)
+		}),
+		layout.Flexed(.5, layoutLine),
+	)
 }
 
 // MessageStyle configures the presentation of a chat message within
@@ -281,14 +361,39 @@ func (c MessageStyle) layoutTimeOrIcon(gtx C) D {
 
 // UI manages the state for the entire application's UI.
 type UI struct {
-	RowsList     layout.List
-	Messages     []Message
-	Interactions []MessageInteraction
-	Bg           color.NRGBA
+	RowsList layout.List
+	*MessageManager
+	Bg color.NRGBA
 }
 
 func NewUI() *UI {
 	var ui UI
+
+	ui.MessageManager = NewManager(
+		// Define an allocator function that can instaniate the appropriate
+		// state type for each kind of message data in our list.
+		func(data MessageData) interface{} {
+			switch data.(type) {
+			case Message:
+				return &MessageInteraction{}
+			default:
+				return nil
+			}
+		},
+		// Define a presenter that can transform each kind of message data
+		// and state into a widget.
+		func(data MessageData, state interface{}) layout.Widget {
+			switch data := data.(type) {
+			case Message:
+				return NewMessage(th, state.(*MessageInteraction), data).Layout
+			case DateBoundary:
+				return DateSeparator(th.Theme, data).Layout
+			case UnreadBoundary:
+				return UnreadSeparator(th.Theme, data).Layout
+			default:
+				return func(gtx C) D { return D{} }
+			}
+		})
 
 	// Configure a pleasing light gray background color.
 	ui.Bg = color.NRGBA{220, 220, 220, 255}
@@ -296,18 +401,27 @@ func NewUI() *UI {
 	// Populate the UI with dummy random messages.
 	max := 100
 	for i := 0; i < max; i++ {
-		ui.Messages = append(ui.Messages, Message{
-			Content: lorem.Paragraph(1, 5),
-			SentAt:  time.Now().Add(time.Minute * time.Duration(-(100 - i))),
-			Sender:  lorem.Word(3, 10),
-			Local:   i%2 == 0,
-			Status: func() string {
-				if rand.Int()%10 == 0 {
-					return FailedToSend
-				}
-				return ""
-			}(),
-		})
+		var rowData MessageData
+		if i%10 == 0 {
+			rowData = DateBoundary{Date: time.Now().Add(time.Hour * 24 * time.Duration(-(100 - i)))}
+		} else if i == 5 {
+			rowData = UnreadBoundary{}
+		} else {
+			rowData = Message{
+				Serial:  fmt.Sprintf("%d", i),
+				Content: lorem.Paragraph(1, 5),
+				SentAt:  time.Now().Add(time.Minute * time.Duration(-(100 - i))),
+				Sender:  lorem.Word(3, 10),
+				Local:   i%2 == 0,
+				Status: func() string {
+					if rand.Int()%10 == 0 {
+						return FailedToSend
+					}
+					return ""
+				}(),
+			}
+		}
+		ui.MessageManager.Messages = append(ui.MessageManager.Messages, rowData)
 	}
 
 	return &ui
@@ -317,12 +431,7 @@ func NewUI() *UI {
 func (ui *UI) Layout(gtx C) D {
 	paint.Fill(gtx.Ops, ui.Bg)
 	ui.RowsList.Axis = layout.Vertical
-	return ui.RowsList.Layout(gtx, len(ui.Messages), func(gtx C, index int) D {
-		for index >= len(ui.Interactions) {
-			ui.Interactions = append(ui.Interactions, MessageInteraction{})
-		}
-		return NewMessage(th, &ui.Interactions[index], ui.Messages[index]).Layout(gtx)
-	})
+	return ui.RowsList.Layout(gtx, ui.MessageManager.Len(), ui.MessageManager.Layout)
 }
 
 // BubbleStyle defines the visual aspects of a material design surface
@@ -334,8 +443,8 @@ type BubbleStyle struct {
 	Color        color.NRGBA
 }
 
-// Bubble creates a Bubble style for the provided theme with sensible default
-// elevation and rounded corners.
+// Bubble creates a Bubble style for the provided theme with the theme
+// background color and rounded corners.
 func Bubble(th *material.Theme) BubbleStyle {
 	return BubbleStyle{
 		CornerRadius: unit.Dp(8),
@@ -356,4 +465,66 @@ func (c BubbleStyle) Layout(gtx C, w layout.Widget) D {
 		}),
 		layout.Stacked(w),
 	)
+}
+
+// MessageID uniquely identifies a message (regardless of the kind of message).
+type MessageID string
+
+const NoID = MessageID("")
+
+// MessageData is a type that can be presented by a MessageManager.
+type MessageData interface {
+	ID() MessageID
+}
+
+// Presenter is a function that can transform the data for a chat
+// component into a widget to be laid out in the chat
+// interface.
+type Presenter func(current MessageData, state interface{}) layout.Widget
+
+// Allocator is a function that can allocate the appropriate state
+// type for a given MessageData.
+type Allocator func(current MessageData) (state interface{})
+
+// MessageManager presents heterogenous message data.
+type MessageManager struct {
+	// Messages is the list of data to present.
+	Messages []MessageData
+	// Presenter is a function that can transform a single MessageData into
+	// a presentable widget.
+	Presenter
+	// Allocator is a function that can instantiate the state for a particular
+	// MessageData.
+	Allocator
+	// MessageState is a map storing the state for the MessageDatas managed
+	// by the manager.
+	MessageState map[MessageID]interface{}
+}
+
+// NewManager constructs a manager with the given allocator and presenter.
+func NewManager(allocator Allocator, presenter Presenter) *MessageManager {
+	return &MessageManager{
+		Presenter:    presenter,
+		Allocator:    allocator,
+		MessageState: make(map[MessageID]interface{}),
+	}
+}
+
+// Layout the MessageData at position index within the manager's MessageData
+// list.
+func (m *MessageManager) Layout(gtx C, index int) D {
+	data := m.Messages[index]
+	id := data.ID()
+	state, ok := m.MessageState[id]
+	if !ok && id != NoID {
+		state = m.Allocator(data)
+		m.MessageState[id] = state
+	}
+	widget := m.Presenter(data, state)
+	return widget(gtx)
+}
+
+// Len returns the number of messages managed by this manager.
+func (m *MessageManager) Len() int {
+	return len(m.Messages)
 }
