@@ -88,11 +88,19 @@ func (n NinePatchRegion) Layout(gtx C, src paint.ImageOp) D {
 // TODO: eliminate the 1-pixel border that configures the insets
 // and stretchable dimensions.
 func (n NinePatch) Layout(gtx C, w layout.Widget) D {
+	// Layout content in macro to compute it's dimensions.
+	// These dimensions are needed to figure out how much stretch we need.
 	macro := op.Record(gtx.Ops)
 	dims := n.Inset.Layout(gtx, w)
 	call := macro.Stop()
+
+	// Compute stretch region dimensions in pixels relative to the source image.
+	// Depends on 9patch image definition.
 	middleSrcWidth := n.Image.Bounds().Dx() - (n.X1 + n.X2)
 	middleSrcHeight := n.Image.Bounds().Dy() - (n.Y1 + n.Y2)
+
+	// Compute stretch region dimensions in pixels relative to the desired layout.
+	// Dependends on content size.
 	middleWidth := dims.Size.X - (n.X1 + n.X2)
 	middleHeight := dims.Size.Y - (n.Y1 + n.Y2)
 
@@ -300,11 +308,12 @@ var (
 	once  sync.Once
 	// Hard-code the correct configuration for a specific 9patch image.
 	ninep = NinePatch{
+		// Inset can be arbitrarily tweaked according to desired padding.
 		Inset: layout.Inset{
-			Top:    unit.Px(31),
-			Bottom: unit.Px(28),
+			Top:    unit.Px(30),
+			Bottom: unit.Px(30),
 			Left:   unit.Px(70),
-			Right:  unit.Px(71),
+			Right:  unit.Px(70),
 		},
 		X1: 86,
 		X2: 62,
