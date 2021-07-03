@@ -13,7 +13,6 @@ import (
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"git.sr.ht/~gioverse/chat"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
@@ -57,7 +56,6 @@ func main() {
 	app.Main()
 }
 
-// Type alias common layout types for legibility.
 type (
 	C = layout.Context
 	D = layout.Dimensions
