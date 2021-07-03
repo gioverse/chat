@@ -29,9 +29,6 @@ type (
 )
 
 // NinePatch can lay out a 9patch image as the background for another widget.
-//
-// TODO: create a constructor that automatically parses the Inset, X1, X2, Y1, and Y2
-// from the source image.
 type NinePatch struct {
 	// Image is the backing image of the 9patch.
 	image.Image
@@ -304,52 +301,18 @@ var th = material.NewTheme(gofont.Collection())
 var (
 	input component.TextField
 	once  sync.Once
-	// Hard-code the correct configuration for a specific 9patch image.
-	ninep = NinePatch{
-		// Inset can be arbitrarily tweaked according to desired padding.
-		Inset: layout.Inset{
-			Top:    unit.Px(30),
-			Bottom: unit.Px(30),
-			Left:   unit.Px(70),
-			Right:  unit.Px(70),
-		},
-		X1: 86,
-		X2: 62,
-		Y1: 55,
-		Y2: 48,
-		Image: func() image.Image {
-			data, err := res.Resources.Open("9-Patch/iap_hotdog_asset.png")
-			if err != nil {
-				panic(fmt.Errorf("opening 9-Patch image: %w", err))
-			}
-			defer data.Close()
-			img, err := png.Decode(data)
-			if err != nil {
-				panic(fmt.Errorf("decoding 9-Patch image: %w", err))
-			}
-			var (
-				b   = img.Bounds()
-				out = image.NewNRGBA(b)
-			)
-			// Copy image data.
-			for xx := b.Min.X; xx < b.Max.X; xx++ {
-				for yy := b.Min.Y; yy < b.Max.Y; yy++ {
-					out.Set(xx, yy, img.At(xx, yy))
-				}
-			}
-			// Clear out the borders which contain 1px 9-Patch stretch region
-			// identifiers.
-			for xx := b.Min.X; xx < b.Max.X; xx++ {
-				out.Set(xx, b.Min.Y, color.NRGBA{})
-				out.Set(xx, b.Max.Y-1, color.NRGBA{})
-			}
-			for yy := b.Min.Y; yy < b.Max.Y; yy++ {
-				out.Set(b.Min.X, yy, color.NRGBA{})
-				out.Set(b.Max.X-1, yy, color.NRGBA{})
-			}
-			return out
-		}(),
-	}
+	ninep = DecodeNinePatch(func() image.Image {
+		data, err := res.Resources.Open("9-Patch/iap_hotdog_asset.png")
+		if err != nil {
+			panic(fmt.Errorf("opening 9-Patch image: %w", err))
+		}
+		defer data.Close()
+		img, err := png.Decode(data)
+		if err != nil {
+			panic(fmt.Errorf("decoding 9-Patch image: %w", err))
+		}
+		return img
+	}())
 )
 
 // layoutUI renders the user interface.
@@ -382,4 +345,157 @@ Now all we need to do is stretch images across the patches to create a 9-Patch t
 			}),
 		)
 	})
+}
+
+// DecodeNinePatch from source image.
+func DecodeNinePatch(src image.Image) NinePatch {
+	// Algorithm:
+	// - walk the border of the image in 4 parts
+	// - line starts when the first non-zero pixel is encountered
+	// - line ends when the first zero pixel is encountered, after the first
+	// 	 non-zero pixel
+	// - right and bottom lines are used to compute content inset
+	// - left and top lines are used to compute stretch regions
+
+	var (
+		// bounds of the source image.
+		b = src.Bounds()
+		// Start and end point defining the line.
+		start, end = -1, -1
+		// Capture the content inset.
+		inset = layout.Inset{}
+		// Capture the stretch region grid lines.
+		x1, x2 = 0, 0
+		y1, y2 = 0, 0
+	)
+
+	// Top and Bottom insets are defined by the black line on the right
+	// Left and Right inset are defined by the black line on the bottom
+
+	// Walk the final column of pixels and decode the black line.
+	for yy := b.Min.Y; yy < b.Max.Y; yy++ {
+		r, g, b, a := src.At(b.Max.X-1, yy).RGBA()
+		var (
+			colorIsSet = r > 0 || g > 0 || b > 0 || a > 0
+			startIsSet = start > -1
+			endIsSet   = end > -1
+		)
+		if colorIsSet && !startIsSet {
+			start = yy
+		}
+		if !colorIsSet && startIsSet {
+			end = yy
+		}
+		if startIsSet && endIsSet {
+			break
+		}
+	}
+
+	inset.Top = unit.Px(float32(start))
+	inset.Bottom = unit.Px(float32(b.Max.Y - end))
+	start, end = -1, -1
+
+	// Walk the final row of pixels and decode the black line.
+	for xx := b.Min.X; xx < b.Max.X; xx++ {
+		r, g, b, a := src.At(xx, b.Max.Y-1).RGBA()
+		var (
+			colorIsSet = r > 0 || g > 0 || b > 0 || a > 0
+			startIsSet = start > -1
+			endIsSet   = end > -1
+		)
+		if colorIsSet && !startIsSet {
+			start = xx
+		}
+		if !colorIsSet && startIsSet {
+			end = xx
+		}
+		if startIsSet && endIsSet {
+			break
+		}
+	}
+
+	inset.Left = unit.Px(float32(start))
+	inset.Right = unit.Px(float32(b.Max.X - end))
+	start, end = -1, -1
+
+	// Horizontal stretch defined by black line on the top
+	// Vertical stretch defined by black lin on the left
+
+	// Walk the first column of pixels and decode the black line.
+	for yy := b.Min.Y; yy < b.Max.Y; yy++ {
+		r, g, b, a := src.At(b.Min.X, yy).RGBA()
+		var (
+			colorIsSet = r > 0 || g > 0 || b > 0 || a > 0
+			startIsSet = start > -1
+			endIsSet   = end > -1
+		)
+		if colorIsSet && !startIsSet {
+			start = yy
+		}
+		if !colorIsSet && startIsSet {
+			end = yy
+		}
+		if startIsSet && endIsSet {
+			break
+		}
+	}
+
+	y1, y2 = start, b.Max.Y-end
+	start, end = -1, -1
+
+	// Walk the first row of pixels and decode the black line.
+	for xx := b.Min.X; xx < b.Max.X; xx++ {
+		r, g, b, a := src.At(xx, b.Min.Y).RGBA()
+		var (
+			colorIsSet = r > 0 || g > 0 || b > 0 || a > 0
+			startIsSet = start > -1
+			endIsSet   = end > -1
+		)
+		if colorIsSet && !startIsSet {
+			start = xx
+		}
+		if !colorIsSet && startIsSet {
+			end = xx
+		}
+		if startIsSet && endIsSet {
+			break
+		}
+	}
+
+	x1, x2 = start, b.Max.X-end
+
+	return NinePatch{
+		Image: EraseBorder(src),
+		Inset: inset,
+		X1:    x1,
+		X2:    x2,
+		Y1:    y1,
+		Y2:    y2,
+	}
+}
+
+// EraseBorder clears the 1px border around the image containing the 9-Patch
+// region specifiers (1px black lines).
+func EraseBorder(src image.Image) *image.NRGBA {
+	var (
+		b   = src.Bounds()
+		out = image.NewNRGBA(b)
+	)
+	// Copy image data.
+	for xx := b.Min.X; xx < b.Max.X; xx++ {
+		for yy := b.Min.Y; yy < b.Max.Y; yy++ {
+			out.Set(xx, yy, src.At(xx, yy))
+		}
+	}
+	// Clear out the borders which contain 1px 9-Patch stretch region
+	// identifiers.
+	for xx := b.Min.X; xx < b.Max.X; xx++ {
+		out.Set(xx, b.Min.Y, color.NRGBA{})
+		out.Set(xx, b.Max.Y-1, color.NRGBA{})
+	}
+	for yy := b.Min.Y; yy < b.Max.Y; yy++ {
+		out.Set(b.Min.X, yy, color.NRGBA{})
+		out.Set(b.Max.X-1, yy, color.NRGBA{})
+	}
+	return out
 }
