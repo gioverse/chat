@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"image/color"
+	"image/png"
 	"math/rand"
 	"os"
 	"time"
@@ -13,11 +14,13 @@ import (
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"git.sr.ht/~gioverse/chat"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
+	"git.sr.ht/~gioverse/chat/ninepatch"
 	lorem "github.com/drhodes/golorem"
 )
 
@@ -80,6 +83,33 @@ func NewUI() *UI {
 
 	ui.RowsList.ScrollToEnd = true
 
+	var (
+		cookie = func() ninepatch.NinePatch {
+			imgf, err := os.Open("res/9-Patch/iap_platocookie_asset_2.png")
+			if err != nil {
+				panic(fmt.Errorf("opening image: %w", err))
+			}
+			defer imgf.Close()
+			img, err := png.Decode(imgf)
+			if err != nil {
+				panic(fmt.Errorf("decoding png: %w", err))
+			}
+			return ninepatch.DecodeNinePatch(img)
+		}()
+		hotdog = func() ninepatch.NinePatch {
+			imgf, err := os.Open("res/9-Patch/iap_hotdog_asset.png")
+			if err != nil {
+				panic(fmt.Errorf("opening image: %w", err))
+			}
+			defer imgf.Close()
+			img, err := png.Decode(imgf)
+			if err != nil {
+				panic(fmt.Errorf("decoding png: %w", err))
+			}
+			return ninepatch.DecodeNinePatch(img)
+		}()
+	)
+
 	ui.RowManager = chat.NewManager(
 		// Define an allocator function that can instaniate the appropriate
 		// state type for each kind of row data in our list.
@@ -96,6 +126,15 @@ func NewUI() *UI {
 		func(data chat.Row, state interface{}) layout.Widget {
 			switch data := data.(type) {
 			case model.Message:
+				if useNinePatch := rand.Float32() > 0.8; useNinePatch {
+					var np ninepatch.NinePatch
+					if rand.Float32() > 0.5 {
+						np = cookie
+					} else {
+						np = hotdog
+					}
+					return apptheme.NewMessage(th, state.(*appwidget.Message), data).WithNinePatch(th, np).Layout
+				}
 				return apptheme.NewMessage(th, state.(*appwidget.Message), data).Layout
 			case model.DateBoundary:
 				return apptheme.DateSeparator(th.Theme, data).Layout

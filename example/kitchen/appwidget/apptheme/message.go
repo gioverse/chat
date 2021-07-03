@@ -8,6 +8,7 @@ import (
 	"gioui.org/x/richtext"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
+	"git.sr.ht/~gioverse/chat/ninepatch"
 	matchat "git.sr.ht/~gioverse/chat/widget/material"
 	"golang.org/x/exp/shiny/materialdesign/icons"
 )
@@ -46,10 +47,18 @@ type MessageStyle struct {
 	// StatusMessage defines a warning message to be displayed beneath the
 	// chat message.
 	StatusMessage material.LabelStyle
-	// Bubble configures the background bubble of the chat.
-	Bubble matchat.BubbleStyle
-	// BubbleMargin configures space around the chat bubble.
-	BubbleMargin layout.Inset
+
+	// // Bubble configures the background bubble of the chat.
+	// Bubble matchat.BubbleStyle
+
+	// Surface specifies the background surface of the chat message, typically
+	// a chat bubble.
+	Surface interface {
+		Layout(gtx C, w layout.Widget) D
+	}
+
+	// ContentMargin configures space around the chat bubble.
+	ContentMargin layout.Inset
 	// Content configures the actual contents of the chat bubble.
 	Content richtext.TextStyle
 	// ContentPadding defines space around the Content within the Bubble area.
@@ -59,10 +68,13 @@ type MessageStyle struct {
 }
 
 // NewMessage creates a style type that can lay out the data for a message.
+//
+// TODO(jfm): pick proper text color for ninepatch images.
 func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) MessageStyle {
+	bubble := matchat.Bubble(th.Theme)
 	ms := MessageStyle{
-		Time:   material.Body2(th.Theme, msg.SentAt.Local().Format("15:04")),
-		Bubble: matchat.Bubble(th.Theme),
+		Time:    material.Body2(th.Theme, msg.SentAt.Local().Format("15:04")),
+		Surface: &bubble,
 		Content: richtext.Text(&interact.InteractiveText, th.Shaper, richtext.SpanStyle{
 			Font:    th.Fonts[0].Font,
 			Size:    material.Body1(th.Theme, "").TextSize,
@@ -73,7 +85,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 		IconSize:           unit.Dp(32),
 		RightGutterPadding: layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12)},
 		ContentPadding:     layout.UniformInset(unit.Dp(8)),
-		BubbleMargin:       layout.UniformInset(unit.Dp(8)),
+		ContentMargin:      layout.UniformInset(unit.Dp(8)),
 		LeftGutter:         layout.Spacer{Width: unit.Dp(24)},
 	}
 	if msg.Status != "" {
@@ -84,7 +96,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 	}
 	if !ms.Local {
 		userColors := th.UserColor(msg.Sender)
-		ms.Bubble.Color = userColors.NRGBA
+		bubble.Color = userColors.NRGBA
 		if userColors.Luminance < .5 {
 			for i := range ms.Content.Styles {
 				ms.Content.Styles[i].Color = th.Theme.Bg
@@ -92,6 +104,23 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 		}
 	}
 	return ms
+}
+
+// WithNinePatch sets the message surface to a ninepatch image.
+// TODO(jfm): fix luminance calculation.
+func (c MessageStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) MessageStyle {
+	c.Surface = np
+	// inspect middle of image and set richtext styles based on that luminance
+	bounds := np.Image.Bounds()
+	// (0.2126*R + 0.7152*G + 0.0722*B)
+	r, g, b, _ := np.Image.At(bounds.Max.X/2, bounds.Min.Y/2).RGBA()
+	luminance := float64(r)*0.2126 + float64(g)*0.7152 + float64(b)*0.722
+	if luminance < 0.5 {
+		for i := range c.Content.Styles {
+			c.Content.Styles[i].Color = th.Theme.Bg
+		}
+	}
+	return c
 }
 
 // Layout the message.
@@ -130,8 +159,8 @@ func (c MessageStyle) layoutBubble(gtx C) D {
 	if gtx.Constraints.Max.X > maxSaneSize {
 		gtx.Constraints.Max.X = maxSaneSize
 	}
-	return c.BubbleMargin.Layout(gtx, func(gtx C) D {
-		return c.Bubble.Layout(gtx, func(gtx C) D {
+	return c.ContentMargin.Layout(gtx, func(gtx C) D {
+		return c.Surface.Layout(gtx, func(gtx C) D {
 			return c.ContentPadding.Layout(gtx, c.Content.Layout)
 		})
 	})
