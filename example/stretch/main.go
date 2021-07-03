@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"image"
-	_ "image/png"
+	"image/color"
+	"image/png"
 	"os"
 	"strings"
 	"sync"
@@ -84,9 +85,6 @@ func (n NinePatchRegion) Layout(gtx C, src paint.ImageOp) D {
 }
 
 // Layout the provided widget with the NinePatch as a background.
-//
-// TODO: eliminate the 1-pixel border that configures the insets
-// and stretchable dimensions.
 func (n NinePatch) Layout(gtx C, w layout.Widget) D {
 	// Layout content in macro to compute it's dimensions.
 	// These dimensions are needed to figure out how much stretch we need.
@@ -320,10 +318,36 @@ var (
 		Y1: 55,
 		Y2: 48,
 		Image: func() image.Image {
-			data, _ := res.Resources.Open("9-Patch/iap_hotdog_asset.png")
+			data, err := res.Resources.Open("9-Patch/iap_hotdog_asset.png")
+			if err != nil {
+				panic(fmt.Errorf("opening 9-Patch image: %w", err))
+			}
 			defer data.Close()
-			image, _, _ := image.Decode(data)
-			return image
+			img, err := png.Decode(data)
+			if err != nil {
+				panic(fmt.Errorf("decoding 9-Patch image: %w", err))
+			}
+			var (
+				b   = img.Bounds()
+				out = image.NewNRGBA(b)
+			)
+			// Copy image data.
+			for xx := b.Min.X; xx < b.Max.X; xx++ {
+				for yy := b.Min.Y; yy < b.Max.Y; yy++ {
+					out.Set(xx, yy, img.At(xx, yy))
+				}
+			}
+			// Clear out the borders which contain 1px 9-Patch stretch region
+			// identifiers.
+			for xx := b.Min.X; xx < b.Max.X; xx++ {
+				out.Set(xx, b.Min.Y, color.NRGBA{})
+				out.Set(xx, b.Max.Y-1, color.NRGBA{})
+			}
+			for yy := b.Min.Y; yy < b.Max.Y; yy++ {
+				out.Set(b.Min.X, yy, color.NRGBA{})
+				out.Set(b.Max.X-1, yy, color.NRGBA{})
+			}
+			return out
 		}(),
 	}
 )
