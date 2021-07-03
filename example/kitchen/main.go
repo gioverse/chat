@@ -3,7 +3,8 @@ package main
 
 import (
 	"fmt"
-	"image/color"
+	"image"
+	"image/png"
 	"os"
 	"strings"
 	"sync"
@@ -17,6 +18,7 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"git.sr.ht/~gioverse/chat/ninepatch"
+	"git.sr.ht/~gioverse/chat/res"
 )
 
 func main() {
@@ -49,7 +51,6 @@ func main() {
 	app.Main()
 }
 
-// Type alias common layout types for legibility.
 type (
 	C = layout.Context
 	D = layout.Dimensions
@@ -61,6 +62,18 @@ var th = material.NewTheme(gofont.Collection())
 var (
 	input component.TextField
 	once  sync.Once
+	ninep = ninepatch.DecodeNinePatch(func() image.Image {
+		data, err := res.Resources.Open("9-Patch/iap_hotdog_asset.png")
+		if err != nil {
+			panic(fmt.Errorf("opening 9-Patch image: %w", err))
+		}
+		defer data.Close()
+		img, err := png.Decode(data)
+		if err != nil {
+			panic(fmt.Errorf("decoding 9-Patch image: %w", err))
+		}
+		return img
+	}())
 )
 
 // layoutUI renders the user interface.
@@ -83,75 +96,7 @@ Now all we need to do is stretch images across the patches to create a 9-Patch t
 				return material.H3(th, "9-Patch").Layout(gtx)
 			}),
 			layout.Rigid(func(gtx C) D {
-				return ninepatch.Layout{
-					CornerSize:            25,
-					VerticalGutterHeight:  25,
-					HorizontalGutterWidth: 25,
-					Patches: [3][3]layout.Widget{
-						{
-							func(gtx C) D {
-								return component.Rect{
-									Color: color.NRGBA{R: 200, B: 200, A: 100},
-									Size:  gtx.Constraints.Min,
-								}.Layout(gtx)
-							},
-							func(gtx C) D {
-								return component.Rect{
-									Color: color.NRGBA{R: 200, G: 200, A: 100},
-									Size:  gtx.Constraints.Min,
-								}.Layout(gtx)
-							},
-							func(gtx C) D {
-								return component.Rect{
-									Color: color.NRGBA{R: 200, B: 200, A: 100},
-									Size:  gtx.Constraints.Min,
-								}.Layout(gtx)
-							},
-						},
-						{
-							func(gtx C) D {
-								return component.Rect{
-									Color: color.NRGBA{B: 200, A: 100},
-									Size:  gtx.Constraints.Min,
-								}.Layout(gtx)
-							},
-							func(gtx C) D {
-								return component.Rect{
-									Color: color.NRGBA{G: 200, A: 100},
-									Size:  gtx.Constraints.Min,
-								}.Layout(gtx)
-							},
-							func(gtx C) D {
-								return component.Rect{
-									Color: color.NRGBA{B: 200, A: 100},
-									Size:  gtx.Constraints.Min,
-								}.Layout(gtx)
-							},
-						},
-						{
-							func(gtx C) D {
-								return component.Rect{
-									Color: color.NRGBA{R: 200, B: 200, A: 100},
-									Size:  gtx.Constraints.Min,
-								}.Layout(gtx)
-							},
-							func(gtx C) D {
-								return component.Rect{
-									Color: color.NRGBA{R: 200, G: 200, A: 100},
-									Size:  gtx.Constraints.Min,
-								}.Layout(gtx)
-							},
-							func(gtx C) D {
-								return component.Rect{
-									Color: color.NRGBA{R: 200, B: 200, A: 100},
-									Size:  gtx.Constraints.Min,
-								}.Layout(gtx)
-							},
-						},
-					},
-				}.Layout(gtx, func(gtx C) D {
-					return material.Body1(th, input.Text()).Layout(gtx)
-				})
+				return ninep.Layout(gtx, material.Body1(th, input.Text()).Layout)
 			}),
 			layout.Rigid(func(gtx C) D {
 				return layout.Spacer{Height: unit.Dp(10)}.Layout(gtx)
