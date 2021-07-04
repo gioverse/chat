@@ -103,6 +103,10 @@ func (n NinePatch) Layout(gtx C, w layout.Widget) D {
 		dims.Size.Y += -1 * middleHeight
 		middleHeight = 0
 	}
+	if middleWidth <= 0 {
+		dims.Size.X += -1 * middleWidth
+		middleWidth = 0
+	}
 
 	n.once.Do(func() {
 		n.cache = paint.NewImageOp(n.Image)
