@@ -5,6 +5,7 @@ package ninepatch
 import (
 	"image"
 	"image/color"
+	"sync"
 
 	"gioui.org/f32"
 	"gioui.org/layout"
@@ -19,19 +20,26 @@ type (
 	D = layout.Dimensions
 )
 
-// NinePatch can lay out a 9patch image as the background for another widget.
+// NinePatch can lay out a 9-Patch image as the background for another widget.
+//
+// Note: create a new instance per 9-Patch image. Changing the image.Image
+// after the first layout will have no effect because the paint.ImageOp is
+// cached.
 type NinePatch struct {
 	// Image is the backing image of the 9patch.
 	image.Image
 	// Inset encodes the mandatory content insets defined by the black lines on the
 	// bottom and right of the 9patch image.
 	layout.Inset
-	// X1 is the distance in pixels before the stretchable region along the X axis
-	// X2 is the distance in pixels after the stretchable region along the X axis
+	// X1 is the distance in pixels before the stretchable region along the X axis.
+	// X2 is the distance in pixels after the stretchable region along the X axis.
 	X1, X2 int
-	// Y1 is the distance in pixels before the stretchable region along the Y axis
-	// Y2 is the distance in pixels after the stretchable region along the Y axis
+	// Y1 is the distance in pixels before the stretchable region along the Y axis.
+	// Y2 is the distance in pixels after the stretchable region along the Y axis.
 	Y1, Y2 int
+	// Cache the image.
+	cache paint.ImageOp
+	once  sync.Once
 }
 
 // NinePatchRegion describes how to lay out a particular region of a 9patch image.
@@ -96,7 +104,9 @@ func (n NinePatch) Layout(gtx C, w layout.Widget) D {
 		middleHeight = 0
 	}
 
-	imageOp := paint.NewImageOp(n.Image)
+	n.once.Do(func() {
+		n.cache = paint.NewImageOp(n.Image)
+	})
 
 	upperLeft := NinePatchRegion{
 		Size: image.Point{
@@ -247,15 +257,15 @@ func (n NinePatch) Layout(gtx C, w layout.Widget) D {
 		},
 	}
 
-	upperLeft.Layout(gtx, imageOp)
-	upperMiddle.Layout(gtx, imageOp)
-	upperRight.Layout(gtx, imageOp)
-	middleLeft.Layout(gtx, imageOp)
-	middleMiddle.Layout(gtx, imageOp)
-	middleRight.Layout(gtx, imageOp)
-	bottomLeft.Layout(gtx, imageOp)
-	bottomMiddle.Layout(gtx, imageOp)
-	bottomRight.Layout(gtx, imageOp)
+	upperLeft.Layout(gtx, n.cache)
+	upperMiddle.Layout(gtx, n.cache)
+	upperRight.Layout(gtx, n.cache)
+	middleLeft.Layout(gtx, n.cache)
+	middleMiddle.Layout(gtx, n.cache)
+	middleRight.Layout(gtx, n.cache)
+	bottomLeft.Layout(gtx, n.cache)
+	bottomMiddle.Layout(gtx, n.cache)
+	bottomRight.Layout(gtx, n.cache)
 
 	call.Add(gtx.Ops)
 
