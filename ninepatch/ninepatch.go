@@ -90,6 +90,12 @@ func (n NinePatch) Layout(gtx C, w layout.Widget) D {
 	middleWidth := dims.Size.X - (n.X1 + n.X2)
 	middleHeight := dims.Size.Y - (n.Y1 + n.Y2)
 
+	// Handle tiny content.
+	if middleHeight <= 0 {
+		dims.Size.Y += -1 * middleHeight
+		middleHeight = 0
+	}
+
 	imageOp := paint.NewImageOp(n.Image)
 
 	upperLeft := NinePatchRegion{
