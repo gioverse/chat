@@ -1,6 +1,8 @@
 package apptheme
 
 import (
+	"image/color"
+
 	"gioui.org/layout"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -68,8 +70,6 @@ type MessageStyle struct {
 }
 
 // NewMessage creates a style type that can lay out the data for a message.
-//
-// TODO(jfm): pick proper text color for ninepatch images.
 func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) MessageStyle {
 	bubble := matchat.Bubble(th.Theme)
 	ms := MessageStyle{
@@ -107,17 +107,23 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 }
 
 // WithNinePatch sets the message surface to a ninepatch image.
-// TODO(jfm): fix luminance calculation.
 func (c MessageStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) MessageStyle {
 	c.Surface = np
-	// inspect middle of image and set richtext styles based on that luminance
-	bounds := np.Image.Bounds()
-	// (0.2126*R + 0.7152*G + 0.0722*B)
-	r, g, b, _ := np.Image.At(bounds.Max.X/2, bounds.Min.Y/2).RGBA()
-	luminance := float64(r)*0.2126 + float64(g)*0.7152 + float64(b)*0.722
-	if luminance < 0.5 {
-		for i := range c.Content.Styles {
-			c.Content.Styles[i].Color = th.Theme.Bg
+	var (
+		b = np.Image.Bounds()
+	)
+	// TODO(jfm): refine into more robust solution for picking the text color,
+	// as needed.
+	//
+	// Currently, we pick the middle pixel and use a heuristic formula to get
+	// relative luminance.
+	//
+	// Only considers color.NRGBA colors.
+	if cl, ok := np.Image.At(b.Dx()/2, b.Dy()/2).(color.NRGBA); ok {
+		if Luminance(cl) < 0.5 {
+			for i := range c.Content.Styles {
+				c.Content.Styles[i].Color = th.Theme.Bg
+			}
 		}
 	}
 	return c
@@ -189,4 +195,10 @@ func (c MessageStyle) layoutTimeOrIcon(gtx C) D {
 			return layout.Center.Layout(gtx, c.Time.Layout)
 		}),
 	)
+}
+
+// Luminance computes the relative brightness of a color, normalized between
+// [0,1]. Ignores alpha.
+func Luminance(c color.NRGBA) float64 {
+	return (float64(float64(0.299)*float64(c.R) + float64(0.587)*float64(c.G) + float64(0.114)*float64(c.B))) / 255
 }
