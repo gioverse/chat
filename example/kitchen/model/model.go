@@ -15,6 +15,7 @@ type Message struct {
 	Sender, Content, Status string
 	SentAt                  time.Time
 	Local                   bool
+	Theme                   string
 }
 
 // ID returns the unique identifier for this message.

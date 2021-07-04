@@ -126,16 +126,14 @@ func NewUI() *UI {
 		func(data chat.Row, state interface{}) layout.Widget {
 			switch data := data.(type) {
 			case model.Message:
-				if useNinePatch := rand.Float32() > 0.8; useNinePatch {
-					var np ninepatch.NinePatch
-					if rand.Float32() > 0.5 {
-						np = cookie
-					} else {
-						np = hotdog
-					}
-					return apptheme.NewMessage(th, state.(*appwidget.Message), data).WithNinePatch(th, np).Layout
+				msg := apptheme.NewMessage(th, state.(*appwidget.Message), data)
+				switch data.Theme {
+				case "hotdog":
+					msg = msg.WithNinePatch(th, hotdog)
+				case "cookie":
+					msg = msg.WithNinePatch(th, cookie)
 				}
-				return apptheme.NewMessage(th, state.(*appwidget.Message), data).Layout
+				return msg.Layout
 			case model.DateBoundary:
 				return apptheme.DateSeparator(th.Theme, data).Layout
 			case model.UnreadBoundary:
@@ -168,6 +166,16 @@ func NewUI() *UI {
 						return apptheme.FailedToSend
 					}
 					return ""
+				}(),
+				Theme: func() string {
+					switch val := rand.Intn(10); val {
+					case 0:
+						return "cookie"
+					case 1:
+						return "hotdog"
+					default:
+						return ""
+					}
 				}(),
 			}
 		}
