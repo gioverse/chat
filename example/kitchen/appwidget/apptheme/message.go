@@ -109,6 +109,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 // WithNinePatch sets the message surface to a ninepatch image.
 func (c MessageStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) MessageStyle {
 	c.Surface = np
+	c.ContentMargin = layout.Inset{}
 	var (
 		b = np.Image.Bounds()
 	)
