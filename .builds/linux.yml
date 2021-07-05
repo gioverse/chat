@@ -1,0 +1,48 @@
+# SPDX-License-Identifier: Unlicense OR MIT
+image: debian/testing
+packages:
+ - curl
+ - pkg-config
+ - libwayland-dev
+ - libx11-dev
+ - libx11-xcb-dev
+ - libxkbcommon-dev
+ - libxkbcommon-x11-dev
+ - libgles2-mesa-dev
+ - libegl1-mesa-dev
+ - libffi-dev
+ - libxcursor-dev
+sources:
+ - https://git.sr.ht/~gioverse/chat
+environment:
+ GOFLAGS: -mod=readonly
+ PATH: /usr/bin:/home/build/go/bin:/home/build/.local/bin
+ github_mirror: git@github.com:gioverse/chat
+secrets:
+ - 5c30aa7d-653b-4c63-a2c7-c2a7a80a7aa2
+tasks:
+ - install_go: |
+     curl --tlsv1.2 -o ~/.local/bin/gover https://git.sr.ht/~whereswaldon/gover/blob/main/gover && \
+     chmod +x ~/.local/bin/gover && \
+     gover latest
+ - check_gofmt: |
+     cd chat
+     test -z "$(gofmt -s -l .)"
+ - check_sign_off: |
+     set +x -e
+     cd chat
+     for hash in $(git log -n 20 --format="%H"); do
+        message=$(git log -1 --format=%B $hash)
+        if [[ ! "$message" =~ "Signed-off-by: " ]]; then
+            echo "Missing 'Signed-off-by' in commit $hash"
+            exit 1
+        fi
+     done
+ - test: |
+     cd chat
+     go test -race ./...
+ - mirror: |
+     # mirror to github
+     ssh-keyscan github.com > "$HOME"/.ssh/known_hosts && \
+     cd chat && \
+     git push --mirror "$github_mirror" || echo "failed mirroring"
