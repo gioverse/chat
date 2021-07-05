@@ -22,6 +22,7 @@ secrets:
  - 5c30aa7d-653b-4c63-a2c7-c2a7a80a7aa2
 tasks:
  - install_go: |
+     mkdir -p ~/.local/bin && \
      curl --tlsv1.2 -o ~/.local/bin/gover https://git.sr.ht/~whereswaldon/gover/blob/main/gover && \
      chmod +x ~/.local/bin/gover && \
      gover latest
@@ -31,7 +32,7 @@ tasks:
  - check_sign_off: |
      set +x -e
      cd chat
-     for hash in $(git log -n 20 --format="%H"); do
+     for hash in $(git log -n 10 --format="%H"); do
         message=$(git log -1 --format=%B $hash)
         if [[ ! "$message" =~ "Signed-off-by: " ]]; then
             echo "Missing 'Signed-off-by' in commit $hash"
