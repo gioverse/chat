@@ -23,6 +23,7 @@ import (
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 	"git.sr.ht/~gioverse/chat/ninepatch"
+	"git.sr.ht/~gioverse/chat/res"
 	lorem "github.com/drhodes/golorem"
 )
 
@@ -87,7 +88,7 @@ func NewUI() *UI {
 
 	var (
 		cookie = func() ninepatch.NinePatch {
-			imgf, err := os.Open("res/9-Patch/iap_platocookie_asset_2.png")
+			imgf, err := res.Resources.Open("9-Patch/iap_platocookie_asset_2.png")
 			if err != nil {
 				panic(fmt.Errorf("opening image: %w", err))
 			}
@@ -99,7 +100,7 @@ func NewUI() *UI {
 			return ninepatch.DecodeNinePatch(img)
 		}()
 		hotdog = func() ninepatch.NinePatch {
-			imgf, err := os.Open("res/9-Patch/iap_hotdog_asset.png")
+			imgf, err := res.Resources.Open("9-Patch/iap_hotdog_asset.png")
 			if err != nil {
 				panic(fmt.Errorf("opening image: %w", err))
 			}

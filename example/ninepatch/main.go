@@ -6,21 +6,21 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math"
 	"os"
 
 	"gioui.org/app"
-	"gioui.org/f32"
 	"gioui.org/font/gofont"
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
-	"gioui.org/op/clip"
-	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"gioui.org/x/component"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
 	"git.sr.ht/~gioverse/chat/ninepatch"
+	"git.sr.ht/~gioverse/chat/res"
 	lorem "github.com/drhodes/golorem"
 )
 
@@ -77,26 +77,42 @@ type UI struct {
 		Name string
 		widget.Bool
 	}
-	// Patches available to the UI.
-	Patches map[string]MessageStyle
-	// Visible patches to render (by name).
+	// Messages available to the UI.
+	Messages map[string]*FauxMessage
+	// Visible messages to render (by name).
 	Visible []string
-	// Width controls content width.
-	Width widget.Float
-	// Height controls content height.
-	Height widget.Float
-	// Real captures the real pixel dimensions of the content.
-	Real image.Point
+	// Content controls the content dimensions.
+	Content struct {
+		Width  widget.Float
+		Height widget.Float
+	}
+	// Constraints controls the constraints to render the 9-Patch with.
+	Constraints struct {
+		X widget.Float
+		Y widget.Float
+	}
+	// TextContent controls whether to simulate text content.
+	TextContent widget.Bool
+	// TextAmount controls the amount of text to display.
+	TextAmount widget.Float
+	// Scale controls the scale factor for the ninepatches.
+	Scale widget.Float
+	// PxPerDp controls the px-dp ratio to simulate different screen densities.
+	PxPerDp widget.Float
+	// ControlContainer adds scrolling to the controls.
+	ControlContainer widget.List
+	// DemoContainer adds scrolling to the demo.
+	DemoContainer widget.List
 }
 
 // NewUI constructs a UI and populates it with dummy data.
 func NewUI() *UI {
 	return &UI{
-		Patches: map[string]MessageStyle{
+		Messages: map[string]*FauxMessage{
 			"platocookie": {
-				Content: material.Body1(th.Theme, lorem.Sentence(5, 20)),
+				Text: lorem.Sentence(1, 5),
 				Surface: func() ninepatch.NinePatch {
-					imgf, err := os.Open("res/9-Patch/iap_platocookie_asset_2.png")
+					imgf, err := res.Resources.Open("9-Patch/iap_platocookie_asset_2.png")
 					if err != nil {
 						panic(fmt.Errorf("opening image: %w", err))
 					}
@@ -109,9 +125,9 @@ func NewUI() *UI {
 				}(),
 			},
 			"hotdog": {
-				Content: material.Body1(th.Theme, lorem.Sentence(5, 20)),
+				Text: lorem.Sentence(1, 5),
 				Surface: func() ninepatch.NinePatch {
-					imgf, err := os.Open("res/9-Patch/iap_hotdog_asset.png")
+					imgf, err := res.Resources.Open("9-Patch/iap_hotdog_asset.png")
 					if err != nil {
 						panic(fmt.Errorf("opening image: %w", err))
 					}
@@ -129,9 +145,19 @@ func NewUI() *UI {
 			widget.Bool
 		}{
 			{Name: "platocookie", Bool: widget.Bool{Value: true}},
-			{Name: "hotdog", Bool: widget.Bool{Value: true}},
+			{Name: "hotdog", Bool: widget.Bool{Value: false}},
 		},
 		Visible: make([]string, 2),
+		Constraints: struct {
+			X widget.Float
+			Y widget.Float
+		}{
+			X: widget.Float{Value: 250},
+			Y: widget.Float{Value: 250},
+		},
+		TextContent: widget.Bool{Value: true},
+		Scale:       widget.Float{Value: ninepatch.DefaultScale},
+		PxPerDp:     widget.Float{Value: 1.0},
 	}
 }
 
@@ -145,96 +171,250 @@ func (ui *UI) Layout(gtx C) D {
 			ui.Visible[ii] = ""
 		}
 	}
+	if ui.TextAmount.Changed() {
+		for _, msg := range ui.Messages {
+			words := int(ui.TextAmount.Value)
+			msg.Text = lorem.Sentence(words, words)
+		}
+	}
+	if ui.Scale.Changed() {
+		for _, msg := range ui.Messages {
+			msg.Surface.Scale = ui.Scale.Value
+		}
+	}
+	if ui.Content.Width.Value > ui.Constraints.X.Value {
+		ui.Content.Width.Value = ui.Constraints.X.Value
+	}
+	if ui.Content.Height.Value > ui.Constraints.Y.Value {
+		ui.Content.Height.Value = ui.Constraints.Y.Value
+	}
+	return layout.Flex{
+		Axis: layout.Vertical,
+	}.Layout(gtx,
+		layout.Rigid(ui.layoutTitle),
+		layout.Rigid(ui.layoutContent),
+	)
+}
+
+func (ui *UI) layoutTitle(gtx C) D {
+	return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx C) D {
+		return layout.Center.Layout(gtx, func(gtx C) D {
+			return material.H4(th.Theme, "9-Patch Demo").Layout(gtx)
+		})
+	})
+}
+
+// breakpoint specifies dp at which to switch layout from horizontal to vertical.
+// 450 is hopefully sane.
+const breakpoint = 450
+
+// layoutContent lays out the controls and demo area.
+//
+// It uses a horizontal layout for large constraints and a vertical layout
+// for small constraints.
+func (ui *UI) layoutContent(gtx C) D {
+	var (
+		axis = layout.Vertical
+	)
+	if gtx.Constraints.Max.X > gtx.Px(unit.Dp(breakpoint)) {
+		axis = layout.Horizontal
+	}
 	return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx C) D {
 		return layout.Flex{
-			Axis:      layout.Vertical,
-			Alignment: layout.Middle,
-		}.Layout(
-			gtx,
-			layout.Rigid(func(gtx C) D {
-				return layout.Center.Layout(gtx, func(gtx C) D {
-					return material.H3(th.Theme, "9-Patch Demo").Layout(gtx)
+			Axis: axis,
+		}.Layout(gtx,
+			layout.Flexed(1, func(gtx C) D {
+				gtx.Constraints.Max.X = gtx.Px(unit.Dp(400))
+				ui.ControlContainer.Axis = layout.Vertical
+				return material.List(th.Theme, &ui.ControlContainer).Layout(gtx, 1, func(gtx C, _ int) D {
+					return layout.E.Layout(gtx, func(gtx C) D {
+						return layout.UniformInset(unit.Dp(20)).Layout(gtx, ui.layoutControls)
+					})
 				})
 			}),
 			layout.Rigid(func(gtx C) D {
-				var items []layout.FlexChild
-				for ii := range ui.Toggles {
-					toggle := &ui.Toggles[ii]
-					items = append(items, layout.Rigid(func(gtx C) D {
-						return material.CheckBox(th.Theme, &toggle.Bool, toggle.Name).Layout(gtx)
-					}))
+				if axis == layout.Horizontal {
+					return D{}
 				}
-				return layout.Flex{
-					Axis:      layout.Horizontal,
-					Alignment: layout.Middle,
-					Spacing:   layout.SpaceSides,
-				}.Layout(gtx, items...)
-			}),
-			layout.Rigid(func(gtx C) D {
-				return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx C) D {
-					return layout.Flex{Axis: layout.Vertical}.Layout(
-						gtx,
-						layout.Rigid(func(gtx C) D {
-							px := unit.Px(float32(ui.Real.X))
-							dp := unit.Dp(px.V / gtx.Metric.PxPerDp)
-							return LabeledSliderStyle{
-								Label:  material.Body1(th.Theme, fmt.Sprintf("Content Width: %s (%s)", px, dp)),
-								Slider: material.Slider(th.Theme, &ui.Width, 0, 1),
-							}.Layout(gtx)
-						}),
-						layout.Rigid(func(gtx C) D {
-							px := unit.Px(float32(ui.Real.Y))
-							dp := unit.Dp(px.V / gtx.Metric.PxPerDp)
-							return LabeledSliderStyle{
-								Label:  material.Body1(th.Theme, fmt.Sprintf("Content Height: %s (%s)", px, dp)),
-								Slider: material.Slider(th.Theme, &ui.Height, 0, 1),
-							}.Layout(gtx)
-						}),
-					)
+				return layout.Inset{
+					Top:    unit.Dp(10),
+					Bottom: unit.Dp(10),
+				}.Layout(gtx, func(gtx C) D {
+					return component.Divider(th.Theme).Layout(gtx)
 				})
 			}),
 			layout.Flexed(1, func(gtx C) D {
-				return layout.Center.Layout(gtx, func(gtx C) D {
-					var items []layout.FlexChild
-					for ii := range ui.Visible {
-						patch, ok := ui.Patches[ui.Visible[ii]]
-						if !ok {
-							continue
-						}
-						items = append(items, layout.Rigid(func(gtx C) D {
-							gtx.Constraints.Min.X = int(ui.Width.Value * float32(gtx.Constraints.Max.X))
-							gtx.Constraints.Min.Y = int(ui.Height.Value * float32(gtx.Constraints.Max.Y))
-							ui.Real = gtx.Constraints.Min
-							return patch.Layout(gtx)
-						}))
-					}
-					return layout.Flex{
-						Axis:      layout.Vertical,
-						Alignment: layout.Middle,
-					}.Layout(gtx, items...)
+				ui.DemoContainer.Axis = layout.Vertical
+				return material.List(th.Theme, &ui.DemoContainer).Layout(gtx, 1, func(gtx C, _ int) D {
+					return layout.Center.Layout(gtx, func(gtx C) D {
+						return layout.UniformInset(unit.Dp(20)).Layout(gtx, ui.layoutDemo)
+					})
 				})
 			}),
 		)
 	})
 }
 
-// MessageStyle draws a message atop a ninepatch surface.
-type MessageStyle struct {
-	Content material.LabelStyle
+func (ui *UI) layoutControls(gtx C) D {
+	return layout.Flex{
+		Axis: layout.Vertical,
+	}.Layout(
+		gtx,
+		layout.Rigid(func(gtx C) D {
+			var items []layout.FlexChild
+			for ii := range ui.Toggles {
+				toggle := &ui.Toggles[ii]
+				items = append(items, layout.Rigid(func(gtx C) D {
+					return material.CheckBox(th.Theme, &toggle.Bool, toggle.Name).Layout(gtx)
+				}))
+			}
+			return layout.Flex{
+				Axis:      layout.Horizontal,
+				Alignment: layout.Middle,
+				Spacing:   layout.SpaceSides,
+			}.Layout(gtx, items...)
+		}),
+		// Layout constraint sliders.
+		layout.Rigid(func(gtx C) D {
+			px, dp := DP(gtx.Metric.PxPerDp, ui.Constraints.X.Value)
+			return LabeledSliderStyle{
+				Label:  material.Body1(th.Theme, fmt.Sprintf("X Constraint: %s (%s)", px, dp)),
+				Slider: material.Slider(th.Theme, &ui.Constraints.X, 0, 700),
+			}.Layout(gtx)
+		}),
+		layout.Rigid(func(gtx C) D {
+			px, dp := DP(gtx.Metric.PxPerDp, ui.Constraints.Y.Value)
+			return LabeledSliderStyle{
+				Label:  material.Body1(th.Theme, fmt.Sprintf("Y Constraint: %s (%s)", px, dp)),
+				Slider: material.Slider(th.Theme, &ui.Constraints.Y, 0, 700),
+			}.Layout(gtx)
+		}),
+		// Layout content sliders.
+		layout.Rigid(func(gtx C) D {
+			px, dp := DP(gtx.Metric.PxPerDp, ui.Content.Width.Value)
+			return LabeledSliderStyle{
+				Label:  material.Body1(th.Theme, fmt.Sprintf("Content Width: %s (%s)", px, dp)),
+				Slider: material.Slider(th.Theme, &ui.Content.Width, 0, 700),
+			}.Layout(gtx)
+		}),
+		layout.Rigid(func(gtx C) D {
+			px, dp := DP(gtx.Metric.PxPerDp, ui.Content.Height.Value)
+			return LabeledSliderStyle{
+				Label:  material.Body1(th.Theme, fmt.Sprintf("Content Height: %s (%s)", px, dp)),
+				Slider: material.Slider(th.Theme, &ui.Content.Height, 0, 700),
+			}.Layout(gtx)
+		}),
+		layout.Rigid(func(gtx C) D {
+			return LabeledSliderStyle{
+				Label:  material.Body1(th.Theme, fmt.Sprintf("Scale: %.2f (default: %.2f)", ui.Scale.Value, ninepatch.DefaultScale)),
+				Slider: material.Slider(th.Theme, &ui.Scale, 0.3, 3),
+			}.Layout(gtx)
+		}),
+		layout.Rigid(func(gtx C) D {
+			return LabeledSliderStyle{
+				Label:  material.Body1(th.Theme, fmt.Sprintf("PxPerDp: %.2f (default: %.2f)", ui.PxPerDp.Value, gtx.Metric.PxPerDp)),
+				Slider: material.Slider(th.Theme, &ui.PxPerDp, 0.3, 20),
+			}.Layout(gtx)
+		}),
+		layout.Rigid(func(gtx C) D {
+			return LabeledSliderStyle{
+				Label:  material.Body1(th.Theme, "Text Amount"),
+				Slider: material.Slider(th.Theme, &ui.TextAmount, 0, 700),
+			}.Layout(gtx)
+		}),
+		layout.Rigid(func(gtx C) D {
+			return layout.Flex{
+				Axis:      layout.Horizontal,
+				Alignment: layout.Middle,
+			}.Layout(
+				gtx,
+				layout.Rigid(func(gtx C) D {
+					return material.Body1(th.Theme, "Show Text").Layout(gtx)
+				}),
+				layout.Rigid(func(gtx C) D {
+					return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
+				}),
+				layout.Rigid(func(gtx C) D {
+					return material.Switch(th.Theme, &ui.TextContent).Layout(gtx)
+				}),
+			)
+		}),
+	)
+}
+
+func (ui *UI) layoutDemo(gtx C) D {
+	var items []layout.FlexChild
+	for ii := range ui.Visible {
+		msg, ok := ui.Messages[ui.Visible[ii]]
+		if !ok {
+			continue
+		}
+		items = append(items, layout.Flexed(1, func(gtx C) D {
+			cs := &gtx.Constraints
+			cs.Max.X = int(ui.Constraints.X.Value)
+			cs.Max.Y = int(ui.Constraints.Y.Value)
+			return widget.Border{
+				Color: color.NRGBA{A: 200},
+				Width: unit.Dp(1),
+			}.Layout(gtx, func(gtx C) D {
+				return layout.Stack{}.Layout(
+					gtx,
+					layout.Stacked(func(gtx C) D {
+						return D{Size: gtx.Constraints.Max}
+					}),
+					layout.Expanded(func(gtx C) D {
+						gtx.Constraints.Min.X = int(ui.Content.Width.Value)
+						gtx.Constraints.Min.Y = int(ui.Content.Height.Value)
+						gtx.Metric.PxPerDp = ui.PxPerDp.Value
+						return NewMessage(th.Theme, msg, &ui.TextContent).Layout(gtx)
+					}),
+				)
+			})
+		}))
+	}
+	return layout.Flex{
+		Axis:      layout.Vertical,
+		Alignment: layout.Middle,
+	}.Layout(gtx, items...)
+}
+
+// FauxMessage contains state needed to layout a fake message.
+type FauxMessage struct {
+	Text    string
 	Surface ninepatch.NinePatch
 }
 
+// NewMessage constructs a MessageStyle.
+func NewMessage(th *material.Theme, msg *FauxMessage, showText *widget.Bool) MessageStyle {
+	content := func(gtx C) D {
+		lb := material.Body1(th, msg.Text)
+		lb.Color = th.ContrastFg
+		return lb.Layout(gtx)
+	}
+	if !showText.Value {
+		content = func(gtx C) D {
+			return component.Rect{
+				Color: color.NRGBA{G: 200, A: 200},
+				Size:  gtx.Constraints.Min,
+			}.Layout(gtx)
+		}
+	}
+	return MessageStyle{
+		FauxMessage: msg,
+		Content:     content,
+	}
+}
+
+// MessageStyle lays a message content atop a ninepatch surface.
+type MessageStyle struct {
+	*FauxMessage
+	Content layout.Widget
+}
+
 func (msg MessageStyle) Layout(gtx C) D {
-	cs := &gtx.Constraints
 	return msg.Surface.Layout(gtx, func(gtx C) D {
-		return RectStyle{
-			Size:  cs.Min,
-			Color: color.NRGBA{G: 200, A: 200},
-		}.Layout(gtx)
+		return msg.Content(gtx)
 	})
-	// return msg.Surface.Layout(gtx, func(gtx C) D {
-	// 	return msg.Content.Layout(gtx)
-	// })
 }
 
 // LabeledSliderStyle draws a slider with a label.
@@ -244,29 +424,21 @@ type LabeledSliderStyle struct {
 }
 
 func (slider LabeledSliderStyle) Layout(gtx C) D {
-	return layout.Flex{Axis: layout.Vertical}.Layout(
+	gtx.Constraints.Min.X = gtx.Constraints.Max.X
+	return layout.Flex{
+		Axis: layout.Vertical,
+	}.Layout(
 		gtx,
 		layout.Rigid(slider.Label.Layout),
 		layout.Rigid(slider.Slider.Layout),
 	)
 }
 
-// RectStyle draws a colored rectangle.
-type RectStyle struct {
-	Color color.NRGBA
-	Size  image.Point
-	Radii float32
-}
-
-func (r RectStyle) Layout(gtx C) D {
-	paint.FillShape(
-		gtx.Ops,
-		r.Color,
-		clip.UniformRRect(
-			f32.Rectangle{
-				Max: layout.FPt(r.Size),
-			},
-			r.Radii,
-		).Op(gtx.Ops))
-	return layout.Dimensions{Size: image.Pt(r.Size.X, r.Size.Y)}
+// DP helper computes the dp given some pixels and the ratio of pixels per dp.
+//
+// Note: This helper is for display purposes. Pixels are rounded for clarity,
+// therefore do not use results as "real" units in layout.
+func DP(pixelperdp float32, pixels float32) (px unit.Value, dp unit.Value) {
+	pixels = float32(math.Round(float64(pixels)))
+	return unit.Px(pixels), unit.Dp(pixels / pixelperdp)
 }
