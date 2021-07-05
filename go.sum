@@ -3,8 +3,8 @@ cloud.google.com/go v0.34.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMT
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20201218220906-28db891af037/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 gioui.org v0.0.0-20210611190218-9b5e9ae60717/go.mod h1:RSH6KIUZ0p2xy5zHDxgAM4zumjgTw83q2ge/PI+yyw8=
-gioui.org v0.0.0-20210701111508-2e991f31be10 h1:qUMsIAc2HDpQ5DwuJpipVsx3RKcJ/jnzq0EdQsLXNnA=
-gioui.org v0.0.0-20210701111508-2e991f31be10/go.mod h1:RSH6KIUZ0p2xy5zHDxgAM4zumjgTw83q2ge/PI+yyw8=
+gioui.org v0.0.0-20210705140830-941aeaae910e h1:ute6jeS6oeVSBbprtz0HF2v3QnFV3r61oLVVZlOg2Xs=
+gioui.org v0.0.0-20210705140830-941aeaae910e/go.mod h1:RSH6KIUZ0p2xy5zHDxgAM4zumjgTw83q2ge/PI+yyw8=
 gioui.org/x v0.0.0-20210615121216-b3d6aa6ed67b h1:VnAOU4G/FcTF0HzzHsKTAHu9yFR5uQLMdkmoGFSygrI=
 gioui.org/x v0.0.0-20210615121216-b3d6aa6ed67b/go.mod h1:Bx77f7mOqBBUNqP/XM1nSSRXwca1CU1jH7GvpICeMQY=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=

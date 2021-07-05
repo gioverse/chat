@@ -16,6 +16,8 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
+	"gioui.org/widget"
+	"gioui.org/widget/material"
 	"git.sr.ht/~gioverse/chat"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
@@ -72,7 +74,7 @@ var (
 
 // UI manages the state for the entire application's UI.
 type UI struct {
-	RowsList layout.List
+	RowsList widget.List
 	*chat.RowManager
 	Bg color.NRGBA
 }
@@ -189,5 +191,5 @@ func NewUI() *UI {
 func (ui *UI) Layout(gtx C) D {
 	paint.Fill(gtx.Ops, ui.Bg)
 	ui.RowsList.Axis = layout.Vertical
-	return ui.RowsList.Layout(gtx, ui.RowManager.Len(), ui.RowManager.Layout)
+	return material.List(th.Theme, &ui.RowsList).Layout(gtx, ui.RowManager.Len(), ui.RowManager.Layout)
 }
