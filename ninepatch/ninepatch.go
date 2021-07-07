@@ -4,7 +4,7 @@ package ninepatch
 
 import (
 	"image"
-	"image/color"
+	"math"
 	"sync"
 
 	"gioui.org/f32"
@@ -12,7 +12,6 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
-	"gioui.org/unit"
 )
 
 type (
@@ -26,405 +25,324 @@ type (
 // after the first layout will have no effect because the paint.ImageOp is
 // cached.
 type NinePatch struct {
-	// Image is the backing image of the 9patch.
+	// Image is the backing image of the 9-Patch.
 	image.Image
-	// Inset encodes the mandatory content insets defined by the black lines on the
-	// bottom and right of the 9patch image.
-	layout.Inset
-	// X1 is the distance in pixels before the stretchable region along the X axis.
-	// X2 is the distance in pixels after the stretchable region along the X axis.
-	X1, X2 int
-	// Y1 is the distance in pixels before the stretchable region along the Y axis.
-	// Y2 is the distance in pixels after the stretchable region along the Y axis.
-	Y1, Y2 int
+	// Grid describes the stretchable regions of the 9-Patch.
+	Grid Grid
+	// Inset describes content insets defined by the black lines on the bottom
+	// and right of the 9-Patch image.
+	Content layout.Inset
 	// Cache the image.
 	cache paint.ImageOp
 	once  sync.Once
 }
 
-// NinePatchRegion describes how to lay out a particular region of a 9patch image.
-// It defines an offset and size within the source image, and an offset and size
-// within the layout. It provides a layout method that will handle converting
-// between the provided offsets and sizes.
-type NinePatchRegion struct {
-	Size, Offset       image.Point
-	SrcSize, SrcOffset image.Point
+// Patch describes the position and size of single patch in a 9-Patch image.
+type Patch struct {
+	Offset image.Point
+	Size   image.Point
 }
 
-// Layout the region of the provided ImageOp described by the NinePatchRegion.
-func (n NinePatchRegion) Layout(gtx C, src paint.ImageOp) D {
+// Region describes how to lay out a particular patch of a 9-Patch image.
+type Region struct {
+	// Source is the patch relative to the source image.
+	Source Patch
+	// Stretched is the patch relative to the layout.
+	Stretched Patch
+}
+
+// Layout the patch of the provided ImageOp described by the Region, scaling
+// as needed.
+func (r Region) Layout(gtx C, src paint.ImageOp) D {
 	defer op.Save(gtx.Ops).Load()
+
+	// Set the paint material to our source texture.
+	src.Add(gtx.Ops)
+
+	// If we need to scale the source image to cover the content area, do so:
+	if r.Stretched.Size != r.Source.Size {
+		op.Affine(f32.Affine2D{}.Scale(layout.FPt(r.Stretched.Offset), f32.Point{
+			X: float32(r.Stretched.Size.X) / float32(r.Source.Size.X),
+			Y: float32(r.Stretched.Size.Y) / float32(r.Source.Size.Y),
+		})).Add(gtx.Ops)
+	}
+
 	// Shift layout to the origin of the region that we are covering, but compensate
 	// for the fact that we're going to be reaching to an arbitrary point in the
 	// source image. This logic aligns the origin of the important region of the
 	// source image with the origin of the region that we're laying out.
-	op.Offset(layout.FPt(n.Offset.Sub(n.SrcOffset))).Add(gtx.Ops)
+	op.Offset(layout.FPt(r.Stretched.Offset.Sub(r.Source.Offset))).Add(gtx.Ops)
 
-	// Set the paint material to our source texture.
-	src.Add(gtx.Ops)
-	// If we need to scale the source image to cover the content area, do so:
-	if n.Size != n.SrcSize {
-		op.Affine(f32.Affine2D{}.Scale(layout.FPt(n.Offset), f32.Point{
-			X: float32(n.Size.X) / float32(n.SrcSize.X),
-			Y: float32(n.Size.Y) / float32(n.SrcSize.Y),
-		})).Add(gtx.Ops)
-	}
 	// Clip the scaled image to the bounds of the area we need to cover.
 	clip.Rect(image.Rectangle{
-		Min: n.SrcOffset,
-		Max: n.SrcSize.Add(n.SrcOffset),
+		Min: r.Source.Offset,
+		Max: r.Source.Size.Add(r.Source.Offset),
 	}).Add(gtx.Ops)
+
 	// Paint the scaled, clipped image.
 	paint.PaintOp{}.Add(gtx.Ops)
 
-	return D{Size: n.Size}
+	return D{Size: r.Stretched.Size}
 }
+
+// DefaultScale is a standard 72 DPI.
+// Inverse of `widget.Image`, shrink as the screen becomes _less_ dense.
+const DefaultScale = 1 / float32(160.0/72.0)
 
 // Layout the provided widget with the NinePatch as a background.
 func (n NinePatch) Layout(gtx C, w layout.Widget) D {
-	// Layout content in macro to compute it's dimensions.
-	// These dimensions are needed to figure out how much stretch we need.
-	macro := op.Record(gtx.Ops)
-	dims := n.Inset.Layout(gtx, w)
-	call := macro.Stop()
-
-	// Compute stretch region dimensions in pixels relative to the source image.
-	// Depends on 9patch image definition.
-	middleSrcWidth := n.Image.Bounds().Dx() - (n.X1 + n.X2)
-	middleSrcHeight := n.Image.Bounds().Dy() - (n.Y1 + n.Y2)
-
-	// Compute stretch region dimensions in pixels relative to the desired layout.
-	// Dependends on content size.
-	middleWidth := dims.Size.X - (n.X1 + n.X2)
-	middleHeight := dims.Size.Y - (n.Y1 + n.Y2)
-
-	// Handle tiny content.
-	if middleHeight <= 0 {
-		dims.Size.Y += -1 * middleHeight
-		middleHeight = 0
-	}
-	if middleWidth <= 0 {
-		dims.Size.X += -1 * middleWidth
-		middleWidth = 0
-	}
-
 	n.once.Do(func() {
 		n.cache = paint.NewImageOp(n.Image)
 	})
 
-	upperLeft := NinePatchRegion{
-		Size: image.Point{
-			X: n.X1,
-			Y: n.Y1,
-		},
-		SrcSize: image.Point{
-			X: n.X1,
-			Y: n.Y1,
-		},
+	// TODO(jfm) [performance]: cache scaled grid instead of recomputing every
+	// frame.
+
+	// TODO(jfm): publicize scale factor in a way that is obvious to use and
+	// tested.
+
+	scale := DefaultScale
+
+	// Handle screen density.
+	scale /= gtx.Metric.PxPerDp
+
+	var (
+		src = n.Grid
+		str = Grid{
+			X1: int(math.Round(float64(src.X1) * float64(scale))),
+			X2: int(math.Round(float64(src.X2) * float64(scale))),
+			Y1: int(math.Round(float64(src.Y1) * float64(scale))),
+			Y2: int(math.Round(float64(src.Y2) * float64(scale))),
+		}
+		inset = layout.Inset{
+			Left:   n.Content.Left.Scale(scale),
+			Right:  n.Content.Right.Scale(scale),
+			Top:    n.Content.Top.Scale(scale),
+			Bottom: n.Content.Bottom.Scale(scale),
+		}
+	)
+
+	// Layout content in macro to compute it's dimensions.
+	// These dimensions are needed to figure out how much stretch is needed.
+	macro := op.Record(gtx.Ops)
+	dims := inset.Layout(gtx, w)
+	call := macro.Stop()
+
+	str.Size = dims.Size
+
+	// Handle tiny content: at least stretch by the amount that original does.
+	if str.Stretch().Y <= src.Stretch().Y {
+		dims.Size.Y = dims.Size.Y - str.Stretch().Y + src.Stretch().Y
+		str.Size.Y = str.Size.Y - str.Stretch().Y + src.Stretch().Y
 	}
-	upperMiddle := NinePatchRegion{
-		Offset: image.Point{
-			X: n.X1,
-		},
-		Size: image.Point{
-			X: middleWidth,
-			Y: n.Y1,
-		},
-		SrcOffset: image.Point{
-			X: n.X1,
-		},
-		SrcSize: image.Point{
-			X: middleSrcWidth,
-			Y: n.Y1,
-		},
-	}
-	upperRight := NinePatchRegion{
-		Offset: image.Point{
-			X: n.X1 + middleWidth,
-		},
-		Size: image.Point{
-			X: n.X2,
-			Y: n.Y1,
-		},
-		SrcOffset: image.Point{
-			X: n.X1 + middleSrcWidth,
-		},
-		SrcSize: image.Point{
-			X: n.X2,
-			Y: n.Y1,
-		},
+	if str.Stretch().X <= src.Stretch().X {
+		dims.Size.X = dims.Size.X - str.Stretch().X + src.Stretch().X
+		str.Size.X = str.Size.X - str.Stretch().X + src.Stretch().X
 	}
 
-	middleLeft := NinePatchRegion{
-		Offset: image.Point{
-			Y: n.Y1,
-		},
-		Size: image.Point{
-			Y: middleHeight,
-			X: n.X1,
-		},
-		SrcOffset: image.Point{
-			Y: n.Y1,
-		},
-		SrcSize: image.Point{
-			Y: middleSrcHeight,
-			X: n.X1,
-		},
-	}
-	middleMiddle := NinePatchRegion{
-		Offset: image.Point{
-			Y: n.Y1,
-			X: n.X1,
-		},
-		Size: image.Point{
-			Y: middleHeight,
-			X: middleWidth,
-		},
-		SrcOffset: image.Point{
-			Y: n.Y1,
-			X: n.X1,
-		},
-		SrcSize: image.Point{
-			Y: middleSrcHeight,
-			X: middleSrcWidth,
-		},
-	}
-	middleRight := NinePatchRegion{
-		Offset: image.Point{
-			Y: n.Y1,
-			X: n.X1 + middleWidth,
-		},
-		Size: image.Point{
-			Y: middleHeight,
-			X: n.X2,
-		},
-		SrcOffset: image.Point{
-			Y: n.Y1,
-			X: n.X1 + middleSrcWidth,
-		},
-		SrcSize: image.Point{
-			Y: middleSrcHeight,
-			X: n.X2,
-		},
-	}
+	// Layout each of the 9 patches.
 
-	bottomLeft := NinePatchRegion{
-		Offset: image.Point{
-			Y: n.Y1 + middleHeight,
+	// upper left
+	Region{
+		Source: Patch{
+			Size: image.Point{
+				X: src.X1,
+				Y: src.Y1,
+			},
 		},
-		Size: image.Point{
-			Y: n.Y2,
-			X: n.X1,
+		Stretched: Patch{
+			Size: image.Point{
+				X: str.X1,
+				Y: str.Y1,
+			},
 		},
-		SrcOffset: image.Point{
-			Y: n.Y1 + middleSrcHeight,
-		},
-		SrcSize: image.Point{
-			Y: n.Y2,
-			X: n.X1,
-		},
-	}
-	bottomMiddle := NinePatchRegion{
-		Offset: image.Point{
-			Y: n.Y1 + middleHeight,
-			X: n.X1,
-		},
-		Size: image.Point{
-			Y: n.Y2,
-			X: middleWidth,
-		},
-		SrcOffset: image.Point{
-			Y: n.Y1 + middleSrcHeight,
-			X: n.X1,
-		},
-		SrcSize: image.Point{
-			Y: n.Y2,
-			X: middleSrcWidth,
-		},
-	}
-	bottomRight := NinePatchRegion{
-		Offset: image.Point{
-			Y: n.Y1 + middleHeight,
-			X: n.X1 + middleWidth,
-		},
-		Size: image.Point{
-			Y: n.Y2,
-			X: n.X2,
-		},
-		SrcOffset: image.Point{
-			Y: n.Y1 + middleSrcHeight,
-			X: n.X1 + middleSrcWidth,
-		},
-		SrcSize: image.Point{
-			Y: n.Y2,
-			X: n.X2,
-		},
-	}
+	}.Layout(gtx, n.cache)
 
-	upperLeft.Layout(gtx, n.cache)
-	upperMiddle.Layout(gtx, n.cache)
-	upperRight.Layout(gtx, n.cache)
-	middleLeft.Layout(gtx, n.cache)
-	middleMiddle.Layout(gtx, n.cache)
-	middleRight.Layout(gtx, n.cache)
-	bottomLeft.Layout(gtx, n.cache)
-	bottomMiddle.Layout(gtx, n.cache)
-	bottomRight.Layout(gtx, n.cache)
+	// upper middle
+	Region{
+		Source: Patch{
+			Size: image.Point{
+				X: src.Stretch().X,
+				Y: src.Y1,
+			},
+			Offset: image.Point{
+				X: src.X1,
+			},
+		},
+		Stretched: Patch{
+			Size: image.Point{
+				X: str.Stretch().X,
+				Y: str.Y1,
+			},
+			Offset: image.Point{
+				X: str.X1,
+			},
+		},
+	}.Layout(gtx, n.cache)
+
+	// upper right
+	Region{
+		Source: Patch{
+			Size: image.Point{
+				X: src.X2,
+				Y: src.Y1,
+			},
+			Offset: image.Point{
+				X: src.X1 + src.Stretch().X,
+			},
+		},
+		Stretched: Patch{
+			Size: image.Point{
+				X: str.X2,
+				Y: str.Y1,
+			},
+			Offset: image.Point{
+				X: str.X1 + str.Stretch().X,
+			},
+		},
+	}.Layout(gtx, n.cache)
+
+	// middle left
+	Region{
+		Source: Patch{
+			Size: image.Point{
+				X: src.X1,
+				Y: src.Stretch().Y,
+			},
+			Offset: image.Point{
+				Y: src.Y1,
+			},
+		},
+		Stretched: Patch{
+			Size: image.Point{
+				X: str.X1,
+				Y: str.Stretch().Y,
+			},
+			Offset: image.Point{
+				Y: str.Y1,
+			},
+		},
+	}.Layout(gtx, n.cache)
+
+	// middle middle
+	Region{
+		Source: Patch{
+			Size: image.Point{
+				X: src.Stretch().X,
+				Y: src.Stretch().Y,
+			},
+			Offset: image.Point{
+				X: src.X1,
+				Y: src.Y1,
+			},
+		},
+		Stretched: Patch{
+			Size: image.Point{
+				X: str.Stretch().X,
+				Y: str.Stretch().Y,
+			},
+			Offset: image.Point{
+				X: str.X1,
+				Y: str.Y1,
+			},
+		},
+	}.Layout(gtx, n.cache)
+
+	// middle right
+	Region{
+		Source: Patch{
+			Size: image.Point{
+				X: src.X2,
+				Y: src.Stretch().Y,
+			},
+			Offset: image.Point{
+				X: src.X1 + src.Stretch().X,
+				Y: src.Y1,
+			},
+		},
+		Stretched: Patch{
+			Size: image.Point{
+				X: str.X2,
+				Y: str.Stretch().Y,
+			},
+			Offset: image.Point{
+				X: str.X1 + str.Stretch().X,
+				Y: str.Y1,
+			},
+		},
+	}.Layout(gtx, n.cache)
+
+	// lower left
+	Region{
+		Source: Patch{
+			Size: image.Point{
+				X: src.X1,
+				Y: src.Y2,
+			},
+			Offset: image.Point{
+				Y: src.Y1 + src.Stretch().Y,
+			},
+		},
+		Stretched: Patch{
+			Size: image.Point{
+				X: str.X1,
+				Y: str.Y2,
+			},
+			Offset: image.Point{
+				Y: str.Y1 + str.Stretch().Y,
+			},
+		},
+	}.Layout(gtx, n.cache)
+
+	// lower middle
+	Region{
+		Source: Patch{
+			Size: image.Point{
+				X: src.Stretch().X,
+				Y: src.Y2,
+			},
+			Offset: image.Point{
+				X: src.X1,
+				Y: src.Y1 + src.Stretch().Y,
+			},
+		},
+		Stretched: Patch{
+			Size: image.Point{
+				X: str.Stretch().X,
+				Y: str.Y2,
+			},
+			Offset: image.Point{
+				X: str.X1,
+				Y: str.Y1 + str.Stretch().Y,
+			},
+		},
+	}.Layout(gtx, n.cache)
+
+	// lower right
+	Region{
+		Source: Patch{
+			Size: image.Point{
+				X: src.X2,
+				Y: src.Y2,
+			},
+			Offset: image.Point{
+				Y: src.Y1 + src.Stretch().Y,
+				X: src.X1 + src.Stretch().X,
+			},
+		},
+		Stretched: Patch{
+			Size: image.Point{
+				X: str.X2,
+				Y: str.Y2,
+			},
+			Offset: image.Point{
+				Y: str.Y1 + str.Stretch().Y,
+				X: str.X1 + str.Stretch().X,
+			},
+		},
+	}.Layout(gtx, n.cache)
 
 	call.Add(gtx.Ops)
 
 	return dims
-}
-
-// DecodeNinePatch from source image.
-func DecodeNinePatch(src image.Image) NinePatch {
-	// Algorithm:
-	// - walk the border of the image in 4 parts
-	// - line starts when the first non-zero pixel is encountered
-	// - line ends when the first zero pixel is encountered, after the first
-	// 	 non-zero pixel
-	// - right and bottom lines are used to compute content inset
-	// - left and top lines are used to compute stretch regions
-
-	var (
-		// bounds of the source image.
-		b = src.Bounds()
-		// Start and end point defining the line.
-		start, end = -1, -1
-		// Capture the content inset.
-		inset = layout.Inset{}
-		// Capture the stretch region grid lines.
-		x1, x2 = 0, 0
-		y1, y2 = 0, 0
-	)
-
-	// Top and Bottom insets are defined by the black line on the right
-	// Left and Right inset are defined by the black line on the bottom
-
-	// Walk the final column of pixels and decode the black line.
-	for yy := b.Min.Y; yy < b.Max.Y; yy++ {
-		r, g, b, a := src.At(b.Max.X-1, yy).RGBA()
-		var (
-			colorIsSet = r > 0 || g > 0 || b > 0 || a > 0
-			startIsSet = start > -1
-			endIsSet   = end > -1
-		)
-		if colorIsSet && !startIsSet {
-			start = yy
-		}
-		if !colorIsSet && startIsSet {
-			end = yy
-		}
-		if startIsSet && endIsSet {
-			break
-		}
-	}
-
-	inset.Top = unit.Px(float32(start))
-	inset.Bottom = unit.Px(float32(b.Max.Y - end))
-	start, end = -1, -1
-
-	// Walk the final row of pixels and decode the black line.
-	for xx := b.Min.X; xx < b.Max.X; xx++ {
-		r, g, b, a := src.At(xx, b.Max.Y-1).RGBA()
-		var (
-			colorIsSet = r > 0 || g > 0 || b > 0 || a > 0
-			startIsSet = start > -1
-			endIsSet   = end > -1
-		)
-		if colorIsSet && !startIsSet {
-			start = xx
-		}
-		if !colorIsSet && startIsSet {
-			end = xx
-		}
-		if startIsSet && endIsSet {
-			break
-		}
-	}
-
-	inset.Left = unit.Px(float32(start))
-	inset.Right = unit.Px(float32(b.Max.X - end))
-	start, end = -1, -1
-
-	// Horizontal stretch defined by black line on the top
-	// Vertical stretch defined by black lin on the left
-
-	// Walk the first column of pixels and decode the black line.
-	for yy := b.Min.Y; yy < b.Max.Y; yy++ {
-		r, g, b, a := src.At(b.Min.X, yy).RGBA()
-		var (
-			colorIsSet = r > 0 || g > 0 || b > 0 || a > 0
-			startIsSet = start > -1
-			endIsSet   = end > -1
-		)
-		if colorIsSet && !startIsSet {
-			start = yy
-		}
-		if !colorIsSet && startIsSet {
-			end = yy
-		}
-		if startIsSet && endIsSet {
-			break
-		}
-	}
-
-	y1, y2 = start, b.Max.Y-end
-	start, end = -1, -1
-
-	// Walk the first row of pixels and decode the black line.
-	for xx := b.Min.X; xx < b.Max.X; xx++ {
-		r, g, b, a := src.At(xx, b.Min.Y).RGBA()
-		var (
-			colorIsSet = r > 0 || g > 0 || b > 0 || a > 0
-			startIsSet = start > -1
-			endIsSet   = end > -1
-		)
-		if colorIsSet && !startIsSet {
-			start = xx
-		}
-		if !colorIsSet && startIsSet {
-			end = xx
-		}
-		if startIsSet && endIsSet {
-			break
-		}
-	}
-
-	x1, x2 = start, b.Max.X-end
-
-	return NinePatch{
-		Image: EraseBorder(src),
-		Inset: inset,
-		X1:    x1,
-		X2:    x2,
-		Y1:    y1,
-		Y2:    y2,
-	}
-}
-
-// EraseBorder clears the 1px border around the image containing the 9-Patch
-// region specifiers (1px black lines).
-func EraseBorder(src image.Image) *image.NRGBA {
-	var (
-		b   = src.Bounds()
-		out = image.NewNRGBA(b)
-	)
-	// Copy image data.
-	for xx := b.Min.X; xx < b.Max.X; xx++ {
-		for yy := b.Min.Y; yy < b.Max.Y; yy++ {
-			out.Set(xx, yy, src.At(xx, yy))
-		}
-	}
-	// Clear out the borders which contain 1px 9-Patch stretch region
-	// identifiers.
-	for xx := b.Min.X; xx < b.Max.X; xx++ {
-		out.Set(xx, b.Min.Y, color.NRGBA{})
-		out.Set(xx, b.Max.Y-1, color.NRGBA{})
-	}
-	for yy := b.Min.Y; yy < b.Max.Y; yy++ {
-		out.Set(b.Min.X, yy, color.NRGBA{})
-		out.Set(b.Max.X-1, yy, color.NRGBA{})
-	}
-	return out
 }
