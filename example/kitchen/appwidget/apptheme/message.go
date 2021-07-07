@@ -1,6 +1,7 @@
 package apptheme
 
 import (
+	"image"
 	"image/color"
 
 	"gioui.org/layout"
@@ -49,16 +50,11 @@ type MessageStyle struct {
 	// StatusMessage defines a warning message to be displayed beneath the
 	// chat message.
 	StatusMessage material.LabelStyle
-
-	// // Bubble configures the background bubble of the chat.
-	// Bubble matchat.BubbleStyle
-
 	// Surface specifies the background surface of the chat message, typically
 	// a chat bubble.
 	Surface interface {
 		Layout(gtx C, w layout.Widget) D
 	}
-
 	// ContentMargin configures space around the chat bubble.
 	ContentMargin layout.Inset
 	// Content configures the actual contents of the chat bubble.
@@ -67,6 +63,8 @@ type MessageStyle struct {
 	ContentPadding layout.Inset
 	// LeftGutter defines the size of the empty left gutter of the row.
 	LeftGutter layout.Spacer
+	// Sender is the name of the sender of the message.
+	Sender material.LabelStyle
 }
 
 // NewMessage creates a style type that can lay out the data for a message.
@@ -87,6 +85,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 		ContentPadding:     layout.UniformInset(unit.Dp(8)),
 		ContentMargin:      layout.UniformInset(unit.Dp(8)),
 		LeftGutter:         layout.Spacer{Width: unit.Dp(24)},
+		Sender:             material.Body1(th.Theme, msg.Sender),
 	}
 	if msg.Status != "" {
 		ms.StatusMessage = material.Body2(th.Theme, msg.Status)
@@ -137,6 +136,31 @@ func (c MessageStyle) Layout(gtx C) D {
 		messageAlignment = layout.E
 	}
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+		layout.Rigid(func(gtx C) D {
+			return layout.Flex{
+				Alignment: layout.Middle,
+			}.Layout(gtx,
+				layout.Rigid(func(gtx C) D {
+					return D{Size: image.Point{
+						X: gtx.Px(c.LeftGutter.Width) +
+							gtx.Px(c.ContentMargin.Left),
+					}}
+				}),
+				layout.Flexed(1, func(gtx C) D {
+					return messageAlignment.Layout(gtx, func(gtx C) D {
+						return c.Sender.Layout(gtx)
+					})
+				}),
+				layout.Rigid(func(gtx C) D {
+					return D{Size: image.Point{
+						X: gtx.Px(c.IconSize) +
+							gtx.Px(c.RightGutterPadding.Left) +
+							gtx.Px(c.RightGutterPadding.Right) +
+							gtx.Px(c.ContentMargin.Right),
+					}}
+				}),
+			)
+		}),
 		layout.Rigid(func(gtx C) D {
 			return layout.Flex{
 				Alignment: layout.Middle,
