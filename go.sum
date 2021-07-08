@@ -4,6 +4,8 @@ dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20201218220906-28db891af037/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 gioui.org v0.0.0-20210705140830-941aeaae910e h1:ute6jeS6oeVSBbprtz0HF2v3QnFV3r61oLVVZlOg2Xs=
 gioui.org v0.0.0-20210705140830-941aeaae910e/go.mod h1:RSH6KIUZ0p2xy5zHDxgAM4zumjgTw83q2ge/PI+yyw8=
+gioui.org v0.0.0-20210707135100-0e6093585688 h1:Ekni72pozbWWoOXBkjzpzCre47/kpebTlGHTYjYFzpE=
+gioui.org v0.0.0-20210707135100-0e6093585688/go.mod h1:RSH6KIUZ0p2xy5zHDxgAM4zumjgTw83q2ge/PI+yyw8=
 gioui.org/x v0.0.0-20210705162517-de43ceaa90b6 h1:JbTiMUVNO21XK9A9q6t2UU3vgVZu7AZgeOVpxIEEY94=
 gioui.org/x v0.0.0-20210705162517-de43ceaa90b6/go.mod h1:wWLp7AlhjLtSUWOTiODXwRtpVSQUkG7enAvgWIjik8s=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
@@ -282,6 +284,8 @@ golang.org/x/exp v0.0.0-20191002040644-a1355ae1e2c3/go.mod h1:NOZ3BPKG0ec/BKJQgn
 golang.org/x/exp v0.0.0-20201229011636-eab1b5eb1a03/go.mod h1:I6l2HNBLBZEcrOoCpyKLdY2lHoRZ8lI4x60KMCQDft4=
 golang.org/x/exp v0.0.0-20210625193404-fa9d1d177d71 h1:j9CMOaHQ8BVtX7w3W1PpDn2ENQmYFgwyaewLqatSovY=
 golang.org/x/exp v0.0.0-20210625193404-fa9d1d177d71/go.mod h1:DVyR6MI7P4kEQgvZJSj1fQGrWIi2RzIrfYWycwheUAc=
+golang.org/x/exp v0.0.0-20210707152300-16493b25073a h1:jT9W8MmN3huTVa9g69cJsI/3ZV0za+RCSAUH3s186CQ=
+golang.org/x/exp v0.0.0-20210707152300-16493b25073a/go.mod h1:DVyR6MI7P4kEQgvZJSj1fQGrWIi2RzIrfYWycwheUAc=
 golang.org/x/image v0.0.0-20190227222117-0694c2d4d067/go.mod h1:kZ7UVZpmo3dzQBMxlp+ypCbDeSB+sBbTgSJuh5dn5js=
 golang.org/x/image v0.0.0-20190802002840-cff245a6509b/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
 golang.org/x/image v0.0.0-20200618115811-c13761719519/go.mod h1:FeLwcggjj3mMvU+oOTbSwawSJRM1uh48EjtB4UJZlP0=
