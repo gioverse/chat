@@ -44,6 +44,19 @@ type Comparator func(a, b Element) bool
 // occurs.
 type Loader func(direction Direction, relativeTo Serial) []Element
 
+// Presenter is a function that can transform the data for an Element
+// into a widget to be laid out in the user interface. It must not return
+// nil. The state parameter may be nil if the Element either has no
+// Serial or if the Allocator function returned nil for the element.
+type Presenter func(current Element, state interface{}) layout.Widget
+
+// Allocator is a function that can allocate the appropriate state
+// type for a given Element. It will only be invoked for Elements that
+// return a serial from their Serial() method. It may return nil,
+// indicating that the element in question does not need any persistent
+// state.
+type Allocator func(current Element) (state interface{})
+
 // Hooks provides the lifecycle hooks necessary for a ListManager
 // to orchestrate the state of all its managed elements. See the documentation
 // of each function type for details.
@@ -51,6 +64,8 @@ type Hooks struct {
 	Synthesizer
 	Comparator
 	Loader
+	Presenter
+	Allocator
 	// Invalidator triggers a new frame in the window displaying the managed
 	// list.
 	Invalidator func()
