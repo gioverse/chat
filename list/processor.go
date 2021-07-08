@@ -37,12 +37,20 @@ type Synthesizer func(previous, current Element) []Element
 // list.
 type Comparator func(a, b Element) bool
 
+// Loader is a function that can fulfill load requests. If it returns
+// a response with no elements in a given direction, the manager will not
+// invoke the loader in that direction again until the manager loads
+// data from the other end of the list or another manger state update
+// occurs.
+type Loader func(direction Direction, relativeTo Serial) []Element
+
 // Hooks provides the lifecycle hooks necessary for a ListManager
 // to orchestrate the state of all its managed elements. See the documentation
 // of each function type for details.
 type Hooks struct {
 	Synthesizer
 	Comparator
+	Loader
 	// Invalidator triggers a new frame in the window displaying the managed
 	// list.
 	Invalidator func()
