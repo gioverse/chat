@@ -1,5 +1,5 @@
 /*
-Package model provides the domain-specific data models for this chat.
+Package model provides the domain-specific data models for this list.
 */
 package model
 
@@ -7,23 +7,24 @@ import (
 	"image"
 	"time"
 
-	"git.sr.ht/~gioverse/chat"
+	"git.sr.ht/~gioverse/chat/list"
 )
 
 // Message represents a chat message.
 type Message struct {
-	Serial                  string
+	SerialID                string
 	Sender, Content, Status string
 	SentAt                  time.Time
 	Local                   bool
 	Theme                   string
 	Image                   image.Image
 	Avatar                  image.Image
+	Read                    bool
 }
 
-// ID returns the unique identifier for this message.
-func (m Message) ID() chat.RowID {
-	return chat.RowID(m.Serial)
+// Serial returns the unique identifier for this message.
+func (m Message) Serial() list.Serial {
+	return list.Serial(m.SerialID)
 }
 
 // DateBoundary represents a change in the date during a chat.
@@ -31,16 +32,16 @@ type DateBoundary struct {
 	Date time.Time
 }
 
-// ID returns the unique ID of the message.
-func (d DateBoundary) ID() chat.RowID {
-	return chat.NoID
+// Serial returns the unique identifier of the message.
+func (d DateBoundary) Serial() list.Serial {
+	return list.NoSerial
 }
 
 // UnreadBoundary represents the boundary between the last read message
 // in a chat and the next unread message.
 type UnreadBoundary struct{}
 
-// ID returns the unique identifier for the boundary.
-func (u UnreadBoundary) ID() chat.RowID {
-	return chat.NoID
+// Serial returns the unique identifier for the boundary.
+func (u UnreadBoundary) Serial() list.Serial {
+	return list.NoSerial
 }

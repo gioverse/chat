@@ -30,10 +30,10 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
-	"git.sr.ht/~gioverse/chat"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
+	"git.sr.ht/~gioverse/chat/list"
 	"git.sr.ht/~gioverse/chat/ninepatch"
 	"git.sr.ht/~gioverse/chat/res"
 	lorem "github.com/drhodes/golorem"
@@ -60,7 +60,7 @@ func main() {
 		// Define an operation list for gio.
 		ops op.Ops
 		// Instantiate our UI state.
-		ui = NewUI()
+		ui = NewUI(w)
 	)
 
 	go func() {
@@ -98,14 +98,15 @@ var (
 
 // UI manages the state for the entire application's UI.
 type UI struct {
-	RowsList widget.List
-	*chat.RowManager
-	Bg    color.NRGBA
-	Modal *component.ModalLayer
+	RowsList   widget.List
+	RowManager *list.Manager
+	Modal      *component.ModalLayer
+	Bg         color.NRGBA
+	RowTracker
 }
 
 // NewUI constructs a UI and populates it with dummy data.
-func NewUI() *UI {
+func NewUI(w *app.Window) *UI {
 	var ui UI
 
 	// TODO(jfm) [modernize]: upstream a modernized modal implementation.
@@ -114,6 +115,8 @@ func NewUI() *UI {
 	ui.Modal.FinalAlpha = 250
 
 	ui.RowsList.ScrollToEnd = true
+	ui.RowsList.Axis = layout.Vertical
+	ui.RowTracker = NewExampleData(100)
 
 	var (
 		cookie = func() ninepatch.NinePatch {
@@ -142,135 +145,241 @@ func NewUI() *UI {
 		}()
 	)
 
-	ui.RowManager = chat.NewManager(
-		// Define an allocator function that can instaniate the appropriate
-		// state type for each kind of row data in our list.
-		func(data chat.Row) interface{} {
-			switch data.(type) {
-			case model.Message:
-				return &appwidget.Message{}
-			default:
-				return nil
-			}
-		},
-		// Define a presenter that can transform each kind of row data
-		// and state into a widget.
-		func(data chat.Row, state interface{}) layout.Widget {
-			switch data := data.(type) {
-			case model.Message:
-				state, ok := state.(*appwidget.Message)
-				if !ok {
-					return func(C) D { return D{} }
+	ui.RowManager = list.NewManager(25,
+		list.Hooks{
+			// Define an allocator function that can instaniate the appropriate
+			// state type for each kind of row data in our list.
+			Allocator: func(data list.Element) interface{} {
+				switch data.(type) {
+				case model.Message:
+					return &appwidget.Message{}
+				default:
+					return nil
 				}
-				if state.Clicked() {
-					ui.Modal.Widget = func(gtx C, th *material.Theme, anim *component.VisibilityAnimation) D {
-						return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
-							return widget.Image{
-								Src:      state.Image,
-								Fit:      widget.ScaleDown,
-								Position: layout.Center,
-							}.Layout(gtx)
-						})
+			},
+			// Define a presenter that can transform each kind of row data
+			// and state into a widget.
+			Presenter: func(data list.Element, state interface{}) layout.Widget {
+				switch data := data.(type) {
+				case model.Message:
+					state, ok := state.(*appwidget.Message)
+					if !ok {
+						return func(C) D { return D{} }
 					}
-					// NOTE(jfm): don't have access to a gtx, so use click history.
-					ui.Modal.Appear(state.Clickable.History()[0].Start)
+					if state.Clicked() {
+						ui.Modal.Widget = func(gtx C, th *material.Theme, anim *component.VisibilityAnimation) D {
+							return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
+								return widget.Image{
+									Src:      state.Image,
+									Fit:      widget.ScaleDown,
+									Position: layout.Center,
+								}.Layout(gtx)
+							})
+						}
+						// NOTE(jfm): don't have access to a gtx, so use click history.
+						ui.Modal.Appear(state.Clickable.History()[0].Start)
+					}
+					msg := apptheme.NewMessage(th, state, data)
+					switch data.Theme {
+					case "hotdog":
+						msg = msg.WithNinePatch(th, hotdog)
+					case "cookie":
+						msg = msg.WithNinePatch(th, cookie)
+					}
+					return msg.Layout
+				case model.DateBoundary:
+					return apptheme.DateSeparator(th.Theme, data).Layout
+				case model.UnreadBoundary:
+					return apptheme.UnreadSeparator(th.Theme, data).Layout
+				default:
+					return func(gtx C) D { return D{} }
 				}
-				msg := apptheme.NewMessage(th, state, data)
-				switch data.Theme {
-				case "hotdog":
-					msg = msg.WithNinePatch(th, hotdog)
-				case "cookie":
-					msg = msg.WithNinePatch(th, cookie)
-				}
-				return msg.Layout
-			case model.DateBoundary:
-				return apptheme.DateSeparator(th.Theme, data).Layout
-			case model.UnreadBoundary:
-				return apptheme.UnreadSeparator(th.Theme, data).Layout
-			default:
-				return func(gtx C) D { return D{} }
-			}
+			},
+			Loader:      ui.RowTracker.Load,
+			Synthesizer: synth,
+			Comparator:  rowLessThan,
+			Invalidator: w.Invalidate,
 		})
 
 	// Configure a pleasing light gray background color.
 	ui.Bg = color.NRGBA{220, 220, 220, 255}
 
-	// Populate the UI with dummy random messages.
-	for i := 0; i < max; i++ {
-		var rowData chat.Row
-		if i%10 == 0 {
-			rowData = model.DateBoundary{Date: time.Now().Add(time.Hour * 24 * time.Duration(-(100 - i)))}
-		} else if i == max-3 {
-			rowData = model.UnreadBoundary{}
-		} else {
-			rowData = model.Message{
-				Serial:  fmt.Sprintf("%d", i),
-				Content: lorem.Paragraph(1, 5),
-				SentAt:  time.Now().Add(time.Minute * time.Duration(-(100 - i))),
-				Sender:  lorem.Word(3, 10),
-				Local:   i%2 == 0,
-				Status: func() string {
-					if rand.Int()%10 == 0 {
-						return apptheme.FailedToSend
-					}
-					return ""
-				}(),
-				Theme: func() string {
-					switch val := rand.Intn(10); val {
-					case 0:
-						return "cookie"
-					case 1:
-						return "hotdog"
-					default:
-						return ""
-					}
-				}(),
-				Image: func() image.Image {
-					if rand.Float32() < 0.7 {
-						return nil
-					}
-					sizes := []image.Point{
-						image.Pt(1792, 828),
-						image.Pt(828, 1792),
-						image.Pt(600, 600),
-						image.Pt(300, 300),
-					}
-					img, err := randomImage(sizes[rand.Intn(len(sizes))])
-					if err != nil {
-						log.Print(err)
-						return nil
-					}
-					return img
-				}(),
-				Avatar: func() image.Image {
-					sizes := []image.Point{
-						image.Pt(64, 64),
-						image.Pt(32, 32),
-						image.Pt(24, 24),
-					}
-					img, err := randomImage(sizes[rand.Intn(len(sizes))])
-					if err != nil {
-						log.Print(err)
-						return nil
-					}
-					return img
-				}(),
-			}
-		}
-		ui.RowManager.Rows = append(ui.RowManager.Rows, rowData)
-	}
-
 	return &ui
+}
+
+// RowTracker is a stand-in for an application's data access logic.
+// It stores a set of chat messages and can load them on request.
+// It simulates network latency during the load operations for
+// realism.
+type RowTracker struct {
+	Rows          []list.Element
+	SerialToIndex map[list.Serial]int
+}
+
+// NewExampleData constructs a RowTracker populated with the provided
+// quantity of messages.
+func NewExampleData(size int) RowTracker {
+	rt := RowTracker{
+		SerialToIndex: make(map[list.Serial]int),
+	}
+	for i := 0; i < size; i++ {
+		r := newRow(i)
+		rt.SerialToIndex[r.Serial()] = i
+		rt.Rows = append(rt.Rows, r)
+	}
+	return rt
+}
+
+// Load simulates loading chat history from a database or API. It
+// sleeps for a random number of milliseconds and then returns
+// some messages.
+func (r RowTracker) Load(dir list.Direction, relativeTo list.Serial) []list.Element {
+	duration := time.Millisecond * time.Duration(rand.Intn(1000))
+	log.Println("sleeping", duration)
+	time.Sleep(duration)
+	numRows := len(r.Rows)
+	if relativeTo == list.NoSerial {
+		// If loading relative to nothing, likely the chat interface is empty.
+		// We should load the most recent messages first in this case, regardless
+		// of the direction parameter.
+		return r.Rows[numRows-min(10, numRows):]
+	}
+	idx := r.SerialToIndex[relativeTo]
+	if dir == list.After {
+		return r.Rows[idx+1 : min(numRows, idx+11)]
+	}
+	return r.Rows[maximum(0, idx-11):idx]
+}
+
+func maximum(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
+// newRow returns a new synthetic row of chat data.
+func newRow(serial int) list.Element {
+	var rowData list.Element
+	rowData = model.Message{
+		SerialID: fmt.Sprintf("%05d", serial),
+		Content:  lorem.Paragraph(1, 5),
+		SentAt:   time.Now().Add(time.Hour * time.Duration(serial)),
+		Sender:   lorem.Word(3, 10),
+		Local:    serial%2 == 0,
+		Status: func() string {
+			if rand.Int()%10 == 0 {
+				return apptheme.FailedToSend
+			}
+			return ""
+		}(),
+		Theme: func() string {
+			switch val := rand.Intn(10); val {
+			case 0:
+				return "cookie"
+			case 1:
+				return "hotdog"
+			default:
+				return ""
+			}
+		}(),
+		Image: func() image.Image {
+			if rand.Float32() < 0.7 {
+				return nil
+			}
+			sizes := []image.Point{
+				image.Pt(1792, 828),
+				image.Pt(828, 1792),
+				image.Pt(600, 600),
+				image.Pt(300, 300),
+			}
+			img, err := randomImage(sizes[rand.Intn(len(sizes))])
+			if err != nil {
+				log.Print(err)
+				return nil
+			}
+			return img
+		}(),
+		Avatar: func() image.Image {
+			sizes := []image.Point{
+				image.Pt(64, 64),
+				image.Pt(32, 32),
+				image.Pt(24, 24),
+			}
+			img, err := randomImage(sizes[rand.Intn(len(sizes))])
+			if err != nil {
+				log.Print(err)
+				return nil
+			}
+			return img
+		}(),
+		Read: func() bool {
+			return serial < 95
+		}(),
+	}
+	return rowData
+}
+
+// synth inserts date separators and unread separators
+// between chat rows as a list.Synthesizer.
+func synth(previous, row list.Element) []list.Element {
+	var out []list.Element
+	asMessage, ok := row.(model.Message)
+	if !ok {
+		out = append(out, row)
+		return out
+	}
+	if previous == nil {
+		if !asMessage.Read {
+			out = append(out, model.UnreadBoundary{})
+		}
+		out = append(out, row)
+		return out
+	}
+	lastMessage, ok := previous.(model.Message)
+	if !ok {
+		out = append(out, row)
+		return out
+	}
+	if !asMessage.Read && lastMessage.Read {
+		out = append(out, model.UnreadBoundary{})
+	}
+	y, m, d := asMessage.SentAt.Local().Date()
+	yy, mm, dd := lastMessage.SentAt.Local().Date()
+	if y == yy && m == mm && d == dd {
+		out = append(out, row)
+		return out
+	}
+	out = append(out, model.DateBoundary{Date: asMessage.SentAt}, row)
+	return out
+}
+
+// rowLessThan acts as a list.Comparator, returning whether a sorts before b.
+func rowLessThan(a, b list.Element) bool {
+	aID := string(a.Serial())
+	bID := string(b.Serial())
+	aAsInt, _ := strconv.Atoi(aID)
+	bAsInt, _ := strconv.Atoi(bID)
+	return aAsInt < bAsInt
 }
 
 // Layout the application UI.
 func (ui *UI) Layout(gtx C) D {
 	paint.Fill(gtx.Ops, ui.Bg)
-	ui.RowsList.Axis = layout.Vertical
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx C) D {
 			gtx.Constraints.Min = gtx.Constraints.Max
-			return material.List(th.Theme, &ui.RowsList).Layout(gtx, ui.RowManager.Len(), ui.RowManager.Layout)
+			return material.List(th.Theme, &ui.RowsList).Layout(gtx,
+				ui.RowManager.UpdatedLen(&ui.RowsList.List),
+				ui.RowManager.Layout,
+			)
 		}),
 		layout.Expanded(func(gtx C) D {
 			return ui.layoutModal(gtx)
