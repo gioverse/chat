@@ -60,7 +60,8 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- loadRequest, <-chan stateUpd
 
 				// Load and process new elements.
 				res := hooks.Loader(req.Direction, loadSerial)
-				su.populateWith(processor.Process(res...))
+				processor.Update(res...)
+				su.populateWith(processor.Synthesize())
 
 				// Track whether all new elements in a given direction have been
 				// exhausted.
@@ -75,7 +76,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- loadRequest, <-chan stateUpd
 				su.CompactedSerials = processor.Compact(maxSize, viewport)
 				// Reprocess elements if we compacted any.
 				if len(su.CompactedSerials) > 0 {
-					su.populateWith(processor.Process())
+					su.populateWith(processor.Synthesize())
 				}
 			}
 			updateChan <- su

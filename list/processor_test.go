@@ -53,9 +53,9 @@ func serialsEqual(a, b []Serial) bool {
 	return true
 }
 
-// TestProcessorProcess ensures that processing elements sorts them and
+// TestProcessorSynthesize ensures that processing elements sorts them and
 // synthesizes new elements using the hooks provided to the processor.
-func TestProcessorProcess(t *testing.T) {
+func TestProcessorSynthesize(t *testing.T) {
 	type testcase struct {
 		name   string
 		input  []Element
@@ -186,7 +186,146 @@ func TestProcessorProcess(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := newProcessor(testSynthesizer, testComparator)
-			processed := p.Process(tc.input...)
+			p.Update(tc.input...)
+			processed := p.Synthesize()
+			if !elementsEqual(processed, tc.output) {
+				t.Errorf("Expected %v, got %v", tc.output, processed)
+			}
+		})
+	}
+}
+
+// TestProcessorUpdates ensures that the processor correctly updates
+// elements with that share serial values with elements that are already in
+// the managed list.
+func TestProcessorUpdates(t *testing.T) {
+	p := newProcessor(testSynthesizer, testComparator)
+	type testcase struct {
+		name   string
+		input  []Element
+		output []Element
+	}
+	// Run all testcases on a single processor instance to check its behavior over time.
+	for _, tc := range []testcase{
+		{
+			name: "empty produces empty",
+		},
+		{
+			name: "one produces one",
+			input: []Element{
+				testElement{
+					serial:     "a",
+					synthCount: 1,
+				},
+			},
+			output: []Element{
+				testElement{
+					serial:     "a",
+					synthCount: 1,
+				},
+			},
+		},
+		{
+			name: "one updated produces two",
+			input: []Element{
+				testElement{
+					serial:     "a",
+					synthCount: 2,
+				},
+			},
+			output: []Element{
+				testElement{
+					serial:     "a",
+					synthCount: 2,
+				},
+				testElement{
+					serial:     "a",
+					synthCount: 2,
+				},
+			},
+		},
+		{
+			name: "insert some more data",
+			input: []Element{
+				testElement{
+					serial:     "a",
+					synthCount: 1,
+				},
+				testElement{
+					serial:     "b",
+					synthCount: 1,
+				},
+				testElement{
+					serial:     "c",
+					synthCount: 1,
+				},
+				testElement{
+					serial:     "d",
+					synthCount: 1,
+				},
+			},
+			output: []Element{
+				testElement{
+					serial:     "a",
+					synthCount: 1,
+				},
+				testElement{
+					serial:     "b",
+					synthCount: 1,
+				},
+				testElement{
+					serial:     "c",
+					synthCount: 1,
+				},
+				testElement{
+					serial:     "d",
+					synthCount: 1,
+				},
+			},
+		},
+		{
+			name: "update every element",
+			input: []Element{
+				testElement{
+					serial:     "a",
+					synthCount: 2,
+				},
+				testElement{
+					serial:     "b",
+					synthCount: 0,
+				},
+				testElement{
+					serial:     "c",
+					synthCount: 2,
+				},
+				testElement{
+					serial:     "d",
+					synthCount: 0,
+				},
+			},
+			output: []Element{
+				testElement{
+					serial:     "a",
+					synthCount: 2,
+				},
+				testElement{
+					serial:     "a",
+					synthCount: 2,
+				},
+				testElement{
+					serial:     "c",
+					synthCount: 2,
+				},
+				testElement{
+					serial:     "c",
+					synthCount: 2,
+				},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			p.Update(tc.input...)
+			processed := p.Synthesize()
 			if !elementsEqual(processed, tc.output) {
 				t.Errorf("Expected %v, got %v", tc.output, processed)
 			}
@@ -325,7 +464,8 @@ func TestProcessorCompact(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := newProcessor(testSynthesizer, testComparator)
-			_ = p.Process(tc.input...)
+			p.Update(tc.input...)
+			_ = p.Synthesize()
 			compacted := p.Compact(tc.req.MaxSize, tc.req.Viewport)
 			if !serialsEqual(compacted, tc.compacted) {
 				t.Errorf("Expected %v, got %v", tc.compacted, compacted)

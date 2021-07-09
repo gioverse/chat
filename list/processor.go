@@ -187,18 +187,48 @@ func newProcessor(synth Synthesizer, compare Comparator) *processor {
 	}
 }
 
-// Processed returns a slice of elements that are ready for display. This
-// method appends newElems, sorts the slice, uses a Synthesizer hook to
-// generate any synthetic elements, and then returns the result.
-func (r *processor) Process(newElems ...Element) []Element {
+// Update updates the internal Raw element slice with new elements.
+// This method updates the value of any existing element in Raw with
+// the new value for that serial provided in newElems, appends
+// all totally new elements to the end of Raw, and sorts Raw.
+func (r *processor) Update(newElems ...Element) {
+	serialToRaw := make(map[Serial]int)
+	for i, elem := range r.Raw {
+		serialToRaw[elem.Serial()] = i
+	}
+	// Search newElems for elements that already exist within the Raw slice.
+	// Avoids using a range loop because we modify the slice as we iterate.
+	for i := 0; i < len(newElems); i++ {
+		elem := newElems[i]
+		rawIndex, exists := serialToRaw[elem.Serial()]
+		if !exists {
+			continue
+		}
+		// Update the stored existing element.
+		r.Raw[rawIndex] = elem
+		// Remove this element from the new slice by moving it to the end and
+		// then shortening the slice.
+		lastIndex := len(newElems) - 1
+		newElems[i], newElems[lastIndex] = newElems[lastIndex], newElems[i]
+		newElems = newElems[:lastIndex]
+		// Check the element at this index again next iteration.
+		i--
+	}
+
 	r.Raw = append(r.Raw, newElems...)
-	// Truncate the processed element slice.
-	processed := make([]Element, 0, len(r.Raw))
-	r.ProcessedToRaw = r.ProcessedToRaw[:0]
 	// Re-sort elements.
 	sort.Slice(r.Raw, func(i, j int) bool {
 		return r.Comparator(r.Raw[i], r.Raw[j])
 	})
+}
+
+// Synthesize returns a slice of elements that are ready for display. This
+// method uses the Synthesizer hook to generate any synthetic elements
+// and returns the result.
+func (r *processor) Synthesize() []Element {
+	// Truncate the processed element slice.
+	processed := make([]Element, 0, len(r.Raw))
+	r.ProcessedToRaw = r.ProcessedToRaw[:0]
 	// Synthesize any elements that need to be created between existing
 	// ones.
 	for i, elem := range r.Raw {
