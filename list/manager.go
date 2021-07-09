@@ -40,7 +40,7 @@ type Manager struct {
 	// requests is a blocking channel of LoadRequests. Requests sent on this
 	// channel will be picked up by the state management goroutine, and
 	// the results will be available as data on the stateUpdates channel.
-	requests chan<- loadRequest
+	requests chan<- interface{}
 
 	// stateUpdates is a buffered channel that receives changes in the managed
 	// elements from the state management goroutine.
@@ -98,6 +98,15 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 
 // DefaultPrefetch is the default prefetching threshold.
 const DefaultPrefetch = 0.15
+
+// Update is a thread-safe means of inserting elements into the managed
+// list state. If an element provided to this method has the same serial
+// as an element already in the managed list, the one provided here will
+// replace the old one. This method may block, and should not be called
+// from the goroutine that is performing layout for that reason.
+func (m *Manager) Update(elems []Element) {
+	m.requests <- modificationRequest{elems}
+}
 
 // Layout the element at the given index.
 func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {

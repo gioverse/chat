@@ -165,6 +165,12 @@ type loadRequest struct {
 	viewport  layout.Position
 }
 
+// modificationRequest represents a request to insert or update some elements
+// within the managed list.
+type modificationRequest struct {
+	Update []Element
+}
+
 // processor transforms a list of unsorted elements into sorted,
 // presentable elements using the Comparator and Synthesizer it is
 // provided.

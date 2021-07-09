@@ -70,7 +70,7 @@ func TestManager(t *testing.T) {
 
 	// Replace the background processing channels with channels we can control
 	// from within the test.
-	requests := make(chan loadRequest, 1)
+	requests := make(chan interface{}, 1)
 	updates := make(chan stateUpdate, 1)
 	m.requests = requests
 	m.stateUpdates = updates
@@ -194,7 +194,8 @@ func TestManager(t *testing.T) {
 			// Check the loadRequest, if any.
 			var request loadRequest
 			select {
-			case request = <-requests:
+			case req := <-requests:
+				request = req.(loadRequest)
 				if !tc.expectingRequest {
 					t.Errorf("did not expect load request %v", request)
 				} else if tc.expectedRequest.Direction != request.Direction {
@@ -308,7 +309,7 @@ func TestManagerPrefetch(t *testing.T) {
 					Size: image.Pt(1, 1),
 				})
 				list         layout.List
-				requests     = make(chan loadRequest, 1)
+				requests     = make(chan interface{}, 1)
 				stateUpdates = make(chan stateUpdate, 1)
 			)
 
@@ -343,7 +344,8 @@ func TestManagerPrefetch(t *testing.T) {
 			list.Layout(gtx, m.UpdatedLen(&list), m.Layout)
 
 			select {
-			case request := <-requests:
+			case req := <-requests:
+				request := req.(loadRequest)
 				if tc.expect == nil {
 					t.Errorf("did not expect load request %v", request)
 				}

@@ -27,9 +27,9 @@ func (s *stateUpdate) populateWith(elems []Element) {
 // New elements are processed and compacted according to maxSize
 // on each loadRequest. Close the loadRequest channel to terminate
 // processing.
-func asyncProcess(maxSize int, hooks Hooks) (chan<- loadRequest, <-chan stateUpdate) {
+func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpdate) {
 	processor := newProcessor(hooks.Synthesizer, hooks.Comparator)
-	reqChan := make(chan loadRequest)
+	reqChan := make(chan interface{})
 	updateChan := make(chan stateUpdate, 1)
 	go func() {
 		defer close(updateChan)
@@ -38,39 +38,47 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- loadRequest, <-chan stateUpd
 			ignoreDirection Direction
 		)
 		for {
-			var su stateUpdate
+			var (
+				su       stateUpdate
+				newElems []Element
+			)
 			select {
 			case req, more := <-reqChan:
-				if !more {
-					return
-				}
-				if req.Direction == ignoreDirection {
-					continue
-				}
-				viewport = req.viewport
+				switch req := req.(type) {
+				case modificationRequest:
+					newElems = req.Update
+				case loadRequest:
+					if !more {
+						return
+					}
+					if req.Direction == ignoreDirection {
+						continue
+					}
+					viewport = req.viewport
 
-				// Find the serial of the element at either end of the list.
-				var loadSerial Serial
-				switch req.Direction {
-				case Before:
-					loadSerial = processor.SerialForProcessedIndex(0)
-				case After:
-					loadSerial = processor.SerialForProcessedIndex(len(processor.ProcessedToRaw) - 1)
-				}
-
-				// Load and process new elements.
-				res := hooks.Loader(req.Direction, loadSerial)
-				processor.Update(res...)
-				su.populateWith(processor.Synthesize())
-
-				// Track whether all new elements in a given direction have been
-				// exhausted.
-				if len(res) == 0 {
-					ignoreDirection = req.Direction
-				} else {
-					ignoreDirection = noDirection
+					// Find the serial of the element at either end of the list.
+					var loadSerial Serial
+					switch req.Direction {
+					case Before:
+						loadSerial = processor.SerialForProcessedIndex(0)
+					case After:
+						loadSerial = processor.SerialForProcessedIndex(len(processor.ProcessedToRaw) - 1)
+					}
+					// Load new elements.
+					newElems = hooks.Loader(req.Direction, loadSerial)
+					// Track whether all new elements in a given direction have been
+					// exhausted.
+					if len(newElems) == 0 {
+						ignoreDirection = req.Direction
+					} else {
+						ignoreDirection = noDirection
+					}
 				}
 			}
+			// Process any new elements.
+			processor.Update(newElems...)
+			su.populateWith(processor.Synthesize())
+
 			// Always try to compact after a state update.
 			if len(processor.Raw) > maxSize {
 				su.CompactedSerials = processor.Compact(maxSize, viewport)
