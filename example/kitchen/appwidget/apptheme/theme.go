@@ -13,6 +13,7 @@ import (
 var (
 	defaultMaxImageHeight  = unit.Dp(400)
 	defaultMaxMessageWidth = unit.Dp(600)
+	defaultAvatarSize      = unit.Dp(24)
 )
 
 // ToNRGBA converts a colorful.Color to the nearest representable color.NRGBA.
@@ -38,6 +39,8 @@ type Theme struct {
 	// MaxMessageWidth allowable for messages.
 	// Excess content should wrap vertically.
 	MaxMessageWidth unit.Value
+	// AvatarSize specifies how large the avatar image should be.
+	AvatarSize unit.Value
 }
 
 // UserColorData tracks both a color and its luminance.
@@ -55,6 +58,7 @@ func NewTheme(fonts []text.FontFace) *Theme {
 		DangerColor:     color.NRGBA{R: 200, A: 255},
 		MaxImageHeight:  defaultMaxImageHeight,
 		MaxMessageWidth: defaultMaxMessageWidth,
+		AvatarSize:      defaultAvatarSize,
 	}
 }
 

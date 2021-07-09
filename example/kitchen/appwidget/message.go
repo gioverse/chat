@@ -14,4 +14,6 @@ type Message struct {
 	widget.Clickable
 	// Image caches the image operation.
 	Image paint.ImageOp
+	// Avatar caches the avatar image.
+	Avatar paint.ImageOp
 }

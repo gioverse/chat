@@ -104,7 +104,7 @@ func (n NinePatch) Layout(gtx C, w layout.Widget) D {
 	scale := DefaultScale
 
 	// Handle screen density.
-	scale /= gtx.Metric.PxPerDp
+	scale *= gtx.Metric.PxPerDp
 
 	var (
 		src = n.Grid

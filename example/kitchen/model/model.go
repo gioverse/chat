@@ -18,6 +18,7 @@ type Message struct {
 	Local                   bool
 	Theme                   string
 	Image                   image.Image
+	Avatar                  image.Image
 }
 
 // ID returns the unique identifier for this message.

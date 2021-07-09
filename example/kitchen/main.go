@@ -2,6 +2,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"image"
 	"image/color"
@@ -38,8 +39,15 @@ import (
 	lorem "github.com/drhodes/golorem"
 )
 
+var (
+	// max images to generate.
+	max int
+)
+
 func init() {
 	rand.Seed(time.Now().UnixNano())
+	flag.IntVar(&max, "max", 100, "max images to generate (default 100)")
+	flag.Parse()
 }
 
 func main() {
@@ -182,7 +190,6 @@ func NewUI() *UI {
 	ui.Bg = color.NRGBA{220, 220, 220, 255}
 
 	// Populate the UI with dummy random messages.
-	max := 10
 	for i := 0; i < max; i++ {
 		var rowData chat.Row
 		if i%10 == 0 {
@@ -222,7 +229,19 @@ func NewUI() *UI {
 						image.Pt(600, 600),
 						image.Pt(300, 300),
 					}
-					// TODO(jfm): download random images async.
+					img, err := randomImage(sizes[rand.Intn(len(sizes))])
+					if err != nil {
+						log.Print(err)
+						return nil
+					}
+					return img
+				}(),
+				Avatar: func() image.Image {
+					sizes := []image.Point{
+						image.Pt(64, 64),
+						image.Pt(32, 32),
+						image.Pt(24, 24),
+					}
 					img, err := randomImage(sizes[rand.Intn(len(sizes))])
 					if err != nil {
 						log.Print(err)
@@ -282,9 +301,12 @@ func (ui *UI) layoutModal(gtx C) D {
 
 // randomImage returns a random image at the given size.
 // Downloads some number of random images from unplash and caches them on disk.
+//
+// TODO(jfm) [performance]: download images concurrently (parallel downloads,
+// async to the gui event loop).
 func randomImage(sz image.Point) (image.Image, error) {
 	cache := filepath.Join(os.TempDir(), "chat", fmt.Sprintf("%dx%d", sz.X, sz.Y))
-	if err := os.MkdirAll(cache, 0644); err != nil {
+	if err := os.MkdirAll(cache, 0755); err != nil {
 		return nil, fmt.Errorf("preparing cache directory: %w", err)
 	}
 	entries, err := ioutil.ReadDir(cache)

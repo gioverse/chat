@@ -62,7 +62,9 @@ type MessageStyle struct {
 	// ContentMargin configures space around the chat bubble.
 	ContentMargin layout.Inset
 	// Image specifies optional image content for the message.
-	Image widget.Image
+	Image Image
+	// Avatar displays an image representing the sender.
+	Avatar Image
 	// Content configures the actual contents of the chat bubble.
 	Content richtext.TextStyle
 	// ContentPadding defines space around the Content within the Bubble area.
@@ -83,12 +85,20 @@ type MessageStyle struct {
 
 // NewMessage creates a style type that can lay out the data for a message.
 func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) MessageStyle {
+	// TODO(jfm) [cleanup]: factor image cache relationship.
 	var (
 		hasImage = msg.Image != nil
 		isCached = interact.Image != (paint.ImageOp{})
 	)
 	if hasImage && !isCached {
 		interact.Image = paint.NewImageOp(msg.Image)
+	}
+	var (
+		hasAvatar      = msg.Avatar != nil
+		avatarIsCached = interact.Avatar != (paint.ImageOp{})
+	)
+	if hasAvatar && !avatarIsCached {
+		interact.Avatar = paint.NewImageOp(msg.Avatar)
 	}
 	bubble := matchat.Bubble(th.Theme)
 	ms := MessageStyle{
@@ -107,14 +117,26 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 		ContentMargin:      layout.UniformInset(unit.Dp(8)),
 		LeftGutter:         layout.Spacer{Width: unit.Dp(24)},
 		Sender:             material.Body1(th.Theme, msg.Sender),
-		Image: widget.Image{
-			Src:      interact.Image,
-			Fit:      widget.ScaleDown,
-			Position: layout.Center,
+		Image: Image{
+			Image: widget.Image{
+				Src:      interact.Image,
+				Fit:      widget.ScaleDown,
+				Position: layout.Center,
+			},
+			Radii: unit.Dp(8),
 		},
 		MaxMessageWidth: th.MaxMessageWidth,
 		MaxImageHeight:  th.MaxImageHeight,
 		Clicks:          &interact.Clickable,
+		Avatar: Image{
+			Image: widget.Image{
+				Src:      interact.Avatar,
+				Fit:      widget.Cover,
+				Position: layout.Center,
+			},
+			Radii: unit.Dp(8),
+			Size:  th.AvatarSize,
+		},
 	}
 	if msg.Status != "" {
 		ms.StatusMessage = material.Body2(th.Theme, msg.Status)
@@ -137,7 +159,6 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 // WithNinePatch sets the message surface to a ninepatch image.
 func (c MessageStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) MessageStyle {
 	c.Surface = np
-	c.ContentMargin = layout.Inset{}
 	var (
 		b = np.Image.Bounds()
 	)
@@ -167,6 +188,7 @@ func (c MessageStyle) Layout(gtx C) D {
 	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 		layout.Rigid(func(gtx C) D {
 			return layout.Flex{
+				Axis:      layout.Horizontal,
 				Alignment: layout.Middle,
 			}.Layout(gtx,
 				layout.Rigid(func(gtx C) D {
@@ -177,7 +199,22 @@ func (c MessageStyle) Layout(gtx C) D {
 				}),
 				layout.Flexed(1, func(gtx C) D {
 					return messageAlignment.Layout(gtx, func(gtx C) D {
-						return c.Sender.Layout(gtx)
+						return layout.Flex{
+							Axis:      layout.Horizontal,
+							Alignment: layout.Middle,
+						}.Layout(gtx,
+							anchor(messageAlignment,
+								layout.Rigid(func(gtx C) D {
+									return c.Avatar.Layout(gtx)
+								}),
+								layout.Rigid(func(gtx C) D {
+									return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
+								}),
+								layout.Rigid(func(gtx C) D {
+									return c.Sender.Layout(gtx)
+								}),
+							)...,
+						)
 					})
 				}),
 				layout.Rigid(func(gtx C) D {
@@ -229,17 +266,7 @@ func (c MessageStyle) layoutBubble(gtx C) D {
 		}
 		return material.Clickable(gtx, c.Clicks, func(gtx C) D {
 			gtx.Constraints.Max.Y = gtx.Px(c.MaxImageHeight)
-			defer op.Save(gtx.Ops).Load()
-			macro := op.Record(gtx.Ops)
-			dims := c.Image.Layout(gtx)
-			call := macro.Stop()
-			radius := float32(gtx.Px(unit.Dp(8)))
-			clip.RRect{
-				Rect: f32.Rectangle{Max: layout.FPt(dims.Size)},
-				NE:   radius, NW: radius, SE: radius, SW: radius,
-			}.Add(gtx.Ops)
-			call.Add(gtx.Ops)
-			return dims
+			return c.Image.Layout(gtx)
 		})
 	})
 }
@@ -273,4 +300,48 @@ func (c MessageStyle) layoutTimeOrIcon(gtx C) D {
 // [0,1]. Ignores alpha.
 func Luminance(c color.NRGBA) float64 {
 	return (float64(float64(0.299)*float64(c.R) + float64(0.587)*float64(c.G) + float64(0.114)*float64(c.B))) / 255
+}
+
+// Image lays out an image with optionally rounded corners.
+type Image struct {
+	widget.Image
+	// Radii specifies the amount of rounding.
+	Radii unit.Value
+	// Size specifies the max size of the image.
+	Size unit.Value
+}
+
+func (img Image) Layout(gtx C) D {
+	if img.Size.V > 0 {
+		gtx.Constraints.Max.X = gtx.Px(img.Size)
+		gtx.Constraints.Max.Y = gtx.Px(img.Size)
+	}
+	defer op.Save(gtx.Ops).Load()
+	macro := op.Record(gtx.Ops)
+	dims := img.Image.Layout(gtx)
+	call := macro.Stop()
+	r := float32(gtx.Px(img.Radii))
+	clip.RRect{
+		Rect: f32.Rectangle{Max: layout.FPt(dims.Size)},
+		NE:   r, NW: r, SE: r, SW: r,
+	}.Add(gtx.Ops)
+	call.Add(gtx.Ops)
+	return dims
+}
+
+// anchor a sequence of flex children to a particular direction.
+//
+// By default this is left-to-right, however if East direction is supplied, the
+// list is reversed to make it right-to-left.
+//
+// TODO(jfm) [clarify]: I'm not confident about how to name this helper.
+func anchor(d layout.Direction, items ...layout.FlexChild) []layout.FlexChild {
+	if d == layout.E || d == layout.NE || d == layout.SE {
+		flipped := make([]layout.FlexChild, len(items))
+		for ii := 0; ii < len(items); ii++ {
+			flipped[ii] = items[len(items)-ii-1]
+		}
+		return flipped
+	}
+	return items
 }
