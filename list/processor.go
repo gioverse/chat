@@ -1,9 +1,12 @@
 package list
 
 import (
+	"fmt"
 	"sort"
 
+	"gioui.org/app"
 	"gioui.org/layout"
+	"gioui.org/widget/material"
 )
 
 // Serial uniquely identifies a list element.
@@ -57,7 +60,7 @@ type Presenter func(current Element, state interface{}) layout.Widget
 // state.
 type Allocator func(current Element) (state interface{})
 
-// Hooks provides the lifecycle hooks necessary for a ListManager
+// Hooks provides the lifecycle hooks necessary for a Manager
 // to orchestrate the state of all its managed elements. See the documentation
 // of each function type for details.
 type Hooks struct {
@@ -69,6 +72,49 @@ type Hooks struct {
 	// Invalidator triggers a new frame in the window displaying the managed
 	// list.
 	Invalidator func()
+}
+
+type defaultElement struct {
+	serial Serial
+}
+
+func (d defaultElement) Serial() Serial {
+	return d.serial
+}
+
+func newDefaultElements() (out []Element) {
+	for i := 0; i < 100; i++ {
+		out = append(out, defaultElement{
+			serial: Serial(fmt.Sprintf("%05d", i)),
+		})
+	}
+	return out
+}
+
+// DefaultHooks returns a Hooks instance with most fields defined as no-ops.
+// It does populate the Invalidator field with w.Invalidate.
+func DefaultHooks(w *app.Window, th *material.Theme) Hooks {
+	return Hooks{
+		Synthesizer: func(prev, curr Element) []Element {
+			return []Element{curr}
+		},
+		Comparator: func(a, b Element) bool {
+			return string(a.Serial()) < string(b.Serial())
+		},
+		Loader: func(dir Direction, relativeTo Serial) []Element {
+			if relativeTo == NoSerial {
+				return newDefaultElements()
+			}
+			return nil
+		},
+		Presenter: func(elem Element, state interface{}) layout.Widget {
+			return material.H4(th, "Implement list.Hooks to change me.").Layout
+		},
+		Allocator: func(elem Element) interface{} {
+			return nil
+		},
+		Invalidator: w.Invalidate,
+	}
 }
 
 func min(ints ...int) int {
