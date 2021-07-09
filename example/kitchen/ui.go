@@ -60,6 +60,10 @@ type UI struct {
 	// InsideRoom if we are currently in the room view.
 	// Used to decide when to render the sidebar on small viewports.
 	InsideRoom bool
+
+	// AddBtn holds click state for a button that adds a new message to
+	// the current room.
+	AddBtn widget.Clickable
 }
 
 // NewUI constructs a UI and populates it with dummy data.
@@ -233,10 +237,7 @@ func (ui *UI) Layout(gtx C) D {
 				return layout.Stack{}.Layout(gtx,
 					layout.Stacked(func(gtx C) D {
 						gtx.Constraints.Min = gtx.Constraints.Max
-						return material.List(th.Theme, &ui.RowsList).Layout(gtx,
-							ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
-							ui.Rooms.Active().List.Layout,
-						)
+						return ui.layoutChat(gtx)
 					}),
 					layout.Expanded(func(gtx C) D {
 						return ui.layoutModal(gtx)
@@ -258,15 +259,33 @@ func (ui *UI) Layout(gtx C) D {
 			return layout.Stack{}.Layout(gtx,
 				layout.Stacked(func(gtx C) D {
 					gtx.Constraints.Min = gtx.Constraints.Max
-					return material.List(th.Theme, &ui.RowsList).Layout(gtx,
-						ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
-						ui.Rooms.Active().List.Layout,
-					)
+					return ui.layoutChat(gtx)
 				}),
 				layout.Expanded(func(gtx C) D {
 					return ui.layoutModal(gtx)
 				}),
 			)
+		}),
+	)
+}
+
+// layoutChat lays out the chat interface with associated controls.
+func (ui *UI) layoutChat(gtx C) D {
+	return layout.Flex{
+		Axis: layout.Vertical,
+	}.Layout(gtx,
+		layout.Flexed(1, func(gtx C) D {
+			return material.List(th.Theme, &ui.RowsList).Layout(gtx,
+				ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
+				ui.Rooms.Active().List.Layout,
+			)
+		}),
+		layout.Rigid(func(gtx C) D {
+			if ui.AddBtn.Clicked() {
+				ui.Rooms.Active().NewRow()
+			}
+
+			return material.Button(th.Theme, &ui.AddBtn, "Add Message").Layout(gtx)
 		}),
 	)
 }
@@ -394,6 +413,14 @@ func (r *RowTracker) Index(ii int) list.Element {
 		return r.Rows[0]
 	}
 	return r.Rows[ii]
+}
+
+func (r *RowTracker) NewRow() list.Element {
+	index := len(r.Rows)
+	element := newRow(index)
+	r.Rows = append(r.Rows, element)
+	r.SerialToIndex[element.Serial()] = index
+	return element
 }
 
 // Load simulates loading chat history from a database or API. It

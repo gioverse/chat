@@ -24,12 +24,19 @@ type Room struct {
 	List     *list.Manager
 }
 
+// NewRow generates a new row in the Room's RowTracker and inserts it
+// into the list manager for the room.
+func (r *Room) NewRow() {
+	row := r.Messages.NewRow()
+	go r.List.Update([]list.Element{row})
+}
+
 // Active returns the active room, empty if not rooms are available.
-func (r Rooms) Active() Room {
+func (r Rooms) Active() *Room {
 	if len(r.List) == 0 {
-		return Room{}
+		return &Room{}
 	}
-	return r.List[r.active]
+	return &r.List[r.active]
 }
 
 // Select the room at the given index.
