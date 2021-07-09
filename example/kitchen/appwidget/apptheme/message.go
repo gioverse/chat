@@ -327,12 +327,21 @@ func (img Image) Layout(gtx C) D {
 //
 // TODO(jfm) [clarify]: I'm not confident about how to name this helper.
 func anchor(d layout.Direction, items ...layout.FlexChild) []layout.FlexChild {
+	if len(items) == 0 {
+		return items
+	}
 	if d == layout.E || d == layout.NE || d == layout.SE {
-		flipped := make([]layout.FlexChild, len(items))
 		for ii := 0; ii < len(items); ii++ {
-			flipped[ii] = items[len(items)-ii-1]
+			var (
+				head = ii
+				tail = len(items) - 1 - ii
+			)
+			if head == tail {
+				break
+			}
+			items[head], items[tail] = items[tail], items[head]
 		}
-		return flipped
+		return items
 	}
 	return items
 }
