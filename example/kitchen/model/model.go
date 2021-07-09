@@ -4,6 +4,7 @@ Package model provides the domain-specific data models for this chat.
 package model
 
 import (
+	"image"
 	"time"
 
 	"git.sr.ht/~gioverse/chat"
@@ -16,6 +17,7 @@ type Message struct {
 	SentAt                  time.Time
 	Local                   bool
 	Theme                   string
+	Image                   image.Image
 }
 
 // ID returns the unique identifier for this message.

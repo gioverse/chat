@@ -3,11 +3,21 @@ package main
 
 import (
 	"fmt"
+	"image"
 	"image/color"
 	"image/png"
+	"io"
+	"io/fs"
+	"io/ioutil"
+	"log"
 	"math/rand"
+	"net/http"
 	"os"
+	"path/filepath"
+	"strconv"
 	"time"
+
+	_ "image/jpeg"
 
 	"gioui.org/app"
 	"gioui.org/font/gofont"
@@ -18,6 +28,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"gioui.org/x/component"
 	"git.sr.ht/~gioverse/chat"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
@@ -26,6 +37,10 @@ import (
 	"git.sr.ht/~gioverse/chat/res"
 	lorem "github.com/drhodes/golorem"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 func main() {
 	var (
@@ -78,6 +93,10 @@ type UI struct {
 	RowsList widget.List
 	*chat.RowManager
 	Bg color.NRGBA
+	// Modal is layed above the content area with a scrim.
+	Modal layout.Widget
+	// Scrim clicks to dismiss the modal.
+	Scrim widget.Clickable
 }
 
 // NewUI constructs a UI and populates it with dummy data.
@@ -129,7 +148,20 @@ func NewUI() *UI {
 		func(data chat.Row, state interface{}) layout.Widget {
 			switch data := data.(type) {
 			case model.Message:
-				msg := apptheme.NewMessage(th, state.(*appwidget.Message), data)
+				state, ok := state.(*appwidget.Message)
+				if !ok {
+					return func(C) D { return D{} }
+				}
+				if state.Clicked() {
+					ui.Modal = func(gtx C) D {
+						return widget.Image{
+							Src:      state.Image,
+							Fit:      widget.ScaleDown,
+							Position: layout.Center,
+						}.Layout(gtx)
+					}
+				}
+				msg := apptheme.NewMessage(th, state, data)
 				switch data.Theme {
 				case "hotdog":
 					msg = msg.WithNinePatch(th, hotdog)
@@ -150,7 +182,7 @@ func NewUI() *UI {
 	ui.Bg = color.NRGBA{220, 220, 220, 255}
 
 	// Populate the UI with dummy random messages.
-	max := 100
+	max := 10
 	for i := 0; i < max; i++ {
 		var rowData chat.Row
 		if i%10 == 0 {
@@ -180,6 +212,24 @@ func NewUI() *UI {
 						return ""
 					}
 				}(),
+				Image: func() image.Image {
+					if rand.Float32() < 0.7 {
+						return nil
+					}
+					sizes := []image.Point{
+						image.Pt(1792, 828),
+						image.Pt(828, 1792),
+						image.Pt(600, 600),
+						image.Pt(300, 300),
+					}
+					// TODO(jfm): download random images async.
+					img, err := randomImage(sizes[rand.Intn(len(sizes))])
+					if err != nil {
+						log.Print(err)
+						return nil
+					}
+					return img
+				}(),
 			}
 		}
 		ui.RowManager.Rows = append(ui.RowManager.Rows, rowData)
@@ -192,5 +242,103 @@ func NewUI() *UI {
 func (ui *UI) Layout(gtx C) D {
 	paint.Fill(gtx.Ops, ui.Bg)
 	ui.RowsList.Axis = layout.Vertical
-	return material.List(th.Theme, &ui.RowsList).Layout(gtx, ui.RowManager.Len(), ui.RowManager.Layout)
+	return layout.Stack{}.Layout(gtx,
+		layout.Stacked(func(gtx C) D {
+			gtx.Constraints.Min = gtx.Constraints.Max
+			return material.List(th.Theme, &ui.RowsList).Layout(gtx, ui.RowManager.Len(), ui.RowManager.Layout)
+		}),
+		layout.Expanded(func(gtx C) D {
+			return ui.layoutModal(gtx)
+		}),
+	)
+}
+
+func (ui *UI) layoutModal(gtx C) D {
+	if ui.Scrim.Clicked() {
+		ui.Modal = nil
+	}
+	if ui.Modal == nil {
+		return D{}
+	}
+	return layout.Stack{}.Layout(
+		gtx,
+		layout.Stacked(func(gtx C) D {
+			return material.Clickable(gtx, &ui.Scrim, func(gtx C) D {
+				return component.Rect{
+					Size:  gtx.Constraints.Max,
+					Color: color.NRGBA{A: 250},
+				}.Layout(gtx)
+			})
+		}),
+		layout.Expanded(func(gtx C) D {
+			return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
+				return layout.Center.Layout(gtx, func(gtx C) D {
+					return ui.Modal(gtx)
+				})
+			})
+		}),
+	)
+}
+
+// randomImage returns a random image at the given size.
+// Downloads some number of random images from unplash and caches them on disk.
+func randomImage(sz image.Point) (image.Image, error) {
+	cache := filepath.Join(os.TempDir(), "chat", fmt.Sprintf("%dx%d", sz.X, sz.Y))
+	if err := os.MkdirAll(cache, 0644); err != nil {
+		return nil, fmt.Errorf("preparing cache directory: %w", err)
+	}
+	entries, err := ioutil.ReadDir(cache)
+	if err != nil {
+		return nil, fmt.Errorf("reading cache entries: %w", err)
+	}
+	entries = filter(entries, isFile)
+	if len(entries) == 0 {
+		for ii := 0; ii < 10; ii++ {
+			ii := ii
+			if err := func() error {
+				r, err := http.Get(fmt.Sprintf("https://source.unsplash.com/random/%dx%d", sz.X, sz.Y))
+				if err != nil {
+					return fmt.Errorf("fetching image data: %w", err)
+				}
+				defer r.Body.Close()
+				imgf, err := os.Create(filepath.Join(cache, strconv.Itoa(ii)))
+				if err != nil {
+					return fmt.Errorf("creating image file on disk: %w", err)
+				}
+				defer imgf.Close()
+				if _, err := io.Copy(imgf, r.Body); err != nil {
+					return fmt.Errorf("downloading image: %w", err)
+				}
+				return nil
+			}(); err != nil {
+				return nil, fmt.Errorf("populating image cache: %w", err)
+			}
+		}
+		return randomImage(sz)
+	}
+	selection := entries[rand.Intn(len(entries))]
+	imgf, err := os.Open(filepath.Join(cache, selection.Name()))
+	if err != nil {
+		return nil, fmt.Errorf("opening image file: %w", err)
+	}
+	defer imgf.Close()
+	img, _, err := image.Decode(imgf)
+	if err != nil {
+		return nil, fmt.Errorf("decoding image: %w", err)
+	}
+	return img, nil
+}
+
+// isFile filters out non-file entries.
+func isFile(info fs.FileInfo) bool {
+	return !info.IsDir()
+}
+
+func filter(list []fs.FileInfo, predicate func(fs.FileInfo) bool) (filtered []fs.FileInfo) {
+	for _, item := range list {
+		if predicate(item) {
+			filtered = append(filtered, item)
+		}
+	}
+	return filtered
 }

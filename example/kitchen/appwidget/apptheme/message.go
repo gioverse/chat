@@ -4,7 +4,11 @@ import (
 	"image"
 	"image/color"
 
+	"gioui.org/f32"
 	"gioui.org/layout"
+	"gioui.org/op"
+	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -57,6 +61,8 @@ type MessageStyle struct {
 	}
 	// ContentMargin configures space around the chat bubble.
 	ContentMargin layout.Inset
+	// Image specifies optional image content for the message.
+	Image widget.Image
 	// Content configures the actual contents of the chat bubble.
 	Content richtext.TextStyle
 	// ContentPadding defines space around the Content within the Bubble area.
@@ -65,10 +71,25 @@ type MessageStyle struct {
 	LeftGutter layout.Spacer
 	// Sender is the name of the sender of the message.
 	Sender material.LabelStyle
+	// MaxMessageWidth constrains messages width-wise.
+	// Excess content will wrap vertically.
+	MaxMessageWidth unit.Value
+	// MaxImageHeight constrains images height-wise.
+	// Images will be scaled-down to fit, preserving aspect ratio.
+	MaxImageHeight unit.Value
+	// Clicks tracks clicks over the message area.
+	Clicks *widget.Clickable
 }
 
 // NewMessage creates a style type that can lay out the data for a message.
 func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) MessageStyle {
+	var (
+		hasImage = msg.Image != nil
+		isCached = interact.Image != (paint.ImageOp{})
+	)
+	if hasImage && !isCached {
+		interact.Image = paint.NewImageOp(msg.Image)
+	}
 	bubble := matchat.Bubble(th.Theme)
 	ms := MessageStyle{
 		Time:    material.Body2(th.Theme, msg.SentAt.Local().Format("15:04")),
@@ -86,6 +107,14 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 		ContentMargin:      layout.UniformInset(unit.Dp(8)),
 		LeftGutter:         layout.Spacer{Width: unit.Dp(24)},
 		Sender:             material.Body1(th.Theme, msg.Sender),
+		Image: widget.Image{
+			Src:      interact.Image,
+			Fit:      widget.ScaleDown,
+			Position: layout.Center,
+		},
+		MaxMessageWidth: th.MaxMessageWidth,
+		MaxImageHeight:  th.MaxImageHeight,
+		Clicks:          &interact.Clickable,
 	}
 	if msg.Status != "" {
 		ms.StatusMessage = material.Body2(th.Theme, msg.Status)
@@ -186,13 +215,31 @@ func (c MessageStyle) Layout(gtx C) D {
 // layoutBubble lays out the chat bubble.
 func (c MessageStyle) layoutBubble(gtx C) D {
 	gtx.Constraints.Max.X = int(float32(gtx.Constraints.Max.X) * 0.8)
-	maxSaneSize := gtx.Px(unit.Dp(600))
-	if gtx.Constraints.Max.X > maxSaneSize {
-		gtx.Constraints.Max.X = maxSaneSize
+	max := gtx.Px(c.MaxMessageWidth)
+	if gtx.Constraints.Max.X > max {
+		gtx.Constraints.Max.X = max
 	}
 	return c.ContentMargin.Layout(gtx, func(gtx C) D {
-		return c.Surface.Layout(gtx, func(gtx C) D {
-			return c.ContentPadding.Layout(gtx, c.Content.Layout)
+		if c.Image.Src == (paint.ImageOp{}) {
+			return c.Surface.Layout(gtx, func(gtx C) D {
+				return c.ContentPadding.Layout(gtx, func(gtx C) D {
+					return c.Content.Layout(gtx)
+				})
+			})
+		}
+		return material.Clickable(gtx, c.Clicks, func(gtx C) D {
+			gtx.Constraints.Max.Y = gtx.Px(c.MaxImageHeight)
+			defer op.Save(gtx.Ops).Load()
+			macro := op.Record(gtx.Ops)
+			dims := c.Image.Layout(gtx)
+			call := macro.Stop()
+			radius := float32(gtx.Px(unit.Dp(8)))
+			clip.RRect{
+				Rect: f32.Rectangle{Max: layout.FPt(dims.Size)},
+				NE:   radius, NW: radius, SE: radius, SW: radius,
+			}.Add(gtx.Ops)
+			call.Add(gtx.Ops)
+			return dims
 		})
 	})
 }
