@@ -100,16 +100,18 @@ var (
 type UI struct {
 	RowsList widget.List
 	*chat.RowManager
-	Bg color.NRGBA
-	// Modal is layed above the content area with a scrim.
-	Modal layout.Widget
-	// Scrim clicks to dismiss the modal.
-	Scrim widget.Clickable
+	Bg    color.NRGBA
+	Modal *component.ModalLayer
 }
 
 // NewUI constructs a UI and populates it with dummy data.
 func NewUI() *UI {
 	var ui UI
+
+	// TODO(jfm) [modernize]: upstream a modernized modal implementation.
+	// For now, use retained version.
+	ui.Modal = component.NewModal()
+	ui.Modal.FinalAlpha = 250
 
 	ui.RowsList.ScrollToEnd = true
 
@@ -161,13 +163,17 @@ func NewUI() *UI {
 					return func(C) D { return D{} }
 				}
 				if state.Clicked() {
-					ui.Modal = func(gtx C) D {
-						return widget.Image{
-							Src:      state.Image,
-							Fit:      widget.ScaleDown,
-							Position: layout.Center,
-						}.Layout(gtx)
+					ui.Modal.Widget = func(gtx C, th *material.Theme, anim *component.VisibilityAnimation) D {
+						return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
+							return widget.Image{
+								Src:      state.Image,
+								Fit:      widget.ScaleDown,
+								Position: layout.Center,
+							}.Layout(gtx)
+						})
 					}
+					// NOTE(jfm): don't have access to a gtx, so use click history.
+					ui.Modal.Appear(state.Clickable.History()[0].Start)
 				}
 				msg := apptheme.NewMessage(th, state, data)
 				switch data.Theme {
@@ -273,30 +279,10 @@ func (ui *UI) Layout(gtx C) D {
 }
 
 func (ui *UI) layoutModal(gtx C) D {
-	if ui.Scrim.Clicked() {
-		ui.Modal = nil
+	if ui.Modal.Clicked() {
+		ui.Modal.ToggleVisibility(gtx.Now)
 	}
-	if ui.Modal == nil {
-		return D{}
-	}
-	return layout.Stack{}.Layout(
-		gtx,
-		layout.Stacked(func(gtx C) D {
-			return material.Clickable(gtx, &ui.Scrim, func(gtx C) D {
-				return component.Rect{
-					Size:  gtx.Constraints.Max,
-					Color: color.NRGBA{A: 250},
-				}.Layout(gtx)
-			})
-		}),
-		layout.Expanded(func(gtx C) D {
-			return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
-				return layout.Center.Layout(gtx, func(gtx C) D {
-					return ui.Modal(gtx)
-				})
-			})
-		}),
-	)
+	return ui.Modal.Layout(gtx, th.Theme)
 }
 
 // randomImage returns a random image at the given size.
