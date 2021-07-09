@@ -85,21 +85,8 @@ type MessageStyle struct {
 
 // NewMessage creates a style type that can lay out the data for a message.
 func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) MessageStyle {
-	// TODO(jfm) [cleanup]: factor image cache relationship.
-	var (
-		hasImage = msg.Image != nil
-		isCached = interact.Image != (paint.ImageOp{})
-	)
-	if hasImage && !isCached {
-		interact.Image = paint.NewImageOp(msg.Image)
-	}
-	var (
-		hasAvatar      = msg.Avatar != nil
-		avatarIsCached = interact.Avatar != (paint.ImageOp{})
-	)
-	if hasAvatar && !avatarIsCached {
-		interact.Avatar = paint.NewImageOp(msg.Avatar)
-	}
+	interact.SetAvatar(msg.Avatar)
+	interact.SetImage(msg.Image)
 	bubble := matchat.Bubble(th.Theme)
 	ms := MessageStyle{
 		Time:    material.Body2(th.Theme, msg.SentAt.Local().Format("15:04")),
