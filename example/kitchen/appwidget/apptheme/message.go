@@ -121,8 +121,9 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 				Fit:      widget.Cover,
 				Position: layout.Center,
 			},
-			Radii: unit.Dp(8),
-			Size:  th.AvatarSize,
+			Radii:  unit.Dp(8),
+			Width:  th.AvatarSize,
+			Height: th.AvatarSize,
 		},
 	}
 	if msg.Status != "" {
@@ -294,14 +295,17 @@ type Image struct {
 	widget.Image
 	// Radii specifies the amount of rounding.
 	Radii unit.Value
-	// Size specifies the max size of the image.
-	Size unit.Value
+	// Width and Height specify respective dimensions.
+	// If left empty, dimensions will be unconstrained.
+	Width, Height unit.Value
 }
 
 func (img Image) Layout(gtx C) D {
-	if img.Size.V > 0 {
-		gtx.Constraints.Max.X = gtx.Px(img.Size)
-		gtx.Constraints.Max.Y = gtx.Px(img.Size)
+	if img.Width.V > 0 {
+		gtx.Constraints.Max.X = gtx.Px(img.Width)
+	}
+	if img.Height.V > 0 {
+		gtx.Constraints.Max.Y = gtx.Px(img.Height)
 	}
 	defer op.Save(gtx.Ops).Load()
 	macro := op.Record(gtx.Ops)
