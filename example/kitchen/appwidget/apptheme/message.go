@@ -5,6 +5,7 @@ import (
 	"image/color"
 
 	"gioui.org/f32"
+	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
@@ -252,6 +253,7 @@ func (c MessageStyle) layoutBubble(gtx C) D {
 				})
 			})
 		}
+		defer pointer.CursorNameOp{Name: pointer.CursorPointer}.Add(gtx.Ops)
 		return material.Clickable(gtx, c.Clicks, func(gtx C) D {
 			gtx.Constraints.Max.Y = gtx.Px(c.MaxImageHeight)
 			return c.Image.Layout(gtx)
@@ -293,6 +295,7 @@ func Luminance(c color.NRGBA) float64 {
 // Image lays out an image with optionally rounded corners.
 type Image struct {
 	widget.Image
+	widget.Clickable
 	// Radii specifies the amount of rounding.
 	Radii unit.Value
 	// Width and Height specify respective dimensions.
