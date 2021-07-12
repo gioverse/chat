@@ -35,14 +35,16 @@ func (r Rooms) Active() Room {
 // Select the room at the given index.
 // Index is bounded by [0, len(rooms)).
 func (r *Rooms) Select(index int) {
-	r.changed = true
 	if index < 0 {
 		index = 0
 	}
 	if index > len(r.List) {
 		index = len(r.List) - 1
 	}
+	r.changed = true
+	r.List[r.active].Interact.Active = false
 	r.active = index
+	r.List[r.active].Interact.Active = true
 }
 
 // Changed if the active room has changed since last call.

@@ -180,6 +180,8 @@ func NewUI(w *app.Window) *UI {
 		})
 	}
 
+	ui.Rooms.Select(0)
+
 	// Configure a pleasing light gray background color.
 	ui.Bg = color.NRGBA{220, 220, 220, 255}
 

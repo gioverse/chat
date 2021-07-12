@@ -10,7 +10,8 @@ import (
 // Room selector state.
 type Room struct {
 	widget.Clickable
-	Image Image
+	Image  Image
+	Active bool
 }
 
 // Image is a cacheable `paint.ImageOp`.
