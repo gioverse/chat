@@ -99,7 +99,7 @@ func NewUI(w *app.Window) *UI {
 		}()
 	)
 
-	for ii := rand.Intn(10) + 1; ii > 0; ii-- {
+	for ii := rand.Intn(10) + 5; ii > 0; ii-- {
 		rt := NewExampleData(100)
 		ui.Rooms.List = append(ui.Rooms.List, Room{
 			Room: model.Room{
