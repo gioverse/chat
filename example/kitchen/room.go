@@ -1,6 +1,7 @@
 package main
 
 import (
+	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 	"git.sr.ht/~gioverse/chat/list"
 )
@@ -13,8 +14,12 @@ type Rooms struct {
 }
 
 // Room is a unique conversation context.
+// Note(jfm): Allocates model and interact, not sure about that.
+// Avoids the UI needing to allocate two lists (interact/model) for the
+// rooms.
 type Room struct {
 	model.Room
+	Interact appwidget.Room
 	Messages RowTracker
 	List     *list.Manager
 }

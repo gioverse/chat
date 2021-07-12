@@ -34,10 +34,19 @@ import (
 
 // UI manages the state for the entire application's UI.
 type UI struct {
-	Rooms    Rooms
+	// Rooms is the root of the data, containing messages chunked by
+	// room.
+	// It also contains interact state, rather than maintaining two
+	// separate lists for the model and state.
+	Rooms Rooms
+	// RoomList for the sidebar.
+	RoomList widget.List
+	// RowsList for the active room messages.
 	RowsList widget.List
-	Modal    *component.ModalLayer
-	Bg       color.NRGBA
+	// Modal can show widgets atop the rest of the ui.
+	Modal *component.ModalLayer
+	// Bg is the background color of the content area.
+	Bg color.NRGBA
 }
 
 // NewUI constructs a UI and populates it with dummy data.
@@ -166,12 +175,32 @@ func NewUI(w *app.Window) *UI {
 	return &ui
 }
 
+// TODO(jfm): find proper place for this.
+const sidebarMaxWidth = 200
+
 // Layout the application UI.
 func (ui *UI) Layout(gtx C) D {
-	if ui.Rooms.Changed() {
-		// TODO(jfm): switch to active rooms' model.
+	for ii, r := range ui.Rooms.List {
+		if r.Interact.Clicked() {
+			ui.Rooms.Select(ii)
+			break
+		}
 	}
 	paint.Fill(gtx.Ops, ui.Bg)
+	return layout.Flex{
+		Axis: layout.Horizontal,
+	}.Layout(
+		gtx,
+		layout.Rigid(func(gtx C) D {
+			gtx.Constraints.Max.X = gtx.Px(unit.Dp(sidebarMaxWidth))
+			gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
+			ui.RoomList.Axis = layout.Vertical
+			return material.List(th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx C, ii int) D {
+				r := &ui.Rooms.List[ii]
+				return apptheme.Room(th.Theme, &r.Interact, &r.Room).Layout(gtx)
+			})
+		}),
+		layout.Flexed(1, func(gtx C) D {
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx C) D {
 			gtx.Constraints.Min = gtx.Constraints.Max
@@ -182,6 +211,8 @@ func (ui *UI) Layout(gtx C) D {
 		}),
 		layout.Expanded(func(gtx C) D {
 			return ui.layoutModal(gtx)
+				}),
+			)
 		}),
 	)
 }
