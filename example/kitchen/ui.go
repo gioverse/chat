@@ -330,6 +330,7 @@ func (ui *UI) layoutRoomList(gtx C) D {
 		}),
 		layout.Stacked(func(gtx C) D {
 			ui.RoomList.Axis = layout.Vertical
+			gtx.Constraints.Min = gtx.Constraints.Max
 			return material.List(th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx C, ii int) D {
 				r := &ui.Rooms.List[ii]
 				return apptheme.Room(th.Theme, &r.Interact, &r.Room).Layout(gtx)
