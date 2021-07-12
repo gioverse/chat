@@ -99,13 +99,17 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 // DefaultPrefetch is the default prefetching threshold.
 const DefaultPrefetch = 0.15
 
-// Update is a thread-safe means of inserting elements into the managed
-// list state. If an element provided to this method has the same serial
-// as an element already in the managed list, the one provided here will
-// replace the old one. This method may block, and should not be called
-// from the goroutine that is performing layout for that reason.
-func (m *Manager) Update(elems []Element) {
-	m.requests <- modificationRequest{elems}
+// Update is a thread-safe means of inserting elements into or removing
+// elements from the managed list state. If an element provided to this
+// method has the same serial as an element already in the managed list,
+// the one provided here will replace the old one. This method may block,
+// and should not be called from the goroutine that is performing layout
+// for that reason.
+func (m *Manager) Update(newOrUpdated []Element, remove []Serial) {
+	m.requests <- modificationRequest{
+		Update: newOrUpdated,
+		Remove: remove,
+	}
 }
 
 // Layout the element at the given index.

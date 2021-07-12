@@ -2,7 +2,6 @@ package list
 
 import (
 	"fmt"
-	"log"
 	"sort"
 
 	"gioui.org/app"
@@ -170,6 +169,7 @@ type loadRequest struct {
 // within the managed list.
 type modificationRequest struct {
 	Update []Element
+	Remove []Serial
 }
 
 // processor transforms a list of unsorted elements into sorted,

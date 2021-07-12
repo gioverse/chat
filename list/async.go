@@ -39,14 +39,16 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 		)
 		for {
 			var (
-				su       stateUpdate
-				newElems []Element
+				su        stateUpdate
+				newElems  []Element
+				rmSerials []Serial
 			)
 			select {
 			case req, more := <-reqChan:
 				switch req := req.(type) {
 				case modificationRequest:
 					newElems = req.Update
+					rmSerials = req.Remove
 				case loadRequest:
 					if !more {
 						return
@@ -76,7 +78,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 				}
 			}
 			// Process any new elements.
-			processor.Update(newElems, nil)
+			processor.Update(newElems, rmSerials)
 			su.populateWith(processor.Synthesize())
 
 			// Always try to compact after a state update.
