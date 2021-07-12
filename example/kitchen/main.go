@@ -42,11 +42,14 @@ import (
 var (
 	// max images to generate.
 	max int
+	// maxRooms to generate.
+	maxRooms int
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
 	flag.IntVar(&max, "max", 100, "max images to generate (default 100)")
+	flag.IntVar(&maxRooms, "rooms", 10, "max rooms to generate (default 10)")
 	flag.Parse()
 }
 
@@ -98,11 +101,10 @@ var (
 
 // UI manages the state for the entire application's UI.
 type UI struct {
-	RowsList   widget.List
-	RowManager *list.Manager
-	Modal      *component.ModalLayer
-	Bg         color.NRGBA
-	RowTracker
+	Rooms    Rooms
+	RowsList widget.List
+	Modal    *component.ModalLayer
+	Bg       color.NRGBA
 }
 
 // NewUI constructs a UI and populates it with dummy data.
@@ -116,7 +118,6 @@ func NewUI(w *app.Window) *UI {
 
 	ui.RowsList.ScrollToEnd = true
 	ui.RowsList.Axis = layout.Vertical
-	ui.RowTracker = NewExampleData(100)
 
 	var (
 		cookie = func() ninepatch.NinePatch {
@@ -145,61 +146,86 @@ func NewUI(w *app.Window) *UI {
 		}()
 	)
 
-	ui.RowManager = list.NewManager(25,
-		list.Hooks{
-			// Define an allocator function that can instaniate the appropriate
-			// state type for each kind of row data in our list.
-			Allocator: func(data list.Element) interface{} {
-				switch data.(type) {
-				case model.Message:
-					return &appwidget.Message{}
-				default:
-					return nil
-				}
-			},
-			// Define a presenter that can transform each kind of row data
-			// and state into a widget.
-			Presenter: func(data list.Element, state interface{}) layout.Widget {
-				switch data := data.(type) {
-				case model.Message:
-					state, ok := state.(*appwidget.Message)
+	for ii := rand.Intn(10) + 1; ii > 0; ii-- {
+		rt := NewExampleData(100)
+		ui.Rooms.List = append(ui.Rooms.List, Room{
+			Room: model.Room{
+				Name: lorem.Sentence(1, 5),
+				Image: image.NewUniform(color.NRGBA{
+					R: uint8(rand.Intn(255)),
+					G: uint8(rand.Intn(255)),
+					B: uint8(rand.Intn(255)),
+					A: 255,
+				}),
+				// TODO(jfm): sync this with something like `Room.Update()`.
+				Latest: func() *model.Message {
+					msg, ok := rt.Rows[len(rt.Rows)-1].(model.Message)
 					if !ok {
-						return func(C) D { return D{} }
+						return nil
 					}
-					if state.Clicked() {
-						ui.Modal.Widget = func(gtx C, th *material.Theme, anim *component.VisibilityAnimation) D {
-							return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
-								return widget.Image{
-									Src:      state.Image,
-									Fit:      widget.ScaleDown,
-									Position: layout.Center,
-								}.Layout(gtx)
-							})
-						}
-						// NOTE(jfm): don't have access to a gtx, so use click history.
-						ui.Modal.Appear(state.Clickable.History()[0].Start)
-					}
-					msg := apptheme.NewMessage(th, state, data)
-					switch data.Theme {
-					case "hotdog":
-						msg = msg.WithNinePatch(th, hotdog)
-					case "cookie":
-						msg = msg.WithNinePatch(th, cookie)
-					}
-					return msg.Layout
-				case model.DateBoundary:
-					return apptheme.DateSeparator(th.Theme, data).Layout
-				case model.UnreadBoundary:
-					return apptheme.UnreadSeparator(th.Theme, data).Layout
-				default:
-					return func(gtx C) D { return D{} }
-				}
+					return &msg
+				}(),
 			},
-			Loader:      ui.RowTracker.Load,
-			Synthesizer: synth,
-			Comparator:  rowLessThan,
-			Invalidator: w.Invalidate,
+			Messages: rt,
+			List: list.NewManager(25,
+				list.Hooks{
+					// Define an allocator function that can instaniate the appropriate
+					// state type for each kind of row data in our list.
+					Allocator: func(data list.Element) interface{} {
+						switch data.(type) {
+						case model.Message:
+							return &appwidget.Message{}
+						default:
+							return nil
+						}
+					},
+					// Define a presenter that can transform each kind of row data
+					// and state into a widget.
+					Presenter: func(data list.Element, state interface{}) layout.Widget {
+						switch data := data.(type) {
+						case model.Message:
+							state, ok := state.(*appwidget.Message)
+							if !ok {
+								return func(C) D { return D{} }
+							}
+							if state.Clicked() {
+								ui.Modal.Widget = func(gtx C, th *material.Theme, anim *component.VisibilityAnimation) D {
+									return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
+										return widget.Image{
+											Src:      state.Image,
+											Fit:      widget.ScaleDown,
+											Position: layout.Center,
+										}.Layout(gtx)
+									})
+								}
+								// NOTE(jfm): don't have access to a gtx, so use click history.
+								ui.Modal.Appear(state.Clickable.History()[0].Start)
+							}
+							msg := apptheme.NewMessage(th, state, data)
+							switch data.Theme {
+							case "hotdog":
+								msg = msg.WithNinePatch(th, hotdog)
+							case "cookie":
+								msg = msg.WithNinePatch(th, cookie)
+							}
+							return msg.Layout
+						case model.DateBoundary:
+							return apptheme.DateSeparator(th.Theme, data).Layout
+						case model.UnreadBoundary:
+							return apptheme.UnreadSeparator(th.Theme, data).Layout
+						default:
+							return func(gtx C) D { return D{} }
+						}
+					},
+					// NOTE(jfm): awkard coupling between message data and `list.Manager`.
+					Loader:      rt.Load,
+					Synthesizer: synth,
+					Comparator:  rowLessThan,
+					Invalidator: w.Invalidate,
+				},
+			),
 		})
+	}
 
 	// Configure a pleasing light gray background color.
 	ui.Bg = color.NRGBA{220, 220, 220, 255}
@@ -372,13 +398,16 @@ func rowLessThan(a, b list.Element) bool {
 
 // Layout the application UI.
 func (ui *UI) Layout(gtx C) D {
+	if ui.Rooms.Changed() {
+		// TODO(jfm): switch to active rooms' model.
+	}
 	paint.Fill(gtx.Ops, ui.Bg)
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx C) D {
 			gtx.Constraints.Min = gtx.Constraints.Max
 			return material.List(th.Theme, &ui.RowsList).Layout(gtx,
-				ui.RowManager.UpdatedLen(&ui.RowsList.List),
-				ui.RowManager.Layout,
+				ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
+				ui.Rooms.Active().List.Layout,
 			)
 		}),
 		layout.Expanded(func(gtx C) D {

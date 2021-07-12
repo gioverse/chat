@@ -45,3 +45,16 @@ type UnreadBoundary struct{}
 func (u UnreadBoundary) Serial() list.Serial {
 	return list.NoSerial
 }
+
+// Room is a unique conversation context.
+// Room can have any number of participants, and any number of messages.
+// Any participant of a room should be able to view the room, send messages to
+// and recieve messages from the other participants.
+type Room struct {
+	// Image avatar for the room.
+	Image image.Image
+	// Name of the room.
+	Name string
+	// Latest message in the room, if any.
+	Latest *Message
+}
