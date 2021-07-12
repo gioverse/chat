@@ -64,6 +64,15 @@ type UI struct {
 	// AddBtn holds click state for a button that adds a new message to
 	// the current room.
 	AddBtn widget.Clickable
+
+	// DeleteBtn holds click state for a button that removes a message
+	// from the current room.
+	DeleteBtn widget.Clickable
+	// MessageMenu is the context menu available on messages.
+	MessageMenu component.MenuState
+	// ContextMenuTarget tracks the message state on which the context
+	// menu is currently acting.
+	ContextMenuTarget *model.Message
 }
 
 // NewUI constructs a UI and populates it with dummy data.
@@ -74,6 +83,12 @@ func NewUI(w *app.Window) *UI {
 
 	ui.RowsList.ScrollToEnd = true
 	ui.RowsList.Axis = layout.Vertical
+
+	ui.MessageMenu = component.MenuState{
+		Options: []func(gtx C) D{
+			component.MenuItem(th.Theme, &ui.DeleteBtn, "Delete").Layout,
+		},
+	}
 
 	var (
 		cookie = func() ninepatch.NinePatch {
@@ -151,7 +166,7 @@ func NewUI(w *app.Window) *UI {
 							if !ok {
 								return func(C) D { return D{} }
 							}
-							msg := apptheme.NewMessage(th, state, data)
+							msg := apptheme.NewMessage(th, state, &ui.MessageMenu, data)
 							switch data.Theme {
 							case "hotdog":
 								msg = msg.WithNinePatch(th, hotdog)
@@ -169,6 +184,12 @@ func NewUI(w *app.Window) *UI {
 											}.Layout(gtx)
 										})
 									})
+								}
+								if state.ContextArea.Active() {
+									// If the right-click context area for this message is activated,
+									// inform the UI that this message is the target of any action
+									// taken within that menu.
+									ui.ContextMenuTarget = &data
 								}
 								return msg.Layout(gtx)
 							}
@@ -284,6 +305,10 @@ func (ui *UI) layoutChat(gtx C) D {
 			if ui.AddBtn.Clicked() {
 				ui.Rooms.Active().NewRow()
 			}
+			if ui.DeleteBtn.Clicked() {
+				serial := ui.ContextMenuTarget.Serial()
+				ui.Rooms.Active().DeleteRow(serial)
+			}
 
 			return material.Button(th.Theme, &ui.AddBtn, "Add Message").Layout(gtx)
 		}),
@@ -365,15 +390,15 @@ func (ui *UI) layoutRoomList(gtx C) D {
 // It simulates network latency during the load operations for
 // realism.
 type RowTracker struct {
+	sync.Mutex
 	Rows          []list.Element
 	SerialToIndex map[list.Serial]int
-	sync.Mutex
 }
 
 // NewExampleData constructs a RowTracker populated with the provided
 // quantity of messages.
 func NewExampleData(size int) *RowTracker {
-	rt := RowTracker{
+	rt := &RowTracker{
 		SerialToIndex: make(map[list.Serial]int),
 	}
 	go func() {
@@ -390,7 +415,7 @@ func NewExampleData(size int) *RowTracker {
 			rt.Unlock()
 		}
 	}()
-	return &rt
+	return rt
 }
 
 // Latest returns the latest element, or nil.
@@ -416,6 +441,8 @@ func (r *RowTracker) Index(ii int) list.Element {
 }
 
 func (r *RowTracker) NewRow() list.Element {
+	r.Lock()
+	defer r.Unlock()
 	index := len(r.Rows)
 	element := newRow(index)
 	r.Rows = append(r.Rows, element)
@@ -444,6 +471,31 @@ func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) []list.Ele
 		return r.Rows[idx+1 : min(numRows, idx+11)]
 	}
 	return r.Rows[maximum(0, idx-11):idx]
+}
+
+// sliceRemove takes the given index of a slice and swaps it with the final
+// index in the slice, then shortens the slice by one element. This hides
+// the element at index from the slice, though it does not erase its data.
+func sliceRemove(s *[]list.Element, index int) {
+	lastIndex := len(*s) - 1
+	(*s)[index], (*s)[lastIndex] = (*s)[lastIndex], (*s)[index]
+	*s = (*s)[:lastIndex]
+}
+
+// Delete removes the element with the provided serial from storage.
+func (r *RowTracker) Delete(serial list.Serial) {
+	r.Lock()
+	defer r.Unlock()
+	idx := r.SerialToIndex[serial]
+	sliceRemove(&r.Rows, idx)
+	r.reindex()
+}
+
+func (r *RowTracker) reindex() {
+	r.SerialToIndex = make(map[list.Serial]int)
+	for i, row := range r.Rows {
+		r.SerialToIndex[row.Serial()] = i
+	}
 }
 
 func maximum(a, b int) int {

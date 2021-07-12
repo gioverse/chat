@@ -13,6 +13,7 @@ import (
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"gioui.org/x/component"
 	"gioui.org/x/richtext"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
@@ -80,12 +81,14 @@ type MessageStyle struct {
 	// MaxImageHeight constrains images height-wise.
 	// Images will be scaled-down to fit, preserving aspect ratio.
 	MaxImageHeight unit.Value
-	// Clicks tracks clicks over the message area.
-	Clicks *widget.Clickable
+	// Interaction holds the interactive state of this message.
+	Interaction *appwidget.Message
+	// Menu configures the right-click context menu for this message.
+	Menu component.MenuStyle
 }
 
 // NewMessage creates a style type that can lay out the data for a message.
-func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) MessageStyle {
+func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuState, msg model.Message) MessageStyle {
 	interact.SetAvatar(msg.Avatar)
 	interact.SetImage(msg.Image)
 	bubble := matchat.Bubble(th.Theme)
@@ -115,7 +118,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 		},
 		MaxMessageWidth: th.MaxMessageWidth,
 		MaxImageHeight:  th.MaxImageHeight,
-		Clicks:          &interact.Clickable,
+		Interaction:     interact,
 		Avatar: Image{
 			Image: widget.Image{
 				Src:      interact.Avatar,
@@ -126,6 +129,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, msg model.Message) Messa
 			Width:  th.AvatarSize,
 			Height: th.AvatarSize,
 		},
+		Menu: component.Menu(th.Theme, menu),
 	}
 	if msg.Status != "" {
 		ms.StatusMessage = material.Body2(th.Theme, msg.Status)
@@ -245,20 +249,30 @@ func (c MessageStyle) layoutBubble(gtx C) D {
 	if gtx.Constraints.Max.X > max {
 		gtx.Constraints.Max.X = max
 	}
-	return c.ContentMargin.Layout(gtx, func(gtx C) D {
-		if c.Image.Src == (paint.ImageOp{}) {
-			return c.Surface.Layout(gtx, func(gtx C) D {
-				return c.ContentPadding.Layout(gtx, func(gtx C) D {
-					return c.Content.Layout(gtx)
+	return layout.Stack{}.Layout(gtx,
+		layout.Stacked(func(gtx C) D {
+			return c.ContentMargin.Layout(gtx, func(gtx C) D {
+				if c.Image.Src == (paint.ImageOp{}) {
+					return c.Surface.Layout(gtx, func(gtx C) D {
+						return c.ContentPadding.Layout(gtx, func(gtx C) D {
+							return c.Content.Layout(gtx)
+						})
+					})
+				}
+				defer pointer.CursorNameOp{Name: pointer.CursorPointer}.Add(gtx.Ops)
+				return material.Clickable(gtx, &c.Interaction.Clickable, func(gtx C) D {
+					gtx.Constraints.Max.Y = gtx.Px(c.MaxImageHeight)
+					return c.Image.Layout(gtx)
 				})
 			})
-		}
-		defer pointer.CursorNameOp{Name: pointer.CursorPointer}.Add(gtx.Ops)
-		return material.Clickable(gtx, c.Clicks, func(gtx C) D {
-			gtx.Constraints.Max.Y = gtx.Px(c.MaxImageHeight)
-			return c.Image.Layout(gtx)
-		})
-	})
+		}),
+		layout.Expanded(func(gtx C) D {
+			return c.Interaction.ContextArea.Layout(gtx, func(gtx C) D {
+				gtx.Constraints.Min = image.Point{}
+				return c.Menu.Layout(gtx)
+			})
+		}),
+	)
 }
 
 // layoutTimeOrIcon lays out a status icon if one is set, and

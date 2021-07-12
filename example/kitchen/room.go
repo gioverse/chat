@@ -28,7 +28,14 @@ type Room struct {
 // into the list manager for the room.
 func (r *Room) NewRow() {
 	row := r.Messages.NewRow()
-	go r.List.Update([]list.Element{row})
+	go r.List.Update([]list.Element{row}, nil)
+}
+
+// DeleteRow removes the row with the provided serial from both the
+// row tracker and the list manager for the room.
+func (r *Room) DeleteRow(serial list.Serial) {
+	r.Messages.Delete(serial)
+	go r.List.Update(nil, []list.Serial{serial})
 }
 
 // Active returns the active room, empty if not rooms are available.

@@ -5,6 +5,7 @@ import (
 
 	"gioui.org/op/paint"
 	"gioui.org/widget"
+	"gioui.org/x/component"
 	"gioui.org/x/richtext"
 )
 
@@ -18,6 +19,8 @@ type Message struct {
 	Image paint.ImageOp
 	// Avatar caches the avatar image.
 	Avatar paint.ImageOp
+	// ContextArea holds the clicks state for the right-click context menu.
+	component.ContextArea
 }
 
 // SetAvatar to the provided image.
