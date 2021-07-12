@@ -30,7 +30,13 @@ import (
 	"git.sr.ht/~gioverse/chat/ninepatch"
 	"git.sr.ht/~gioverse/chat/res"
 	lorem "github.com/drhodes/golorem"
+	"golang.org/x/exp/shiny/materialdesign/icons"
 )
+
+var NavBack *widget.Icon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.NavigationArrowBack)
+	return icon
+}()
 
 // UI manages the state for the entire application's UI.
 type UI struct {
@@ -47,6 +53,11 @@ type UI struct {
 	Modal *component.ModalLayer
 	// Bg is the background color of the content area.
 	Bg color.NRGBA
+	// Back button navigates out of a room.
+	Back widget.Clickable
+	// InsideRoom if we are currently in the room view.
+	// Used to decide when to render the sidebar on small viewports.
+	InsideRoom bool
 }
 
 // NewUI constructs a UI and populates it with dummy data.
@@ -181,42 +192,133 @@ func NewUI(w *app.Window) *UI {
 }
 
 // TODO(jfm): find proper place for this.
-const sidebarMaxWidth = 250
+const (
+	// sideBarMaxWidth species the max width on large viewports.
+	sidebarMaxWidth = 250
+	// breakpoint at which the viewport becomes considered "small",
+	// and the UI layout changes to compensate.
+	breakpoint = 600
+)
 
 // Layout the application UI.
 func (ui *UI) Layout(gtx C) D {
-	for ii, r := range ui.Rooms.List {
+	small := gtx.Constraints.Max.X < gtx.Px(unit.Dp(breakpoint))
+	for ii := range ui.Rooms.List {
+		r := &ui.Rooms.List[ii]
 		if r.Interact.Clicked() {
 			ui.Rooms.Select(ii)
+			ui.InsideRoom = true
 			break
 		}
 	}
+	if ui.Back.Clicked() {
+		ui.InsideRoom = false
+	}
 	paint.Fill(gtx.Ops, ui.Bg)
-	return layout.Flex{
-		Axis: layout.Horizontal,
-	}.Layout(
+	if small {
+		if !ui.InsideRoom {
+			return ui.layoutRoomList(gtx)
+		}
+		return layout.Flex{
+			Axis: layout.Vertical,
+		}.Layout(
+			gtx,
+			layout.Rigid(func(gtx C) D {
+				return ui.layoutTopbar(gtx)
+			}),
+			layout.Flexed(1, func(gtx C) D {
+				return layout.Stack{}.Layout(gtx,
+					layout.Stacked(func(gtx C) D {
+						gtx.Constraints.Min = gtx.Constraints.Max
+						return material.List(th.Theme, &ui.RowsList).Layout(gtx,
+							ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
+							ui.Rooms.Active().List.Layout,
+						)
+					}),
+					layout.Expanded(func(gtx C) D {
+						return ui.layoutModal(gtx)
+					}),
+				)
+			}),
+		)
+	} else {
+		return layout.Flex{
+			Axis: layout.Horizontal,
+		}.Layout(
+			gtx,
+			layout.Rigid(func(gtx C) D {
+				gtx.Constraints.Max.X = gtx.Px(unit.Dp(sidebarMaxWidth))
+				gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
+				return ui.layoutRoomList(gtx)
+			}),
+			layout.Flexed(1, func(gtx C) D {
+				return layout.Stack{}.Layout(gtx,
+					layout.Stacked(func(gtx C) D {
+						gtx.Constraints.Min = gtx.Constraints.Max
+						return material.List(th.Theme, &ui.RowsList).Layout(gtx,
+							ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
+							ui.Rooms.Active().List.Layout,
+						)
+					}),
+					layout.Expanded(func(gtx C) D {
+						return ui.layoutModal(gtx)
+					}),
+				)
+			}),
+		)
+	}
+}
+
+// layoutTopbar lays out a context bar that contains a "back" button and
+// room title for context.
+func (ui *UI) layoutTopbar(gtx C) D {
+	room := ui.Rooms.Active()
+	return layout.Stack{}.Layout(
 		gtx,
-		layout.Rigid(func(gtx C) D {
-			return ui.layoutSidebar(gtx)
+		layout.Expanded(func(gtx C) D {
+			return component.Rect{
+				Size: image.Point{
+					X: gtx.Constraints.Max.X,
+					Y: gtx.Constraints.Min.Y,
+				},
+				Color: th.Bg,
+			}.Layout(gtx)
 		}),
-		layout.Flexed(1, func(gtx C) D {
-			return layout.Stack{}.Layout(gtx,
-				layout.Stacked(func(gtx C) D {
-					gtx.Constraints.Min = gtx.Constraints.Max
-					return material.List(th.Theme, &ui.RowsList).Layout(gtx,
-						ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
-						ui.Rooms.Active().List.Layout,
-					)
+		layout.Stacked(func(gtx C) D {
+			return layout.Flex{
+				Axis:      layout.Horizontal,
+				Alignment: layout.Middle,
+			}.Layout(
+				gtx,
+				layout.Rigid(func(gtx C) D {
+					btn := material.IconButton(th.Theme, &ui.Back, NavBack)
+					btn.Color = th.Fg
+					btn.Background = color.NRGBA{}
+					return btn.Layout(gtx)
 				}),
-				layout.Expanded(func(gtx C) D {
-					return ui.layoutModal(gtx)
+				layout.Rigid(func(gtx C) D {
+					return apptheme.Image{
+						Image: widget.Image{
+							Src: room.Interact.Image.Op(),
+						},
+						Width:  unit.Dp(24),
+						Height: unit.Dp(24),
+					}.Layout(gtx)
+				}),
+				layout.Rigid(func(gtx C) D {
+					return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
+				}),
+				layout.Rigid(func(gtx C) D {
+					return material.Label(th.Theme, unit.Sp(14), room.Name).Layout(gtx)
 				}),
 			)
 		}),
 	)
 }
 
-func (ui *UI) layoutSidebar(gtx C) D {
+// layoutRoomList lays out a list of rooms that can be clicked to view
+// the messages in that room.
+func (ui *UI) layoutRoomList(gtx C) D {
 	return layout.Stack{}.Layout(
 		gtx,
 		layout.Expanded(func(gtx C) D {
@@ -229,8 +331,6 @@ func (ui *UI) layoutSidebar(gtx C) D {
 			}.Layout(gtx)
 		}),
 		layout.Stacked(func(gtx C) D {
-			gtx.Constraints.Max.X = gtx.Px(unit.Dp(sidebarMaxWidth))
-			gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
 			ui.RoomList.Axis = layout.Vertical
 			return material.List(th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx C, ii int) D {
 				r := &ui.Rooms.List[ii]
