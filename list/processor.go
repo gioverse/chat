@@ -2,6 +2,7 @@ package list
 
 import (
 	"fmt"
+	"log"
 	"sort"
 
 	"gioui.org/app"
@@ -193,11 +194,20 @@ func newProcessor(synth Synthesizer, compare Comparator) *processor {
 	}
 }
 
+// sliceRemove takes the given index of a slice and swaps it with the final
+// index in the slice, then shortens the slice by one element. This hides
+// the element at index from the slice, though it does not erase its data.
+func sliceRemove(s *[]Element, index int) {
+	lastIndex := len(*s) - 1
+	(*s)[index], (*s)[lastIndex] = (*s)[lastIndex], (*s)[index]
+	*s = (*s)[:lastIndex]
+}
+
 // Update updates the internal Raw element slice with new elements.
 // This method updates the value of any existing element in Raw with
 // the new value for that serial provided in newElems, appends
 // all totally new elements to the end of Raw, and sorts Raw.
-func (r *processor) Update(newElems ...Element) {
+func (r *processor) Update(newElems []Element, removed []Serial) {
 	serialToRaw := make(map[Serial]int)
 	for i, elem := range r.Raw {
 		serialToRaw[elem.Serial()] = i
@@ -212,13 +222,27 @@ func (r *processor) Update(newElems ...Element) {
 		}
 		// Update the stored existing element.
 		r.Raw[rawIndex] = elem
-		// Remove this element from the new slice by moving it to the end and
-		// then shortening the slice.
-		lastIndex := len(newElems) - 1
-		newElems[i], newElems[lastIndex] = newElems[lastIndex], newElems[i]
-		newElems = newElems[:lastIndex]
+		// Remove this element from the new slice.
+		sliceRemove(&newElems, i)
 		// Check the element at this index again next iteration.
 		i--
+	}
+
+	// Find the index of each element needing removal.
+	var targetIndicies []int
+	for _, serial := range removed {
+		idx, ok := serialToRaw[serial]
+		if !ok {
+			continue
+		}
+		targetIndicies = append(targetIndicies, idx)
+	}
+	// Remove them by swapping and re-slicing, starting from the highest
+	// index to ensure that we do not move a removed element into the
+	// middle of the list as part of the swap.
+	sort.Sort(sort.Reverse(sort.IntSlice(targetIndicies)))
+	for _, target := range targetIndicies {
+		sliceRemove(&r.Raw, target)
 	}
 
 	r.Raw = append(r.Raw, newElems...)

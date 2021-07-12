@@ -76,7 +76,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 				}
 			}
 			// Process any new elements.
-			processor.Update(newElems...)
+			processor.Update(newElems, nil)
 			su.populateWith(processor.Synthesize())
 
 			// Always try to compact after a state update.
