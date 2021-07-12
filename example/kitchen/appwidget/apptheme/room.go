@@ -17,7 +17,7 @@ import (
 // RoomStyle lays out a room select card.
 type RoomStyle struct {
 	*appwidget.Room
-	Image     widget.Image
+	Image     Image
 	Name      material.LabelStyle
 	Summary   material.LabelStyle
 	TimeStamp material.LabelStyle
@@ -39,9 +39,14 @@ func Room(th *material.Theme, interact *appwidget.Room, room *model.Room) RoomSt
 		Name:      material.Label(th, unit.Sp(14), room.Name),
 		Summary:   material.Label(th, unit.Sp(12), latest.Content),
 		TimeStamp: material.Label(th, unit.Sp(12), latest.SentAt.Local().Format("15:04")),
-		Image: widget.Image{
-			Src: interact.Image.Op(),
-			Fit: widget.Contain,
+		Image: Image{
+			Image: widget.Image{
+				Src: interact.Image.Op(),
+				Fit: widget.Contain,
+			},
+			Radii:  unit.Dp(8),
+			Height: unit.Dp(25),
+			Width:  unit.Dp(25),
 		},
 		Indicator: th.ContrastBg,
 	}
@@ -52,19 +57,17 @@ func (room RoomStyle) Layout(gtx C) D {
 	// Tried using flex and stack to no avail, using macro as a stop-gap.
 	macro := op.Record(gtx.Ops)
 	dims := material.Clickable(gtx, &room.Clickable, func(gtx C) D {
-		return layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx C) D {
+		return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx C) D {
 			return layout.Flex{
 				Axis:      layout.Horizontal,
-				Alignment: layout.Start,
+				Alignment: layout.Middle,
 			}.Layout(
 				gtx,
 				layout.Rigid(func(gtx C) D {
-					gtx.Constraints.Max.X = gtx.Px(unit.Dp(25))
-					gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
 					return room.Image.Layout(gtx)
 				}),
 				layout.Rigid(func(gtx C) D {
-					return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
+					return D{Size: image.Point{X: gtx.Px(unit.Dp(5))}}
 				}),
 				layout.Flexed(1, func(gtx C) D {
 					return layout.Flex{
@@ -75,12 +78,15 @@ func (room RoomStyle) Layout(gtx C) D {
 							return room.Name.Layout(gtx)
 						}),
 						layout.Rigid(func(gtx C) D {
+							return D{Size: image.Point{Y: gtx.Px(unit.Dp(5))}}
+						}),
+						layout.Rigid(func(gtx C) D {
 							return component.TruncatingLabelStyle(room.Summary).Layout(gtx)
 						}),
 					)
 				}),
 				layout.Rigid(func(gtx C) D {
-					return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
+					return D{Size: image.Point{X: gtx.Px(unit.Dp(5))}}
 				}),
 				layout.Rigid(func(gtx C) D {
 					return room.TimeStamp.Layout(gtx)

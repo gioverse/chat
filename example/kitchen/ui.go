@@ -94,17 +94,9 @@ func NewUI(w *app.Window) *UI {
 			Room: model.Room{
 				Name: lorem.Sentence(1, 5),
 				Image: func() image.Image {
-					c := color.NRGBA{
-						R: uint8(rand.Intn(255)),
-						G: uint8(rand.Intn(255)),
-						B: uint8(rand.Intn(255)),
-						A: 255,
-					}
-					img := image.NewNRGBA(image.Rectangle{Max: image.Point{X: 64, Y: 64}})
-					for xx := img.Bounds().Min.X; xx < img.Bounds().Max.X; xx++ {
-						for yy := img.Bounds().Min.Y; yy < img.Bounds().Max.Y; yy++ {
-							img.Set(xx, yy, c)
-						}
+					img, err := randomImage(image.Pt(64, 64))
+					if err != nil {
+						panic(err)
 					}
 					return img
 				}(),
@@ -189,7 +181,7 @@ func NewUI(w *app.Window) *UI {
 }
 
 // TODO(jfm): find proper place for this.
-const sidebarMaxWidth = 200
+const sidebarMaxWidth = 250
 
 // Layout the application UI.
 func (ui *UI) Layout(gtx C) D {
@@ -205,13 +197,7 @@ func (ui *UI) Layout(gtx C) D {
 	}.Layout(
 		gtx,
 		layout.Rigid(func(gtx C) D {
-			gtx.Constraints.Max.X = gtx.Px(unit.Dp(sidebarMaxWidth))
-			gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
-			ui.RoomList.Axis = layout.Vertical
-			return material.List(th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx C, ii int) D {
-				r := &ui.Rooms.List[ii]
-				return apptheme.Room(th.Theme, &r.Interact, &r.Room).Layout(gtx)
-			})
+			return ui.layoutSidebar(gtx)
 		}),
 		layout.Flexed(1, func(gtx C) D {
 			return layout.Stack{}.Layout(gtx,
@@ -226,6 +212,30 @@ func (ui *UI) Layout(gtx C) D {
 					return ui.layoutModal(gtx)
 				}),
 			)
+		}),
+	)
+}
+
+func (ui *UI) layoutSidebar(gtx C) D {
+	return layout.Stack{}.Layout(
+		gtx,
+		layout.Expanded(func(gtx C) D {
+			return component.Rect{
+				Size: image.Point{
+					X: gtx.Constraints.Min.X,
+					Y: gtx.Constraints.Max.Y,
+				},
+				Color: th.Bg,
+			}.Layout(gtx)
+		}),
+		layout.Stacked(func(gtx C) D {
+			gtx.Constraints.Max.X = gtx.Px(unit.Dp(sidebarMaxWidth))
+			gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
+			ui.RoomList.Axis = layout.Vertical
+			return material.List(th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx C, ii int) D {
+				r := &ui.Rooms.List[ii]
+				return apptheme.Room(th.Theme, &r.Interact, &r.Room).Layout(gtx)
+			})
 		}),
 	)
 }
