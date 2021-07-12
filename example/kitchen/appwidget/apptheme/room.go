@@ -5,7 +5,6 @@ import (
 	"image/color"
 
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
@@ -53,9 +52,6 @@ func Room(th *material.Theme, interact *appwidget.Room, room *model.Room) RoomSt
 }
 
 func (room RoomStyle) Layout(gtx C) D {
-	// NOTE(jfm): need the vertical dims.
-	// Tried using flex and stack to no avail, using macro as a stop-gap.
-	macro := op.Record(gtx.Ops)
 	dims := material.Clickable(gtx, &room.Clickable, func(gtx C) D {
 		return layout.UniformInset(unit.Dp(8)).Layout(gtx, func(gtx C) D {
 			return layout.Flex{
@@ -94,25 +90,15 @@ func (room RoomStyle) Layout(gtx C) D {
 			)
 		})
 	})
-	call := macro.Stop()
-	return layout.Flex{Axis: layout.Horizontal}.Layout(
-		gtx,
-		layout.Rigid(func(gtx C) D {
-			sz := image.Point{
-				X: gtx.Px(unit.Dp(3)),
-				Y: dims.Size.Y,
-			}
-			if !room.Active {
-				return D{Size: sz}
-			}
-			return component.Rect{
-				Size:  sz,
-				Color: room.Indicator,
-			}.Layout(gtx)
-		}),
-		layout.Rigid(func(gtx C) D {
-			call.Add(gtx.Ops)
-			return dims
-		}),
-	)
+	if room.Active {
+		sz := image.Point{
+			X: gtx.Px(unit.Dp(3)),
+			Y: dims.Size.Y,
+		}
+		component.Rect{
+			Size:  sz,
+			Color: room.Indicator,
+		}.Layout(gtx)
+	}
+	return dims
 }
