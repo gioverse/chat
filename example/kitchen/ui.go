@@ -50,7 +50,7 @@ type UI struct {
 	// RowsList for the active room messages.
 	RowsList widget.List
 	// Modal can show widgets atop the rest of the ui.
-	Modal *component.ModalLayer
+	Modal component.ModalState
 	// Bg is the background color of the content area.
 	Bg color.NRGBA
 	// Back button navigates out of a room.
@@ -64,10 +64,7 @@ type UI struct {
 func NewUI(w *app.Window) *UI {
 	var ui UI
 
-	// TODO(jfm) [modernize]: upstream a modernized modal implementation.
-	// For now, use retained version.
-	ui.Modal = component.NewModal()
-	ui.Modal.FinalAlpha = 250
+	ui.Modal.VisibilityAnimation.Duration = time.Millisecond * 250
 
 	ui.RowsList.ScrollToEnd = true
 	ui.RowsList.Axis = layout.Vertical
@@ -144,19 +141,6 @@ func NewUI(w *app.Window) *UI {
 							if !ok {
 								return func(C) D { return D{} }
 							}
-							if state.Clicked() {
-								ui.Modal.Widget = func(gtx C, th *material.Theme, anim *component.VisibilityAnimation) D {
-									return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
-										return widget.Image{
-											Src:      state.Image,
-											Fit:      widget.ScaleDown,
-											Position: layout.Center,
-										}.Layout(gtx)
-									})
-								}
-								// NOTE(jfm): don't have access to a gtx, so use click history.
-								ui.Modal.Appear(state.Clickable.History()[0].Start)
-							}
 							msg := apptheme.NewMessage(th, state, data)
 							switch data.Theme {
 							case "hotdog":
@@ -164,7 +148,20 @@ func NewUI(w *app.Window) *UI {
 							case "cookie":
 								msg = msg.WithNinePatch(th, cookie)
 							}
-							return msg.Layout
+							return func(gtx C) D {
+								if state.Clicked() {
+									ui.Modal.Show(gtx.Now, func(gtx C) D {
+										return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
+											return widget.Image{
+												Src:      state.Image,
+												Fit:      widget.ScaleDown,
+												Position: layout.Center,
+											}.Layout(gtx)
+										})
+									})
+								}
+								return msg.Layout(gtx)
+							}
 						case model.DateBoundary:
 							return apptheme.DateSeparator(th.Theme, data).Layout
 						case model.UnreadBoundary:
@@ -506,7 +503,7 @@ func (ui *UI) layoutModal(gtx C) D {
 	if ui.Modal.Clicked() {
 		ui.Modal.ToggleVisibility(gtx.Now)
 	}
-	return ui.Modal.Layout(gtx, th.Theme)
+	return component.Modal(th.Theme, &ui.Modal).Layout(gtx)
 }
 
 // randomImage returns a random image at the given size.
