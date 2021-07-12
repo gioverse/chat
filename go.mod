@@ -4,7 +4,7 @@ go 1.16
 
 require (
 	gioui.org v0.0.0-20210707135100-0e6093585688
-	gioui.org/x v0.0.0-20210705162517-de43ceaa90b6
+	gioui.org/x v0.0.0-20210712143252-9b000be6ad58
 	github.com/drhodes/golorem v0.0.0-20160418191928-ecccc744c2d9
 	github.com/lucasb-eyer/go-colorful v1.2.0
 	golang.org/x/exp v0.0.0-20210707152300-16493b25073a
