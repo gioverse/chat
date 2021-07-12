@@ -93,13 +93,24 @@ func NewUI(w *app.Window) *UI {
 		ui.Rooms.List = append(ui.Rooms.List, Room{
 			Room: model.Room{
 				Name: lorem.Sentence(1, 5),
-				Image: image.NewUniform(color.NRGBA{
-					R: uint8(rand.Intn(255)),
-					G: uint8(rand.Intn(255)),
-					B: uint8(rand.Intn(255)),
-					A: 255,
-				}),
+				Image: func() image.Image {
+					c := color.NRGBA{
+						R: uint8(rand.Intn(255)),
+						G: uint8(rand.Intn(255)),
+						B: uint8(rand.Intn(255)),
+						A: 255,
+					}
+					img := image.NewNRGBA(image.Rectangle{Max: image.Point{X: 64, Y: 64}})
+					for xx := img.Bounds().Min.X; xx < img.Bounds().Max.X; xx++ {
+						for yy := img.Bounds().Min.Y; yy < img.Bounds().Max.Y; yy++ {
+							img.Set(xx, yy, c)
+						}
+					}
+					return img
+				}(),
 				// TODO(jfm): sync this with something like `Room.Update()`.
+				// Latest needs to update when the message model for the room
+				/// changes.
 				Latest: func() *model.Message {
 					msg, ok := rt.Rows[len(rt.Rows)-1].(model.Message)
 					if !ok {
@@ -201,16 +212,16 @@ func (ui *UI) Layout(gtx C) D {
 			})
 		}),
 		layout.Flexed(1, func(gtx C) D {
-	return layout.Stack{}.Layout(gtx,
-		layout.Stacked(func(gtx C) D {
-			gtx.Constraints.Min = gtx.Constraints.Max
-			return material.List(th.Theme, &ui.RowsList).Layout(gtx,
-				ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
-				ui.Rooms.Active().List.Layout,
-			)
-		}),
-		layout.Expanded(func(gtx C) D {
-			return ui.layoutModal(gtx)
+			return layout.Stack{}.Layout(gtx,
+				layout.Stacked(func(gtx C) D {
+					gtx.Constraints.Min = gtx.Constraints.Max
+					return material.List(th.Theme, &ui.RowsList).Layout(gtx,
+						ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
+						ui.Rooms.Active().List.Layout,
+					)
+				}),
+				layout.Expanded(func(gtx C) D {
+					return ui.layoutModal(gtx)
 				}),
 			)
 		}),

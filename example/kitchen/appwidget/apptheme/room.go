@@ -1,10 +1,13 @@
 package apptheme
 
 import (
+	"image"
+
 	"gioui.org/layout"
 	"gioui.org/unit"
 	"gioui.org/widget"
 	"gioui.org/widget/material"
+	"gioui.org/x/component"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 )
@@ -27,10 +30,15 @@ func Room(th *material.Theme, interact *appwidget.Room, room *model.Room) RoomSt
 		latest = *l
 	}
 	return RoomStyle{
-		Name:      material.Body1(th, room.Name),
-		Summary:   material.Body1(th, latest.Content),
-		TimeStamp: material.Body1(th, latest.SentAt.String()),
-		Image:     widget.Image{Src: interact.Image.Op()},
+		Room: interact,
+		// TODO(jfm): name could use bold text.
+		Name:      material.Label(th, unit.Sp(14), room.Name),
+		Summary:   material.Label(th, unit.Sp(12), latest.Content),
+		TimeStamp: material.Label(th, unit.Sp(12), latest.SentAt.Local().Format("15:04")),
+		Image: widget.Image{
+			Src: interact.Image.Op(),
+			Fit: widget.Contain,
+		},
 	}
 }
 
@@ -39,13 +47,18 @@ func (room RoomStyle) Layout(gtx C) D {
 		return layout.UniformInset(unit.Dp(16)).Layout(gtx, func(gtx C) D {
 			return layout.Flex{
 				Axis:      layout.Horizontal,
-				Alignment: layout.Middle,
+				Alignment: layout.Start,
 			}.Layout(
 				gtx,
 				layout.Rigid(func(gtx C) D {
+					gtx.Constraints.Max.X = gtx.Px(unit.Dp(25))
+					gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
 					return room.Image.Layout(gtx)
 				}),
 				layout.Rigid(func(gtx C) D {
+					return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
+				}),
+				layout.Flexed(1, func(gtx C) D {
 					return layout.Flex{
 						Axis: layout.Vertical,
 					}.Layout(
@@ -54,9 +67,12 @@ func (room RoomStyle) Layout(gtx C) D {
 							return room.Name.Layout(gtx)
 						}),
 						layout.Rigid(func(gtx C) D {
-							return room.Summary.Layout(gtx)
+							return component.TruncatingLabelStyle(room.Summary).Layout(gtx)
 						}),
 					)
+				}),
+				layout.Rigid(func(gtx C) D {
+					return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
 				}),
 				layout.Rigid(func(gtx C) D {
 					return room.TimeStamp.Layout(gtx)
