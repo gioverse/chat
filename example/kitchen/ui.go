@@ -305,9 +305,7 @@ func (ui *UI) layoutTopbar(gtx C) D {
 						Height: unit.Dp(24),
 					}.Layout(gtx)
 				}),
-				layout.Rigid(func(gtx C) D {
-					return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
-				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(10)}.Layout),
 				layout.Rigid(func(gtx C) D {
 					return material.Label(th.Theme, unit.Sp(14), room.Name).Layout(gtx)
 				}),

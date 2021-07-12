@@ -62,9 +62,7 @@ func (room RoomStyle) Layout(gtx C) D {
 				layout.Rigid(func(gtx C) D {
 					return room.Image.Layout(gtx)
 				}),
-				layout.Rigid(func(gtx C) D {
-					return D{Size: image.Point{X: gtx.Px(unit.Dp(5))}}
-				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(5)}.Layout),
 				layout.Flexed(1, func(gtx C) D {
 					return layout.Flex{
 						Axis: layout.Vertical,
@@ -73,17 +71,13 @@ func (room RoomStyle) Layout(gtx C) D {
 						layout.Rigid(func(gtx C) D {
 							return room.Name.Layout(gtx)
 						}),
-						layout.Rigid(func(gtx C) D {
-							return D{Size: image.Point{Y: gtx.Px(unit.Dp(5))}}
-						}),
+						layout.Rigid(layout.Spacer{Height: unit.Dp(5)}.Layout),
 						layout.Rigid(func(gtx C) D {
 							return component.TruncatingLabelStyle(room.Summary).Layout(gtx)
 						}),
 					)
 				}),
-				layout.Rigid(func(gtx C) D {
-					return D{Size: image.Point{X: gtx.Px(unit.Dp(5))}}
-				}),
+				layout.Rigid(layout.Spacer{Width: unit.Dp(5)}.Layout),
 				layout.Rigid(func(gtx C) D {
 					return room.TimeStamp.Layout(gtx)
 				}),
