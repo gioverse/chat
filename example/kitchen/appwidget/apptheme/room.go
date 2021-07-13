@@ -85,14 +85,28 @@ func (room RoomStyle) Layout(gtx C) D {
 		})
 	})
 	if room.Active {
-		sz := image.Point{
-			X: gtx.Px(unit.Dp(3)),
-			Y: dims.Size.Y,
-		}
-		component.Rect{
-			Size:  sz,
-			Color: room.Indicator,
-		}.Layout(gtx)
+		layout.Flex{}.Layout(
+			gtx,
+			layout.Rigid(func(gtx C) D {
+				return component.Rect{
+					Size: image.Point{
+						X: gtx.Px(unit.Dp(3)),
+						Y: dims.Size.Y,
+					},
+					Color: room.Indicator,
+				}.Layout(gtx)
+
+			}),
+			layout.Rigid(func(gtx C) D {
+				return component.Rect{
+					Size: image.Point{
+						X: gtx.Constraints.Max.X,
+						Y: dims.Size.Y,
+					},
+					Color: color.NRGBA{A: 50},
+				}.Layout(gtx)
+			}),
+		)
 	}
 	return dims
 }
