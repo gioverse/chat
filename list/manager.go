@@ -117,7 +117,7 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 	select {
 	case su := <-m.stateUpdates:
 		if len(m.elements) > 0 {
-			listStart := list.Position.First
+			listStart := min(list.Position.First, len(m.elements)-1)
 			startSerial := m.elements[listStart].Serial()
 			newStartIndex := su.SerialToIndex[startSerial]
 			list.Position.First = newStartIndex
