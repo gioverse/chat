@@ -238,32 +238,31 @@ func (ui *UI) Layout(gtx C) D {
 				)
 			}),
 		)
-	} else {
-		return layout.Flex{
-			Axis: layout.Horizontal,
-		}.Layout(
-			gtx,
-			layout.Rigid(func(gtx C) D {
-				gtx.Constraints.Max.X = gtx.Px(unit.Dp(sidebarMaxWidth))
-				gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
-				return ui.layoutRoomList(gtx)
-			}),
-			layout.Flexed(1, func(gtx C) D {
-				return layout.Stack{}.Layout(gtx,
-					layout.Stacked(func(gtx C) D {
-						gtx.Constraints.Min = gtx.Constraints.Max
-						return material.List(th.Theme, &ui.RowsList).Layout(gtx,
-							ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
-							ui.Rooms.Active().List.Layout,
-						)
-					}),
-					layout.Expanded(func(gtx C) D {
-						return ui.layoutModal(gtx)
-					}),
-				)
-			}),
-		)
 	}
+	return layout.Flex{
+		Axis: layout.Horizontal,
+	}.Layout(
+		gtx,
+		layout.Rigid(func(gtx C) D {
+			gtx.Constraints.Max.X = gtx.Px(unit.Dp(sidebarMaxWidth))
+			gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
+			return ui.layoutRoomList(gtx)
+		}),
+		layout.Flexed(1, func(gtx C) D {
+			return layout.Stack{}.Layout(gtx,
+				layout.Stacked(func(gtx C) D {
+					gtx.Constraints.Min = gtx.Constraints.Max
+					return material.List(th.Theme, &ui.RowsList).Layout(gtx,
+						ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
+						ui.Rooms.Active().List.Layout,
+					)
+				}),
+				layout.Expanded(func(gtx C) D {
+					return ui.layoutModal(gtx)
+				}),
+			)
+		}),
+	)
 }
 
 // layoutTopbar lays out a context bar that contains a "back" button and
@@ -396,8 +395,7 @@ func min(a, b int) int {
 
 // newRow returns a new synthetic row of chat data.
 func newRow(serial int) list.Element {
-	var rowData list.Element
-	rowData = model.Message{
+	return model.Message{
 		SerialID: fmt.Sprintf("%05d", serial),
 		Content:  lorem.Paragraph(1, 5),
 		SentAt:   time.Now().Add(time.Hour * time.Duration(serial)),
@@ -453,7 +451,6 @@ func newRow(serial int) list.Element {
 			return serial < 95
 		}(),
 	}
-	return rowData
 }
 
 // synth inserts date separators and unread separators
