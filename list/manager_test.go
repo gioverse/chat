@@ -385,16 +385,3 @@ var testHooks = Hooks{
 	Comparator:  func(a, b Element) bool { return true },
 	Synthesizer: func(a, b Element) []Element { return nil },
 }
-
-func requestsEqual(a, b loadRequest) bool {
-	if a.Direction != b.Direction {
-		return false
-	}
-	if a.viewport.First != b.viewport.First {
-		return false
-	}
-	if a.viewport.Count != b.viewport.Count {
-		return false
-	}
-	return true
-}
