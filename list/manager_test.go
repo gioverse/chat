@@ -2,6 +2,7 @@ package list
 
 import (
 	"image"
+	"strconv"
 	"testing"
 	"time"
 
@@ -206,6 +207,183 @@ func TestManager(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestManagerPreftch tests that load requests are only issued when the index
+// falls into the prefetch zones, and that any requests are for the proper
+// direction.
+func TestManagerPrefetch(t *testing.T) {
+	for _, tc := range []struct {
+		// name of test case.
+		name string
+		// prefetch percentage.
+		prefetch float32
+		// elements to allocate in the list.
+		elements int
+		// index to scroll to.
+		index int
+		// expcted request, nil if we are not expecting anything.
+		expect *loadRequest
+	}{
+		{
+			name:     "index outside prefetch zone: no prefetch",
+			prefetch: 0.2,
+			elements: 10,
+			index:    5,
+			expect:   nil,
+		},
+		{
+			name:     "index on prefetch boundary: no prefetch",
+			prefetch: 0.2,
+			elements: 10,
+			index:    2,
+			expect:   nil,
+		},
+		{
+			name:     "index on prefetch boundary: no prefetch",
+			prefetch: 0.2,
+			elements: 10,
+			index:    7,
+			expect:   nil,
+		},
+		{
+			name:     "index inside 'before' zone: prefetch before",
+			prefetch: 0.2,
+			elements: 10,
+			index:    1,
+			expect:   &loadRequest{Direction: Before},
+		},
+		{
+			name:     "index inside 'before' zone: prefetch before",
+			prefetch: 0.2,
+			elements: 10,
+			index:    0,
+			expect:   &loadRequest{Direction: Before},
+		},
+		{
+			name:     "index inside 'after' zone: prefetch after",
+			prefetch: 0.2,
+			elements: 10,
+			index:    8,
+			expect:   &loadRequest{Direction: After},
+		},
+		{
+			name:     "index inside 'after' zone: prefetch after",
+			prefetch: 0.2,
+			elements: 10,
+			index:    9,
+			expect:   &loadRequest{Direction: After},
+		},
+		{
+			name:     "index greater than bounds: load after",
+			prefetch: 0.2,
+			elements: 10,
+			index:    10, // zero-index means the last index would be '9'
+			expect:   &loadRequest{Direction: After},
+		},
+		{
+			name:     "index less than bounds: load before",
+			prefetch: 0.2,
+			elements: 10,
+			index:    -1,
+			expect:   &loadRequest{Direction: Before},
+		},
+		{
+			name:     "zeroed prefetch should default",
+			prefetch: 0.0,
+			elements: 10,
+			index:    1,
+			expect:   &loadRequest{Direction: Before},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var (
+				ops op.Ops
+				gtx = layout.NewContext(&ops, system.FrameEvent{
+					Now: time.Now(),
+					Metric: unit.Metric{
+						PxPerDp: 1,
+						PxPerSp: 1,
+					},
+					Size: image.Pt(1, 1),
+				})
+				list         layout.List
+				requests     = make(chan loadRequest, 1)
+				stateUpdates = make(chan stateUpdate, 1)
+			)
+
+			// Manually allocate list manager.
+			// Constructor doesn't help with testing.
+			m := Manager{
+				Prefetch:     tc.prefetch,
+				presenter:    testHooks.Presenter,
+				allocator:    testHooks.Allocator,
+				requests:     requests,
+				stateUpdates: stateUpdates,
+				elementState: make(map[Serial]interface{}),
+				elements: func() (elements []Element) {
+					elements = make([]Element, tc.elements)
+					for ii := 0; ii < tc.elements; ii++ {
+						elements[ii] = &actuallyStatefulElement{
+							serial: strconv.Itoa(ii),
+						}
+					}
+					return elements
+				}(),
+			}
+
+			// Set the index position to render the list at.
+			list.Position = layout.Position{
+				BeforeEnd: true,
+				First:     tc.index,
+				Count:     1,
+			}
+
+			// Lay out the managed list.
+			list.Layout(gtx, m.UpdatedLen(&list), m.Layout)
+
+			select {
+			case request := <-requests:
+				if tc.expect == nil {
+					t.Errorf("did not expect load request %v", request)
+				}
+				if tc.expect != nil && tc.expect.Direction != request.Direction {
+					t.Errorf("got %v, want %v", request, tc.expect)
+				}
+			default:
+			}
+
+		})
+	}
+}
+
+// testHooks allocates default hooks for testing.
+var testHooks = Hooks{
+	Allocator: func(e Element) interface{} {
+		switch e.(type) {
+		case actuallyStatefulElement:
+			// Just allocate something, doesn't matter what.
+			return actuallyStatefulElement{}
+		}
+		return nil
+	},
+	Presenter: func(e Element, state interface{}) layout.Widget {
+		switch e.(type) {
+		case actuallyStatefulElement:
+			// Trigger a panic if the wrong state type was provided.
+			_ = state.(actuallyStatefulElement)
+		}
+		return layout.Spacer{
+			Width:  unit.Dp(5),
+			Height: unit.Dp(5),
+		}.Layout
+	},
+	Loader: func(dir Direction, relativeTo Serial) []Element {
+		return nil
+	},
+	Invalidator: func() {},
+	Comparator:  func(a, b Element) bool { return true },
+	Synthesizer: func(a, b Element) []Element { return nil },
 }
 
 func requestsEqual(a, b loadRequest) bool {
