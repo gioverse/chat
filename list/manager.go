@@ -101,6 +101,9 @@ const DefaultPrefetch = 0.15
 
 // Layout the element at the given index.
 func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
+	if index < 0 {
+		index = 0
+	}
 	if m.Prefetch <= 0.0 {
 		m.Prefetch = DefaultPrefetch
 	}
