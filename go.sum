@@ -5,8 +5,8 @@ dmitri.shuralyov.com/gpu/mtl v0.0.0-20201218220906-28db891af037/go.mod h1:H6x//7
 gioui.org v0.0.0-20210705140830-941aeaae910e/go.mod h1:RSH6KIUZ0p2xy5zHDxgAM4zumjgTw83q2ge/PI+yyw8=
 gioui.org v0.0.0-20210713144338-b3918ce40fc3 h1:3gZj92zwRrz2X0CV8XMEVAEp9HhrWEg4fYoWVMsyiuU=
 gioui.org v0.0.0-20210713144338-b3918ce40fc3/go.mod h1:RSH6KIUZ0p2xy5zHDxgAM4zumjgTw83q2ge/PI+yyw8=
-gioui.org/x v0.0.0-20210712143252-9b000be6ad58 h1:979nI8agYXEGRoepq8dlrwebJQ42ZcUTZTQTr4IPSII=
-gioui.org/x v0.0.0-20210712143252-9b000be6ad58/go.mod h1:wWLp7AlhjLtSUWOTiODXwRtpVSQUkG7enAvgWIjik8s=
+gioui.org/x v0.0.0-20210714204148-b4d794ff02d5 h1:LyJVUaz2f0wR/Pqqu18s8Nqy9gzHH8m2vVurZ5gcntQ=
+gioui.org/x v0.0.0-20210714204148-b4d794ff02d5/go.mod h1:wWLp7AlhjLtSUWOTiODXwRtpVSQUkG7enAvgWIjik8s=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/BurntSushi/xgb v0.0.0-20160522181843-27f122750802/go.mod h1:IVnqGOEym/WlBOVXweHU+Q+/VP0lqqI8lqeDx9IjBqo=
 github.com/Knetic/govaluate v3.0.1-0.20171022003610-9aa49832a739+incompatible/go.mod h1:r7JcOSlj0wfOMncg0iLm8Leh48TZaKVeNIfJntJ2wa0=
