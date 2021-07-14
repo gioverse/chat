@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"sync"
 	"time"
@@ -359,9 +360,14 @@ func NewExampleData(size int) *RowTracker {
 	go func() {
 		for i := 0; i < size; i++ {
 			rt.Lock()
-			r := newRow(i)
-			rt.SerialToIndex[r.Serial()] = i
+			r := newRow(size - i)
 			rt.Rows = append(rt.Rows, r)
+			sort.Slice(rt.Rows, func(i, j int) bool {
+				return rowLessThan(rt.Rows[i], rt.Rows[j])
+			})
+			for index, element := range rt.Rows {
+				rt.SerialToIndex[element.Serial()] = index
+			}
 			rt.Unlock()
 		}
 	}()
@@ -372,6 +378,7 @@ func NewExampleData(size int) *RowTracker {
 func (r *RowTracker) Latest() list.Element {
 	r.Lock()
 	final := len(r.Rows) - 1
+	// Unlock because index will lock again.
 	r.Unlock()
 	return r.Index(final)
 }
