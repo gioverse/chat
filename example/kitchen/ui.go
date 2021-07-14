@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 	"time"
 
 	"gioui.org/app"
@@ -112,7 +113,11 @@ func NewUI(w *app.Window) *UI {
 				// Latest needs to update when the message model for the room
 				/// changes.
 				Latest: func() *model.Message {
-					msg, ok := rt.Rows[len(rt.Rows)-1].(model.Message)
+					latest := rt.Latest()
+					if latest == nil {
+						return nil
+					}
+					msg, ok := latest.(model.Message)
 					if !ok {
 						return nil
 					}
@@ -342,29 +347,57 @@ func (ui *UI) layoutRoomList(gtx C) D {
 type RowTracker struct {
 	Rows          []list.Element
 	SerialToIndex map[list.Serial]int
+	sync.Mutex
 }
 
 // NewExampleData constructs a RowTracker populated with the provided
 // quantity of messages.
-func NewExampleData(size int) RowTracker {
+func NewExampleData(size int) *RowTracker {
 	rt := RowTracker{
 		SerialToIndex: make(map[list.Serial]int),
 	}
-	for i := 0; i < size; i++ {
-		r := newRow(i)
-		rt.SerialToIndex[r.Serial()] = i
-		rt.Rows = append(rt.Rows, r)
+	go func() {
+		for i := 0; i < size; i++ {
+			rt.Lock()
+			r := newRow(i)
+			rt.SerialToIndex[r.Serial()] = i
+			rt.Rows = append(rt.Rows, r)
+			rt.Unlock()
+		}
+	}()
+	return &rt
+}
+
+// Latest returns the latest element, or nil.
+func (r *RowTracker) Latest() list.Element {
+	r.Lock()
+	final := len(r.Rows) - 1
+	r.Unlock()
+	return r.Index(final)
+}
+
+// Index returns the element at the given index, or nil.
+func (r *RowTracker) Index(ii int) list.Element {
+	r.Lock()
+	defer r.Unlock()
+	if len(r.Rows) == 0 || len(r.Rows) < ii {
+		return nil
 	}
-	return rt
+	if ii < 0 {
+		return r.Rows[0]
+	}
+	return r.Rows[ii]
 }
 
 // Load simulates loading chat history from a database or API. It
 // sleeps for a random number of milliseconds and then returns
 // some messages.
-func (r RowTracker) Load(dir list.Direction, relativeTo list.Serial) []list.Element {
+func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) []list.Element {
 	duration := time.Millisecond * time.Duration(rand.Intn(1000))
 	log.Println("sleeping", duration)
 	time.Sleep(duration)
+	r.Lock()
+	defer r.Unlock()
 	numRows := len(r.Rows)
 	if relativeTo == list.NoSerial {
 		// If loading relative to nothing, likely the chat interface is empty.

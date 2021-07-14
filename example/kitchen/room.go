@@ -20,7 +20,7 @@ type Rooms struct {
 type Room struct {
 	model.Room
 	Interact appwidget.Room
-	Messages RowTracker
+	Messages *RowTracker
 	List     *list.Manager
 }
 
