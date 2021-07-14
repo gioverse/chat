@@ -9,6 +9,16 @@ import (
 // Manager presents heterogenous Element data. Each element could represent
 // any element of an interface with a list.
 type Manager struct {
+	// Prefetch specifies a minimum threshold at which to start prefetching more
+	// data (in either direction), as a percentage in the range [0,1] of the
+	// total number of elements present in the list.
+	//
+	// In other words, a prefetch of 0.15 ensures load will be invoked if the
+	// viewport is laying out the first or final 15% of elements.
+	//
+	// Defaults to '0.15' (15%), clamped to '1.0' (100%).
+	Prefetch float32
+
 	// elements is the list of data to present.
 	elements []Element
 
@@ -86,14 +96,26 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 	return rm
 }
 
+// DefaultPrefetch is the default prefetching threshold.
+const DefaultPrefetch = 0.15
+
 // Layout the element at the given index.
 func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
+	if m.Prefetch <= 0.0 {
+		m.Prefetch = DefaultPrefetch
+	}
+	if m.Prefetch > 1.0 {
+		m.Prefetch = 1.0
+	}
+	// indexf is the precentage of the total list of elements that
+	// the index represents.
+	indexf := float32(index) / float32(max(len(m.elements), 1))
 	// If the beginning of the list is visible, try to load prior history.
-	if index == 0 && len(m.elements) > 0 {
+	if indexf < m.Prefetch && len(m.elements) > 0 {
 		m.tryRequest(Before)
 	}
 	// If the end of the list is visible, try to load history afterwards.
-	if index == len(m.elements)-1 && len(m.elements) > 0 {
+	if indexf > 1.0-m.Prefetch && len(m.elements) > 0 {
 		m.tryRequest(After)
 	}
 	// Lay out the element for the current index.
