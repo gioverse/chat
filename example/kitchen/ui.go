@@ -26,12 +26,15 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
+
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 	"git.sr.ht/~gioverse/chat/list"
 	"git.sr.ht/~gioverse/chat/ninepatch"
 	"git.sr.ht/~gioverse/chat/res"
+	matchat "git.sr.ht/~gioverse/chat/widget/material"
+
 	lorem "github.com/drhodes/golorem"
 	"golang.org/x/exp/shiny/materialdesign/icons"
 )
@@ -195,9 +198,9 @@ func NewUI(w *app.Window) *UI {
 								return msg.Layout(gtx)
 							}
 						case model.DateBoundary:
-							return apptheme.DateSeparator(th.Theme, data).Layout
+							return matchat.DateSeparator(th.Theme, data.Date).Layout
 						case model.UnreadBoundary:
-							return apptheme.UnreadSeparator(th.Theme, data).Layout
+							return matchat.UnreadSeparator(th.Theme).Layout
 						default:
 							return func(gtx C) D { return D{} }
 						}

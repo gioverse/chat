@@ -1,14 +1,14 @@
-package apptheme
+package material
 
 import (
 	"image"
+	"time"
 
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget/material"
-	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 )
 
 // SeparatorStyle configures the presentation of the unread indicator.
@@ -20,7 +20,7 @@ type SeparatorStyle struct {
 }
 
 // UnreadSeparator fills in a SeparatorStyle with sensible defaults.
-func UnreadSeparator(th *material.Theme, ub model.UnreadBoundary) SeparatorStyle {
+func UnreadSeparator(th *material.Theme) SeparatorStyle {
 	us := SeparatorStyle{
 		Message:    material.Body1(th, "New Messages"),
 		TextMargin: layout.UniformInset(unit.Dp(8)),
@@ -31,11 +31,11 @@ func UnreadSeparator(th *material.Theme, ub model.UnreadBoundary) SeparatorStyle
 	return us
 }
 
-// DateSeparator makes a SeparatorStyle with reasonable defaults out of
-// the provided DateBoundary.
-func DateSeparator(th *material.Theme, db model.DateBoundary) SeparatorStyle {
+// DateSeparator makes a SeparatorStyle with indicating the transition to
+// the date provided in the time.Time.
+func DateSeparator(th *material.Theme, date time.Time) SeparatorStyle {
 	return SeparatorStyle{
-		Message:    material.Body1(th, db.Date.Format("Mon Jan 2, 2006")),
+		Message:    material.Body1(th, date.Format("Mon Jan 2, 2006")),
 		TextMargin: layout.UniformInset(unit.Dp(8)),
 		LineMargin: layout.UniformInset(unit.Dp(8)),
 		LineWidth:  unit.Dp(2),
@@ -43,22 +43,22 @@ func DateSeparator(th *material.Theme, db model.DateBoundary) SeparatorStyle {
 }
 
 // Layout the Separator.
-func (u SeparatorStyle) Layout(gtx C) D {
-	layoutLine := func(gtx C) D {
-		return u.LineMargin.Layout(gtx, func(gtx C) D {
+func (u SeparatorStyle) Layout(gtx layout.Context) layout.Dimensions {
+	layoutLine := func(gtx layout.Context) layout.Dimensions {
+		return u.LineMargin.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			size := image.Point{
 				X: gtx.Constraints.Max.X,
 				Y: gtx.Px(u.LineWidth),
 			}
 			paint.FillShape(gtx.Ops, u.Message.Color, clip.Rect(image.Rectangle{Max: size}).Op())
-			return D{Size: size}
+			return layout.Dimensions{Size: size}
 		})
 	}
 	return layout.Flex{
 		Alignment: layout.Middle,
 	}.Layout(gtx,
 		layout.Flexed(.5, layoutLine),
-		layout.Rigid(func(gtx C) D {
+		layout.Rigid(func(gtx layout.Context) layout.Dimensions {
 			return u.TextMargin.Layout(gtx, u.Message.Layout)
 		}),
 		layout.Flexed(.5, layoutLine),
