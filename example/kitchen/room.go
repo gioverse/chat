@@ -20,10 +20,23 @@ type Rooms struct {
 // Avoids the UI needing to allocate two lists (interact/model) for the
 // rooms.
 type Room struct {
+	// Room model defines the backend data describing a room.
 	model.Room
+	// Interact defines the interactive state for a room widget.
 	Interact appwidget.Room
+	// Messages implements what would be a backend data model.
+	// This would be the facade to your business api.
+	// This is the source of truth.
+	// This type gets asked to create messages and queried for message history.
 	Messages *RowTracker
-	List     *list.Manager
+	// ListState dynamically manages list state.
+	// This lets us surf across a vast ocean of infinite messages, only ever
+	// rendering what is actualy viewable.
+	// The widget.List consumes this during layout.
+	ListState *list.Manager
+	// List implements the raw scrolling, adding scrollbars and responding
+	// to mousewheel / touch fling gestures.
+	List widget.List
 	// Editor contains the edit buffer for composing messages.
 	Editor widget.Editor
 }
@@ -49,21 +62,23 @@ func (r *Room) SendMessage() {
 	// 3. the "finalized" message is returned by the backend, and then the pushed
 	// in to the list, via it's Update method.
 	row := r.Messages.Send(sender, content)
-	go r.List.Update([]list.Element{row}, nil)
+	go func() {
+		r.ListState.Update([]list.Element{row}, nil)
+	}()
 }
 
 // NewRow generates a new row in the Room's RowTracker and inserts it
 // into the list manager for the room.
 func (r *Room) NewRow() {
 	row := r.Messages.NewRow()
-	go r.List.Update([]list.Element{row}, nil)
+	go r.ListState.Update([]list.Element{row}, nil)
 }
 
 // DeleteRow removes the row with the provided serial from both the
 // row tracker and the list manager for the room.
 func (r *Room) DeleteRow(serial list.Serial) {
 	r.Messages.Delete(serial)
-	go r.List.Update(nil, []list.Serial{serial})
+	go r.ListState.Update(nil, []list.Serial{serial})
 }
 
 // Active returns the active room, empty if not rooms are available.

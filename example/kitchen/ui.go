@@ -55,8 +55,6 @@ type UI struct {
 	Rooms Rooms
 	// RoomList for the sidebar.
 	RoomList widget.List
-	// RowsList for the active room messages.
-	RowsList widget.List
 	// Modal can show widgets atop the rest of the ui.
 	Modal component.ModalState
 	// Bg is the background color of the content area.
@@ -86,9 +84,6 @@ func NewUI(w *app.Window) *UI {
 	var ui UI
 
 	ui.Modal.VisibilityAnimation.Duration = time.Millisecond * 250
-
-	ui.RowsList.ScrollToEnd = true
-	ui.RowsList.Axis = layout.Vertical
 
 	ui.MessageMenu = component.MenuState{
 		Options: []func(gtx C) D{
@@ -151,7 +146,7 @@ func NewUI(w *app.Window) *UI {
 				}(),
 			},
 			Messages: rt,
-			List: list.NewManager(25,
+			ListState: list.NewManager(25,
 				list.Hooks{
 					// Define an allocator function that can instaniate the appropriate
 					// state type for each kind of row data in our list.
@@ -218,6 +213,10 @@ func NewUI(w *app.Window) *UI {
 	}
 
 	ui.Rooms.Select(0)
+	for ii := range ui.Rooms.List {
+		ui.Rooms.List[ii].List.ScrollToEnd = true
+		ui.Rooms.List[ii].List.Axis = layout.Vertical
+	}
 
 	// Configure a pleasing light gray background color.
 	ui.Bg = color.NRGBA{220, 220, 220, 255}
@@ -302,9 +301,14 @@ func (ui *UI) layoutChat(gtx C) D {
 		Axis: layout.Vertical,
 	}.Layout(gtx,
 		layout.Flexed(1, func(gtx C) D {
-			return material.List(th.Theme, &ui.RowsList).Layout(gtx,
-				ui.Rooms.Active().List.UpdatedLen(&ui.RowsList.List),
-				ui.Rooms.Active().List.Layout,
+			room := ui.Rooms.Active()
+			var (
+				list  = &room.List
+				state = room.ListState
+			)
+			return material.List(th.Theme, list).Layout(gtx,
+				state.UpdatedLen(&list.List),
+				state.Layout,
 			)
 		}),
 		layout.Rigid(func(gtx C) D {
