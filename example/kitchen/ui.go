@@ -309,7 +309,7 @@ func (ui *UI) layoutChat(gtx C) D {
 		}),
 		layout.Rigid(func(gtx C) D {
 			if ui.AddBtn.Clicked() {
-				ui.Rooms.Active().NewRow()
+				ui.Rooms.Active().SendMessage()
 			}
 			if ui.DeleteBtn.Clicked() {
 				serial := ui.ContextMenuTarget.Serial()
@@ -441,6 +441,48 @@ func NewExampleData(size int) *RowTracker {
 		}
 	}()
 	return rt
+}
+
+// SendMessage adds the message to the data model.
+// This is analogous to interacting with the backend api.
+//
+// NOTE(jfm): should probably make the "this is the mock business api" more
+// clear.
+//
+// TODO(jfm): roll client-side data into "message body", and server-side
+// data can then fill out the rest of the `model.Message`.
+// For example, this method needs to optionally accept images, and that
+// might make the params list grow arbitrarily large, depending on the
+// types of client-side data that need to be supported.
+func (r *RowTracker) Send(sender, content string) model.Message {
+	msg := model.Message{
+		Sender:  sender,
+		Content: content,
+		// Backend controls content ID, thus we unconditionally override it,
+		// simulating some "unique ID" algorithm.
+		SerialID: fmt.Sprintf("%05d", time.Now().UnixNano()),
+		// Simulate network failure.
+		Status: func() string {
+			if rand.Int()%10 == 0 {
+				return apptheme.FailedToSend
+			}
+			return ""
+		}(),
+		// Well, "we" sent it!
+		Read:   true,
+		Local:  true,
+		SentAt: time.Now(),
+	}
+	r.Lock()
+	r.Rows = append(r.Rows, list.Element(msg))
+	sort.Slice(r.Rows, func(i, j int) bool {
+		return rowLessThan(r.Rows[i], r.Rows[j])
+	})
+	for index, element := range r.Rows {
+		r.SerialToIndex[element.Serial()] = index
+	}
+	r.Unlock()
+	return msg
 }
 
 // Latest returns the latest element, or nil.
