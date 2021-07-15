@@ -20,6 +20,7 @@ import (
 
 	"gioui.org/app"
 	"gioui.org/layout"
+	"gioui.org/op"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -37,6 +38,11 @@ import (
 
 var NavBack *widget.Icon = func() *widget.Icon {
 	icon, _ := widget.NewIcon(icons.NavigationArrowBack)
+	return icon
+}()
+
+var Send *widget.Icon = func() *widget.Icon {
+	icon, _ := widget.NewIcon(icons.ContentSend)
 	return icon
 }()
 
@@ -309,8 +315,27 @@ func (ui *UI) layoutChat(gtx C) D {
 				serial := ui.ContextMenuTarget.Serial()
 				ui.Rooms.Active().DeleteRow(serial)
 			}
-
-			return material.Button(th.Theme, &ui.AddBtn, "Add Message").Layout(gtx)
+			return layout.UniformInset(unit.Dp(15)).Layout(gtx, func(gtx C) D {
+				return layout.Flex{
+					Axis:      layout.Horizontal,
+					Alignment: layout.Middle,
+				}.Layout(
+					gtx,
+					layout.Flexed(1, func(gtx C) D {
+						return Background(th.Bg).Layout(gtx, func(gtx C) D {
+							return layout.UniformInset(unit.Dp(15)).Layout(gtx, func(gtx C) D {
+								return material.Editor(th.Theme, &ui.Rooms.Active().Editor, "Send a message").Layout(gtx)
+							})
+						})
+					}),
+					layout.Rigid(func(gtx C) D {
+						return layout.Spacer{Width: unit.Dp(15)}.Layout(gtx)
+					}),
+					layout.Rigid(func(gtx C) D {
+						return material.IconButton(th.Theme, &ui.AddBtn, Send).Layout(gtx)
+					}),
+				)
+			})
 		}),
 	)
 }
@@ -686,4 +711,24 @@ func filter(list []fs.FileInfo, predicate func(fs.FileInfo) bool) (filtered []fs
 		}
 	}
 	return filtered
+}
+
+// Background lays out a widget over a colored background.
+type Background color.NRGBA
+
+func (bg Background) Layout(gtx C, w layout.Widget) D {
+	macro := op.Record(gtx.Ops)
+	dims := w(gtx)
+	call := macro.Stop()
+	return layout.Stack{}.Layout(
+		gtx,
+		layout.Expanded(component.Rect{
+			Size:  dims.Size,
+			Color: color.NRGBA(bg),
+		}.Layout),
+		layout.Stacked(func(gtx C) D {
+			call.Add(gtx.Ops)
+			return dims
+		}),
+	)
 }

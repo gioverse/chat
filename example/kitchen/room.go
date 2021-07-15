@@ -1,6 +1,7 @@
 package main
 
 import (
+	"gioui.org/widget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 	"git.sr.ht/~gioverse/chat/list"
@@ -22,6 +23,8 @@ type Room struct {
 	Interact appwidget.Room
 	Messages *RowTracker
 	List     *list.Manager
+	// Editor contains the edit buffer for composing messages.
+	Editor widget.Editor
 }
 
 // NewRow generates a new row in the Room's RowTracker and inserts it
