@@ -524,12 +524,17 @@ func (r *RowTracker) NewRow() list.Element {
 // Load simulates loading chat history from a database or API. It
 // sleeps for a random number of milliseconds and then returns
 // some messages.
-func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) []list.Element {
+func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded []list.Element) {
 	duration := time.Millisecond * time.Duration(rand.Intn(1000))
 	log.Println("sleeping", duration)
 	time.Sleep(duration)
 	r.Lock()
 	defer r.Unlock()
+	defer func() {
+		// Ensure the slice we return is backed by different memory than the underlying
+		// RowTracker's slice, to avoid data races when the RowTracker sorts its storage.
+		loaded = dupSlice(loaded)
+	}()
 	numRows := len(r.Rows)
 	if relativeTo == list.NoSerial {
 		// If loading relative to nothing, likely the chat interface is empty.
@@ -542,6 +547,16 @@ func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) []list.Ele
 		return r.Rows[idx+1 : min(numRows, idx+11)]
 	}
 	return r.Rows[maximum(0, idx-11):idx]
+}
+
+// dupSlice returns a slice composed of the same elements in the same order,
+// but backed by a different array.
+func dupSlice(in []list.Element) []list.Element {
+	out := make([]list.Element, len(in))
+	for i := range in {
+		out[i] = in[i]
+	}
+	return out
 }
 
 // sliceRemove takes the given index of a slice and swaps it with the final
