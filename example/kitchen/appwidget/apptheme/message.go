@@ -17,6 +17,7 @@ import (
 	"gioui.org/x/richtext"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
+	chatlayout "git.sr.ht/~gioverse/chat/layout"
 	"git.sr.ht/~gioverse/chat/ninepatch"
 	matchat "git.sr.ht/~gioverse/chat/widget/material"
 	"golang.org/x/exp/shiny/materialdesign/icons"
@@ -40,6 +41,7 @@ type (
 // MessageStyle configures the presentation of a chat message within
 // a vertical list of chat messages.
 type MessageStyle struct {
+	OuterMargin chatlayout.VerticalMarginStyle
 	// Local indicates that the message was sent by the local user,
 	// and should be left-aligned.
 	Local bool
@@ -62,7 +64,7 @@ type MessageStyle struct {
 		Layout(gtx C, w layout.Widget) D
 	}
 	// ContentMargin configures space around the chat bubble.
-	ContentMargin layout.Inset
+	ContentMargin chatlayout.VerticalMarginStyle
 	// Image specifies optional image content for the message.
 	Image Image
 	// Avatar displays an image representing the sender.
@@ -93,8 +95,9 @@ func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuStat
 	interact.SetImage(msg.Image)
 	bubble := matchat.Bubble(th.Theme)
 	ms := MessageStyle{
-		Time:    material.Body2(th.Theme, msg.SentAt.Local().Format("15:04")),
-		Surface: &bubble,
+		OuterMargin: chatlayout.VerticalMargin(),
+		Time:        material.Body2(th.Theme, msg.SentAt.Local().Format("15:04")),
+		Surface:     &bubble,
 		Content: richtext.Text(&interact.InteractiveText, th.Shaper, richtext.SpanStyle{
 			Font:    th.Fonts[0].Font,
 			Size:    material.Body1(th.Theme, "").TextSize,
@@ -105,7 +108,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuStat
 		IconSize:           unit.Dp(32),
 		RightGutterPadding: layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12)},
 		ContentPadding:     layout.UniformInset(unit.Dp(8)),
-		ContentMargin:      layout.UniformInset(unit.Dp(8)),
+		ContentMargin:      chatlayout.VerticalMargin(),
 		LeftGutter:         layout.Spacer{Width: unit.Dp(24)},
 		Sender:             material.Body1(th.Theme, msg.Sender),
 		Image: Image{
@@ -174,72 +177,72 @@ func (c MessageStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) MessageSt
 
 // Layout the message.
 func (c MessageStyle) Layout(gtx C) D {
-	messageAlignment := layout.W
-	if c.Local {
-		messageAlignment = layout.E
-	}
-	return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-		layout.Rigid(func(gtx C) D {
-			return layout.Flex{
-				Axis:      layout.Horizontal,
-				Alignment: layout.Middle,
-			}.Layout(gtx,
-				layout.Rigid(func(gtx C) D {
-					return D{Size: image.Point{
-						X: gtx.Px(c.LeftGutter.Width) +
-							gtx.Px(c.ContentMargin.Left),
-					}}
-				}),
-				layout.Flexed(1, func(gtx C) D {
-					return messageAlignment.Layout(gtx, func(gtx C) D {
-						return layout.Flex{
-							Axis:      layout.Horizontal,
-							Alignment: layout.Middle,
-						}.Layout(gtx,
-							anchor(messageAlignment,
-								layout.Rigid(func(gtx C) D {
-									return c.Avatar.Layout(gtx)
-								}),
-								layout.Rigid(func(gtx C) D {
-									return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
-								}),
-								layout.Rigid(func(gtx C) D {
-									return c.Sender.Layout(gtx)
-								}),
-							)...,
-						)
-					})
-				}),
-				layout.Rigid(func(gtx C) D {
-					return D{Size: image.Point{
-						X: gtx.Px(c.IconSize) +
-							gtx.Px(c.RightGutterPadding.Left) +
-							gtx.Px(c.RightGutterPadding.Right) +
-							gtx.Px(c.ContentMargin.Right),
-					}}
-				}),
-			)
-		}),
-		layout.Rigid(func(gtx C) D {
-			return layout.Flex{
-				Alignment: layout.Middle,
-			}.Layout(gtx,
-				layout.Rigid(c.LeftGutter.Layout),
-				layout.Flexed(1, func(gtx C) D {
-					return messageAlignment.Layout(gtx, c.layoutBubble)
-				}),
-				layout.Rigid(c.layoutTimeOrIcon),
-			)
-		}),
-		layout.Rigid(func(gtx C) D {
-			if c.StatusMessage.Text == "" {
-				return D{}
-			}
-			return layout.E.Layout(gtx, func(gtx C) D {
-				return c.RightGutterPadding.Layout(gtx, c.StatusMessage.Layout)
-			})
-		}),
-	)
+	return c.OuterMargin.Layout(gtx, func(gtx C) D {
+		messageAlignment := layout.W
+		if c.Local {
+			messageAlignment = layout.E
+		}
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+			layout.Rigid(func(gtx C) D {
+				return layout.Flex{
+					Axis:      layout.Horizontal,
+					Alignment: layout.Middle,
+				}.Layout(gtx,
+					layout.Rigid(func(gtx C) D {
+						return D{Size: image.Point{
+							X: gtx.Px(c.LeftGutter.Width),
+						}}
+					}),
+					layout.Flexed(1, func(gtx C) D {
+						return messageAlignment.Layout(gtx, func(gtx C) D {
+							return layout.Flex{
+								Axis:      layout.Horizontal,
+								Alignment: layout.Middle,
+							}.Layout(gtx,
+								anchor(messageAlignment,
+									layout.Rigid(func(gtx C) D {
+										return c.Avatar.Layout(gtx)
+									}),
+									layout.Rigid(func(gtx C) D {
+										return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
+									}),
+									layout.Rigid(func(gtx C) D {
+										return c.Sender.Layout(gtx)
+									}),
+								)...,
+							)
+						})
+					}),
+					layout.Rigid(func(gtx C) D {
+						return D{Size: image.Point{
+							X: gtx.Px(c.IconSize) +
+								gtx.Px(c.RightGutterPadding.Left) +
+								gtx.Px(c.RightGutterPadding.Right),
+						}}
+					}),
+				)
+			}),
+			layout.Rigid(func(gtx C) D {
+				return layout.Flex{
+					Alignment: layout.Middle,
+				}.Layout(gtx,
+					layout.Rigid(c.LeftGutter.Layout),
+					layout.Flexed(1, func(gtx C) D {
+						return messageAlignment.Layout(gtx, c.layoutBubble)
+					}),
+					layout.Rigid(c.layoutTimeOrIcon),
+				)
+			}),
+			layout.Rigid(func(gtx C) D {
+				if c.StatusMessage.Text == "" {
+					return D{}
+				}
+				return layout.E.Layout(gtx, func(gtx C) D {
+					return c.RightGutterPadding.Layout(gtx, c.StatusMessage.Layout)
+				})
+			}),
+		)
+	})
 }
 
 // layoutBubble lays out the chat bubble.
