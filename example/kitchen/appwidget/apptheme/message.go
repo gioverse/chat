@@ -4,11 +4,8 @@ import (
 	"image"
 	"image/color"
 
-	"gioui.org/f32"
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
-	"gioui.org/op"
-	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -64,9 +61,9 @@ type MessageStyle struct {
 	// ContentMargin configures space around the chat bubble.
 	ContentMargin chatlayout.VerticalMarginStyle
 	// Image specifies optional image content for the message.
-	Image Image
+	Image matchat.Image
 	// Avatar displays an image representing the sender.
-	Avatar Image
+	Avatar matchat.Image
 	// Content configures the actual contents of the chat bubble.
 	Content richtext.TextStyle
 	// ContentPadding defines space around the Content within the Bubble area.
@@ -106,7 +103,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuStat
 		ContentPadding: layout.UniformInset(unit.Dp(8)),
 		ContentMargin:  chatlayout.VerticalMargin(),
 		Sender:         material.Body1(th.Theme, msg.Sender),
-		Image: Image{
+		Image: matchat.Image{
 			Image: widget.Image{
 				Src:      interact.Image,
 				Fit:      widget.ScaleDown,
@@ -117,7 +114,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuStat
 		MaxMessageWidth: th.MaxMessageWidth,
 		MaxImageHeight:  th.MaxImageHeight,
 		Interaction:     interact,
-		Avatar: Image{
+		Avatar: matchat.Image{
 			Image: widget.Image{
 				Src:      interact.Avatar,
 				Fit:      widget.Cover,
@@ -275,37 +272,6 @@ func (c MessageStyle) layoutTimeOrIcon(gtx C) D {
 // [0,1]. Ignores alpha.
 func Luminance(c color.NRGBA) float64 {
 	return (float64(float64(0.299)*float64(c.R) + float64(0.587)*float64(c.G) + float64(0.114)*float64(c.B))) / 255
-}
-
-// Image lays out an image with optionally rounded corners.
-type Image struct {
-	widget.Image
-	widget.Clickable
-	// Radii specifies the amount of rounding.
-	Radii unit.Value
-	// Width and Height specify respective dimensions.
-	// If left empty, dimensions will be unconstrained.
-	Width, Height unit.Value
-}
-
-func (img Image) Layout(gtx C) D {
-	if img.Width.V > 0 {
-		gtx.Constraints.Max.X = gtx.Px(img.Width)
-	}
-	if img.Height.V > 0 {
-		gtx.Constraints.Max.Y = gtx.Px(img.Height)
-	}
-	defer op.Save(gtx.Ops).Load()
-	macro := op.Record(gtx.Ops)
-	dims := img.Image.Layout(gtx)
-	call := macro.Stop()
-	r := float32(gtx.Px(img.Radii))
-	clip.RRect{
-		Rect: f32.Rectangle{Max: layout.FPt(dims.Size)},
-		NE:   r, NW: r, SE: r, SW: r,
-	}.Add(gtx.Ops)
-	call.Add(gtx.Ops)
-	return dims
 }
 
 // anchor a sequence of flex children to a particular direction.

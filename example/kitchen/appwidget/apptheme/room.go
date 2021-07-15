@@ -11,12 +11,13 @@ import (
 	"gioui.org/x/component"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
+	matchat "git.sr.ht/~gioverse/chat/widget/material"
 )
 
 // RoomStyle lays out a room select card.
 type RoomStyle struct {
 	*appwidget.Room
-	Image     Image
+	Image     matchat.Image
 	Name      material.LabelStyle
 	Summary   material.LabelStyle
 	TimeStamp material.LabelStyle
@@ -38,7 +39,7 @@ func Room(th *material.Theme, interact *appwidget.Room, room *model.Room) RoomSt
 		Name:      material.Label(th, unit.Sp(14), room.Name),
 		Summary:   material.Label(th, unit.Sp(12), latest.Content),
 		TimeStamp: material.Label(th, unit.Sp(12), latest.SentAt.Local().Format("15:04")),
-		Image: Image{
+		Image: matchat.Image{
 			Image: widget.Image{
 				Src: interact.Image.Op(),
 				Fit: widget.Contain,

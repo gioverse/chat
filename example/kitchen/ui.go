@@ -371,7 +371,7 @@ func (ui *UI) layoutTopbar(gtx C) D {
 					return btn.Layout(gtx)
 				}),
 				layout.Rigid(func(gtx C) D {
-					return apptheme.Image{
+					return matchat.Image{
 						Image: widget.Image{
 							Src: room.Interact.Image.Op(),
 						},
