@@ -184,7 +184,7 @@ func (c MessageStyle) Layout(gtx C) D {
 								Axis:      layout.Horizontal,
 								Alignment: layout.Middle,
 							}.Layout(gtx,
-								anchor(messageAlignment,
+								chatlayout.Reverse(messageAlignment == layout.E,
 									layout.Rigid(func(gtx C) D {
 										return c.Avatar.Layout(gtx)
 									}),
@@ -272,30 +272,4 @@ func (c MessageStyle) layoutTimeOrIcon(gtx C) D {
 // [0,1]. Ignores alpha.
 func Luminance(c color.NRGBA) float64 {
 	return (float64(float64(0.299)*float64(c.R) + float64(0.587)*float64(c.G) + float64(0.114)*float64(c.B))) / 255
-}
-
-// anchor a sequence of flex children to a particular direction.
-//
-// By default this is left-to-right, however if East direction is supplied, the
-// list is reversed to make it right-to-left.
-//
-// TODO(jfm) [clarify]: I'm not confident about how to name this helper.
-func anchor(d layout.Direction, items ...layout.FlexChild) []layout.FlexChild {
-	if len(items) == 0 {
-		return items
-	}
-	if d == layout.E || d == layout.NE || d == layout.SE {
-		for ii := 0; ii < len(items); ii++ {
-			var (
-				head = ii
-				tail = len(items) - 1 - ii
-			)
-			if head == tail {
-				break
-			}
-			items[head], items[tail] = items[tail], items[head]
-		}
-		return items
-	}
-	return items
 }
