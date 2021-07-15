@@ -30,6 +30,7 @@ import (
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
+	chatlayout "git.sr.ht/~gioverse/chat/layout"
 	"git.sr.ht/~gioverse/chat/list"
 	"git.sr.ht/~gioverse/chat/ninepatch"
 	"git.sr.ht/~gioverse/chat/res"
@@ -300,16 +301,19 @@ func (ui *UI) Layout(gtx C) D {
 
 // layoutChat lays out the chat interface with associated controls.
 func (ui *UI) layoutChat(gtx C) D {
+	room := ui.Rooms.Active()
+	var (
+		scrollWidth unit.Value
+		list        = &room.List
+		state       = room.ListState
+	)
+	listStyle := material.List(th.Theme, list)
+	scrollWidth = listStyle.ScrollbarStyle.Width(gtx.Metric)
 	return layout.Flex{
 		Axis: layout.Vertical,
 	}.Layout(gtx,
 		layout.Flexed(1, func(gtx C) D {
-			room := ui.Rooms.Active()
-			var (
-				list  = &room.List
-				state = room.ListState
-			)
-			return material.List(th.Theme, list).Layout(gtx,
+			return listStyle.Layout(gtx,
 				state.UpdatedLen(&list.List),
 				state.Layout,
 			)
@@ -322,27 +326,19 @@ func (ui *UI) layoutChat(gtx C) D {
 				serial := ui.ContextMenuTarget.Serial()
 				ui.Rooms.Active().DeleteRow(serial)
 			}
-			return layout.UniformInset(unit.Dp(15)).Layout(gtx, func(gtx C) D {
-				return layout.Flex{
-					Axis:      layout.Horizontal,
-					Alignment: layout.Middle,
-				}.Layout(
-					gtx,
-					layout.Flexed(1, func(gtx C) D {
-						return Background(th.Bg).Layout(gtx, func(gtx C) D {
-							return layout.UniformInset(unit.Dp(15)).Layout(gtx, func(gtx C) D {
-								return material.Editor(th.Theme, &ui.Rooms.Active().Editor, "Send a message").Layout(gtx)
-							})
+			gutter := chatlayout.Gutter()
+			gutter.RightWidth = unit.Add(gtx.Metric, gutter.RightWidth, scrollWidth)
+			return gutter.Layout(gtx,
+				nil,
+				func(gtx C) D {
+					return Background(th.Bg).Layout(gtx, func(gtx C) D {
+						return layout.UniformInset(unit.Dp(15)).Layout(gtx, func(gtx C) D {
+							return material.Editor(th.Theme, &ui.Rooms.Active().Editor, "Send a message").Layout(gtx)
 						})
-					}),
-					layout.Rigid(func(gtx C) D {
-						return layout.Spacer{Width: unit.Dp(15)}.Layout(gtx)
-					}),
-					layout.Rigid(func(gtx C) D {
-						return material.IconButton(th.Theme, &ui.AddBtn, Send).Layout(gtx)
-					}),
-				)
-			})
+					})
+				},
+				material.IconButton(th.Theme, &ui.AddBtn, Send).Layout,
+			)
 		}),
 	)
 }

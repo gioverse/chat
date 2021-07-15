@@ -42,6 +42,7 @@ type (
 // a vertical list of chat messages.
 type MessageStyle struct {
 	OuterMargin chatlayout.VerticalMarginStyle
+	chatlayout.GutterStyle
 	// Local indicates that the message was sent by the local user,
 	// and should be left-aligned.
 	Local bool
@@ -52,9 +53,6 @@ type MessageStyle struct {
 	StatusIcon *widget.Icon
 	// IconSize defines the size of the StatusIcon (if it is set).
 	IconSize unit.Value
-	// RightGutterPadding defines the size of the area to the right of the message
-	// reserved for the timestamp and/or icon.
-	RightGutterPadding layout.Inset
 	// StatusMessage defines a warning message to be displayed beneath the
 	// chat message.
 	StatusMessage material.LabelStyle
@@ -73,8 +71,6 @@ type MessageStyle struct {
 	Content richtext.TextStyle
 	// ContentPadding defines space around the Content within the Bubble area.
 	ContentPadding layout.Inset
-	// LeftGutter defines the size of the empty left gutter of the row.
-	LeftGutter layout.Spacer
 	// Sender is the name of the sender of the message.
 	Sender material.LabelStyle
 	// MaxMessageWidth constrains messages width-wise.
@@ -96,6 +92,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuStat
 	bubble := matchat.Bubble(th.Theme)
 	ms := MessageStyle{
 		OuterMargin: chatlayout.VerticalMargin(),
+		GutterStyle: chatlayout.Gutter(),
 		Time:        material.Body2(th.Theme, msg.SentAt.Local().Format("15:04")),
 		Surface:     &bubble,
 		Content: richtext.Text(&interact.InteractiveText, th.Shaper, richtext.SpanStyle{
@@ -104,13 +101,11 @@ func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuStat
 			Color:   th.Fg,
 			Content: msg.Content,
 		}),
-		Local:              msg.Local,
-		IconSize:           unit.Dp(32),
-		RightGutterPadding: layout.Inset{Left: unit.Dp(12), Right: unit.Dp(12)},
-		ContentPadding:     layout.UniformInset(unit.Dp(8)),
-		ContentMargin:      chatlayout.VerticalMargin(),
-		LeftGutter:         layout.Spacer{Width: unit.Dp(24)},
-		Sender:             material.Body1(th.Theme, msg.Sender),
+		Local:          msg.Local,
+		IconSize:       unit.Dp(32),
+		ContentPadding: layout.UniformInset(unit.Dp(8)),
+		ContentMargin:  chatlayout.VerticalMargin(),
+		Sender:         material.Body1(th.Theme, msg.Sender),
 		Image: Image{
 			Image: widget.Image{
 				Src:      interact.Image,
@@ -184,16 +179,9 @@ func (c MessageStyle) Layout(gtx C) D {
 		}
 		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 			layout.Rigid(func(gtx C) D {
-				return layout.Flex{
-					Axis:      layout.Horizontal,
-					Alignment: layout.Middle,
-				}.Layout(gtx,
-					layout.Rigid(func(gtx C) D {
-						return D{Size: image.Point{
-							X: gtx.Px(c.LeftGutter.Width),
-						}}
-					}),
-					layout.Flexed(1, func(gtx C) D {
+				return c.GutterStyle.Layout(gtx,
+					nil,
+					func(gtx C) D {
 						return messageAlignment.Layout(gtx, func(gtx C) D {
 							return layout.Flex{
 								Axis:      layout.Horizontal,
@@ -212,34 +200,24 @@ func (c MessageStyle) Layout(gtx C) D {
 								)...,
 							)
 						})
-					}),
-					layout.Rigid(func(gtx C) D {
-						return D{Size: image.Point{
-							X: gtx.Px(c.IconSize) +
-								gtx.Px(c.RightGutterPadding.Left) +
-								gtx.Px(c.RightGutterPadding.Right),
-						}}
-					}),
+					},
+					nil,
 				)
 			}),
 			layout.Rigid(func(gtx C) D {
-				return layout.Flex{
-					Alignment: layout.Middle,
-				}.Layout(gtx,
-					layout.Rigid(c.LeftGutter.Layout),
-					layout.Flexed(1, func(gtx C) D {
+				return c.GutterStyle.Layout(gtx,
+					nil,
+					func(gtx C) D {
 						return messageAlignment.Layout(gtx, c.layoutBubble)
-					}),
-					layout.Rigid(c.layoutTimeOrIcon),
+					},
+					c.layoutTimeOrIcon,
 				)
 			}),
 			layout.Rigid(func(gtx C) D {
 				if c.StatusMessage.Text == "" {
 					return D{}
 				}
-				return layout.E.Layout(gtx, func(gtx C) D {
-					return c.RightGutterPadding.Layout(gtx, c.StatusMessage.Layout)
-				})
+				return layout.E.Layout(gtx, c.StatusMessage.Layout)
 			}),
 		)
 	})
@@ -281,26 +259,16 @@ func (c MessageStyle) layoutBubble(gtx C) D {
 // layoutTimeOrIcon lays out a status icon if one is set, and
 // otherwise lays out the time the messages was sent.
 func (c MessageStyle) layoutTimeOrIcon(gtx C) D {
-	return layout.Stack{}.Layout(gtx,
-		layout.Stacked(func(gtx C) D {
-			return c.RightGutterPadding.Layout(gtx, func(gtx C) D {
-				sideLength := gtx.Px(c.IconSize)
-				gtx.Constraints.Max.X = sideLength
-				gtx.Constraints.Max.Y = sideLength
-				gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
-				if c.StatusIcon != nil {
-					return c.StatusIcon.Layout(gtx)
-				}
-				return D{Size: gtx.Constraints.Max}
-			})
-		}),
-		layout.Expanded(func(gtx C) D {
-			if c.StatusIcon != nil {
-				return D{}
-			}
-			return layout.Center.Layout(gtx, c.Time.Layout)
-		}),
-	)
+	return layout.Center.Layout(gtx, func(gtx C) D {
+		if c.StatusIcon == nil {
+			return c.Time.Layout(gtx)
+		}
+		sideLength := gtx.Px(c.IconSize)
+		gtx.Constraints.Max.X = sideLength
+		gtx.Constraints.Max.Y = sideLength
+		gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
+		return c.StatusIcon.Layout(gtx)
+	})
 }
 
 // Luminance computes the relative brightness of a color, normalized between
