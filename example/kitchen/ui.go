@@ -726,7 +726,7 @@ func randomImage(sz image.Point) (image.Image, error) {
 		for ii := 0; ii < 10; ii++ {
 			ii := ii
 			if err := func() error {
-				r, err := http.Get(fmt.Sprintf("https://source.unsplash.com/random/%dx%d", sz.X, sz.Y))
+				r, err := http.Get(fmt.Sprintf("https://source.unsplash.com/random/%dx%d?nature", sz.X, sz.Y))
 				if err != nil {
 					return fmt.Errorf("fetching image data: %w", err)
 				}
