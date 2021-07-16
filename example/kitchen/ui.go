@@ -318,23 +318,33 @@ func (ui *UI) layoutChat(gtx C) D {
 			)
 		}),
 		layout.Rigid(func(gtx C) D {
-			if ui.AddBtn.Clicked() {
-				ui.Rooms.Active().SendMessage()
-			}
-			if ui.DeleteBtn.Clicked() {
-				serial := ui.ContextMenuTarget.Serial()
-				ui.Rooms.Active().DeleteRow(serial)
-			}
-			return layout.Inset{Bottom: unit.Dp(8)}.Layout(gtx, func(gtx C) D {
-				gutter := chatlayout.Gutter()
-				gutter.RightWidth = unit.Add(gtx.Metric, gutter.RightWidth, scrollWidth)
-				return gutter.Layout(gtx,
-					nil,
-					func(gtx C) D {
-						return ui.layoutEditor(gtx)
-					},
-					material.IconButton(th.Theme, &ui.AddBtn, Send).Layout,
-				)
+			return chatlayout.Background(color.NRGBA{
+				R: 235,
+				G: 235,
+				B: 235,
+				A: 255,
+			}).Layout(gtx, func(gtx C) D {
+				if ui.AddBtn.Clicked() {
+					ui.Rooms.Active().SendMessage()
+				}
+				if ui.DeleteBtn.Clicked() {
+					serial := ui.ContextMenuTarget.Serial()
+					ui.Rooms.Active().DeleteRow(serial)
+				}
+				return layout.Inset{
+					Bottom: unit.Dp(8),
+					Top:    unit.Dp(8),
+				}.Layout(gtx, func(gtx C) D {
+					gutter := chatlayout.Gutter()
+					gutter.RightWidth = unit.Add(gtx.Metric, gutter.RightWidth, scrollWidth)
+					return gutter.Layout(gtx,
+						nil,
+						func(gtx C) D {
+							return ui.layoutEditor(gtx)
+						},
+						material.IconButton(th.Theme, &ui.AddBtn, Send).Layout,
+					)
+				})
 			})
 		}),
 	)
