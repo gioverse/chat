@@ -90,9 +90,6 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 
 	rm.requests, rm.stateUpdates = asyncProcess(maxSize, hooks)
 
-	// Push an initial request to populate the first few messages.
-	rm.requests <- loadRequest{Direction: After}
-
 	return rm
 }
 
@@ -169,6 +166,10 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 			delete(m.elementState, serial)
 		}
 	default:
+	}
+	if len(m.elements) == 0 {
+		// Push an initial request to populate the first few messages.
+		m.requests <- loadRequest{Direction: After}
 	}
 
 	// Update the cached copy of the list position to the latest value.
