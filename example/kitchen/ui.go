@@ -27,13 +27,13 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 
-	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 	chatlayout "git.sr.ht/~gioverse/chat/layout"
 	"git.sr.ht/~gioverse/chat/list"
 	"git.sr.ht/~gioverse/chat/ninepatch"
 	"git.sr.ht/~gioverse/chat/res"
+	chatwidget "git.sr.ht/~gioverse/chat/widget"
 	matchat "git.sr.ht/~gioverse/chat/widget/material"
 
 	lorem "github.com/drhodes/golorem"
@@ -143,7 +143,7 @@ func NewUI(w *app.Window) *UI {
 					Allocator: func(data list.Element) interface{} {
 						switch data.(type) {
 						case model.Message:
-							return &appwidget.Row{}
+							return &chatwidget.Row{}
 						default:
 							return nil
 						}
@@ -153,11 +153,11 @@ func NewUI(w *app.Window) *UI {
 					Presenter: func(data list.Element, state interface{}) layout.Widget {
 						switch data := data.(type) {
 						case model.Message:
-							state, ok := state.(*appwidget.Row)
+							state, ok := state.(*chatwidget.Row)
 							if !ok {
 								return func(C) D { return D{} }
 							}
-							msg := apptheme.NewRow(th, state, &ui.MessageMenu, apptheme.FromModel(data))
+							msg := matchat.NewRow(th.Theme, state, &ui.MessageMenu, FromModel(data))
 							switch data.Theme {
 							case "hotdog":
 								msg.MessageStyle = msg.WithNinePatch(th.Theme, hotdog)
@@ -477,7 +477,7 @@ func (r *RowTracker) Send(sender, content string) model.Message {
 		// Simulate network failure.
 		Status: func() string {
 			if rand.Int()%10 == 0 {
-				return apptheme.FailedToSend
+				return matchat.FailedToSend
 			}
 			return ""
 		}(),
@@ -607,6 +607,20 @@ func min(a, b int) int {
 	return b
 }
 
+// FromModel converts a domain-specific model of a chat message into
+// the general-purpose MessageConfig.
+func FromModel(m model.Message) matchat.MessageConfig {
+	return matchat.MessageConfig{
+		Sender:  m.Sender,
+		Avatar:  m.Avatar,
+		Content: m.Content,
+		SentAt:  m.SentAt,
+		Image:   m.Image,
+		Local:   m.Local,
+		Status:  m.Status,
+	}
+}
+
 // newRow returns a new synthetic row of chat data.
 func newRow(serial int) list.Element {
 	return model.Message{
@@ -617,7 +631,7 @@ func newRow(serial int) list.Element {
 		Local:    serial%2 == 0,
 		Status: func() string {
 			if rand.Int()%10 == 0 {
-				return apptheme.FailedToSend
+				return matchat.FailedToSend
 			}
 			return ""
 		}(),

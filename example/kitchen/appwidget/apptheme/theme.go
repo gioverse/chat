@@ -3,10 +3,16 @@ package apptheme
 import (
 	"image/color"
 
+	"gioui.org/layout"
 	"gioui.org/text"
 	"gioui.org/unit"
 	"gioui.org/widget/material"
 	"github.com/lucasb-eyer/go-colorful"
+)
+
+type (
+	C = layout.Context
+	D = layout.Dimensions
 )
 
 // Note: the values choosen are a best-guess heuristic, open to change.

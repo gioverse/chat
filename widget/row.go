@@ -1,4 +1,4 @@
-package appwidget
+package widget
 
 import "gioui.org/x/component"
 

@@ -1,4 +1,4 @@
-package apptheme
+package material
 
 import (
 	"image"
@@ -13,12 +13,18 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"gioui.org/x/richtext"
-	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
-	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 	chatlayout "git.sr.ht/~gioverse/chat/layout"
 	"git.sr.ht/~gioverse/chat/ninepatch"
-	matchat "git.sr.ht/~gioverse/chat/widget/material"
+	chatwidget "git.sr.ht/~gioverse/chat/widget"
 	"golang.org/x/exp/shiny/materialdesign/icons"
+)
+
+// Note: the values choosen are a best-guess heuristic, open to change.
+var (
+	DefaultMaxImageHeight  = unit.Dp(400)
+	DefaultMaxMessageWidth = unit.Dp(600)
+	DefaultAvatarSize      = unit.Dp(24)
+	DefaultDangerColor     = color.NRGBA{R: 200, A: 255}
 )
 
 // ErrorIcon is the material design outlined error indicator.
@@ -48,27 +54,13 @@ type MessageConfig struct {
 	Status  string
 }
 
-// FromModel converts a domain-specific model of a chat message into
-// the general-purpose MessageConfig.
-func FromModel(m model.Message) MessageConfig {
-	return MessageConfig{
-		Sender:  m.Sender,
-		Avatar:  m.Avatar,
-		Content: m.Content,
-		SentAt:  m.SentAt,
-		Image:   m.Image,
-		Local:   m.Local,
-		Status:  m.Status,
-	}
-}
-
 // UserInfoStyle defines the presentation of information about a user.
 // It can present the user's name and avatar with a space between them.
 type UserInfoStyle struct {
 	// Username configures the presentation of the user name text.
 	Username material.LabelStyle
 	// Avatar defines the image shown as the user's avatar.
-	Avatar matchat.Image
+	Avatar Image
 	// Spacer is inserted between the username and avatar fields.
 	layout.Spacer
 	// Local controls the Left-to-Right ordering of layout. If false,
@@ -81,11 +73,11 @@ type UserInfoStyle struct {
 }
 
 // UserInfo constructs a UserInfoStyle with sensible defaults.
-func UserInfo(th *material.Theme, interact *appwidget.UserInfo, username string, avatar image.Image) UserInfoStyle {
+func UserInfo(th *material.Theme, interact *chatwidget.UserInfo, username string, avatar image.Image) UserInfoStyle {
 	interact.Avatar.Cache(avatar)
 	return UserInfoStyle{
 		Username: material.Body1(th, username),
-		Avatar: matchat.Image{
+		Avatar: Image{
 			Image: widget.Image{
 				Src:      interact.Avatar.Op(),
 				Fit:      widget.Cover,
@@ -138,31 +130,31 @@ type RowStyle struct {
 	// MessageStyle configures how the text and its background are presented.
 	MessageStyle
 	// Interaction holds the interactive state of this message.
-	Interaction *appwidget.Row
+	Interaction *chatwidget.Row
 	// Menu configures the right-click context menu for this message.
 	Menu component.MenuStyle
 }
 
 // NewRow creates a style type that can lay out the data for a message.
-func NewRow(th *Theme, interact *appwidget.Row, menu *component.MenuState, msg MessageConfig) RowStyle {
+func NewRow(th *material.Theme, interact *chatwidget.Row, menu *component.MenuState, msg MessageConfig) RowStyle {
 	ms := RowStyle{
 		OuterMargin:   chatlayout.VerticalMargin(),
 		GutterStyle:   chatlayout.Gutter(),
-		Time:          material.Body2(th.Theme, msg.SentAt.Local().Format("15:04")),
+		Time:          material.Body2(th, msg.SentAt.Local().Format("15:04")),
 		Local:         msg.Local,
 		IconSize:      unit.Dp(32),
 		ContentMargin: chatlayout.VerticalMargin(),
-		UserInfoStyle: UserInfo(th.Theme, &interact.UserInfo, msg.Sender, msg.Avatar),
+		UserInfoStyle: UserInfo(th, &interact.UserInfo, msg.Sender, msg.Avatar),
 		Interaction:   interact,
-		Menu:          component.Menu(th.Theme, menu),
-		MessageStyle:  Message(th.Theme, &interact.Message, msg.Content, msg.Image),
+		Menu:          component.Menu(th, menu),
+		MessageStyle:  Message(th, &interact.Message, msg.Content, msg.Image),
 	}
 	ms.UserInfoStyle.Local = msg.Local
 	if msg.Status != "" {
-		ms.StatusMessage = material.Body2(th.Theme, msg.Status)
-		ms.StatusMessage.Color = th.DangerColor
+		ms.StatusMessage = material.Body2(th, msg.Status)
+		ms.StatusMessage.Color = DefaultDangerColor
 		ms.StatusIcon = ErrorIcon
-		ms.StatusIcon.Color = th.DangerColor
+		ms.StatusIcon.Color = DefaultDangerColor
 	}
 	return ms
 }
@@ -206,7 +198,7 @@ func (c RowStyle) Layout(gtx C) D {
 // MessageStyle configures the presentation of a chat message.
 type MessageStyle struct {
 	// Interaction holds the stateful parts of this message.
-	Interaction *appwidget.Message
+	Interaction *chatwidget.Message
 	// MaxMessageWidth constrains the display width of the message's background.
 	MaxMessageWidth unit.Value
 	// MaxImageHeight constrains the maximum height of an image message. The image
@@ -216,7 +208,7 @@ type MessageStyle struct {
 	ContentPadding layout.Inset
 	// BubbleStyle configures a chat bubble beneath the message. If UseNinepatch is
 	// set, this field is ignored.
-	matchat.BubbleStyle
+	BubbleStyle
 	// Ninepatch provides a ninepatch stretchable image background. Only used if
 	// UseNinepatch is set.
 	ninepatch.NinePatch
@@ -226,15 +218,15 @@ type MessageStyle struct {
 	// Content is the actual styled text of the message.
 	Content richtext.TextStyle
 	// Image is the optional image content of the message.
-	matchat.Image
+	Image
 }
 
 // Message constructs a MessageStyle with sensible defaults.
-func Message(th *material.Theme, interact *appwidget.Message, content string, img image.Image) MessageStyle {
+func Message(th *material.Theme, interact *chatwidget.Message, content string, img image.Image) MessageStyle {
 	interact.Image.Cache(img)
 	l := material.Body1(th, "")
 	return MessageStyle{
-		BubbleStyle: matchat.Bubble(th),
+		BubbleStyle: Bubble(th),
 		Content: richtext.Text(&interact.InteractiveText, th.Shaper, richtext.SpanStyle{
 			Font:    l.Font,
 			Size:    l.TextSize,
@@ -242,7 +234,7 @@ func Message(th *material.Theme, interact *appwidget.Message, content string, im
 			Content: content,
 		}),
 		ContentPadding: layout.UniformInset(unit.Dp(8)),
-		Image: matchat.Image{
+		Image: Image{
 			Image: widget.Image{
 				Src:      interact.Image.Op(),
 				Fit:      widget.ScaleDown,
