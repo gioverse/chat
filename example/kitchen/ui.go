@@ -330,13 +330,7 @@ func (ui *UI) layoutChat(gtx C) D {
 			return gutter.Layout(gtx,
 				nil,
 				func(gtx C) D {
-					return chatlayout.Rounded(unit.Dp(8)).Layout(gtx, func(gtx C) D {
-						return chatlayout.Background(th.Bg).Layout(gtx, func(gtx C) D {
-							return layout.UniformInset(unit.Dp(15)).Layout(gtx, func(gtx C) D {
-								return material.Editor(th.Theme, &ui.Rooms.Active().Editor, "Send a message").Layout(gtx)
-							})
-						})
-					})
+					return ui.layoutEditor(gtx)
 				},
 				material.IconButton(th.Theme, &ui.AddBtn, Send).Layout,
 			)
@@ -412,6 +406,17 @@ func (ui *UI) layoutRoomList(gtx C) D {
 			})
 		}),
 	)
+}
+
+// layoutEditor lays out the message editor.
+func (ui *UI) layoutEditor(gtx C) D {
+	return chatlayout.Rounded(unit.Dp(8)).Layout(gtx, func(gtx C) D {
+		return chatlayout.Background(th.Bg).Layout(gtx, func(gtx C) D {
+			return layout.UniformInset(unit.Dp(15)).Layout(gtx, func(gtx C) D {
+				return material.Editor(th.Theme, &ui.Rooms.Active().Editor, "Send a message").Layout(gtx)
+			})
+		})
+	})
 }
 
 // RowTracker is a stand-in for an application's data access logic.
