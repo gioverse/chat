@@ -92,8 +92,8 @@ func UserInfo(th *material.Theme, interact *appwidget.UserInfo, username string,
 				Position: layout.Center,
 			},
 			Radii:  unit.Dp(8),
-			Width:  defaultAvatarSize,
-			Height: defaultAvatarSize,
+			Width:  DefaultAvatarSize,
+			Height: DefaultAvatarSize,
 		},
 		Spacer: layout.Spacer{Width: unit.Dp(8)},
 	}
@@ -259,8 +259,8 @@ func Message(th *material.Theme, interact *appwidget.Message, content string, im
 			},
 			Radii: unit.Dp(8),
 		},
-		MaxMessageWidth: defaultMaxMessageWidth,
-		MaxImageHeight:  defaultMaxImageHeight,
+		MaxMessageWidth: DefaultMaxMessageWidth,
+		MaxImageHeight:  DefaultMaxImageHeight,
 		Interaction:     interact,
 	}
 }

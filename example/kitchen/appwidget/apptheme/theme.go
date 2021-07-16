@@ -11,9 +11,9 @@ import (
 
 // Note: the values choosen are a best-guess heuristic, open to change.
 var (
-	defaultMaxImageHeight  = unit.Dp(400)
-	defaultMaxMessageWidth = unit.Dp(600)
-	defaultAvatarSize      = unit.Dp(24)
+	DefaultMaxImageHeight  = unit.Dp(400)
+	DefaultMaxMessageWidth = unit.Dp(600)
+	DefaultAvatarSize      = unit.Dp(24)
 )
 
 // ToNRGBA converts a colorful.Color to the nearest representable color.NRGBA.
@@ -31,14 +31,6 @@ type Theme struct {
 	UserColors map[string]UserColorData
 	// DangerColor is the color used to indicate errors.
 	DangerColor color.NRGBA
-	Fonts       []text.FontFace
-	// MaxImageHeight allowable for image content.
-	// Any image with a height larger than this will be scale down to fit, while
-	// preserving aspect ratio.
-	MaxImageHeight unit.Value
-	// MaxMessageWidth allowable for messages.
-	// Excess content should wrap vertically.
-	MaxMessageWidth unit.Value
 	// AvatarSize specifies how large the avatar image should be.
 	AvatarSize unit.Value
 }
@@ -52,13 +44,10 @@ type UserColorData struct {
 // NewTheme instantiates a theme using the provided fonts.
 func NewTheme(fonts []text.FontFace) *Theme {
 	return &Theme{
-		Fonts:           fonts,
-		Theme:           material.NewTheme(fonts),
-		UserColors:      make(map[string]UserColorData),
-		DangerColor:     color.NRGBA{R: 200, A: 255},
-		MaxImageHeight:  defaultMaxImageHeight,
-		MaxMessageWidth: defaultMaxMessageWidth,
-		AvatarSize:      defaultAvatarSize,
+		Theme:       material.NewTheme(fonts),
+		UserColors:  make(map[string]UserColorData),
+		DangerColor: color.NRGBA{R: 200, A: 255},
+		AvatarSize:  DefaultAvatarSize,
 	}
 }
 
