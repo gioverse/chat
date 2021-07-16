@@ -160,9 +160,14 @@ func NewUI(w *app.Window) *UI {
 							msg := apptheme.NewRow(th, state, &ui.MessageMenu, apptheme.FromModel(data))
 							switch data.Theme {
 							case "hotdog":
-								msg.MessageStyle = msg.WithNinePatch(th, hotdog)
+								msg.MessageStyle = msg.WithNinePatch(th.Theme, hotdog)
 							case "cookie":
-								msg.MessageStyle = msg.WithNinePatch(th, cookie)
+								msg.MessageStyle = msg.WithNinePatch(th.Theme, cookie)
+							default:
+								if !msg.Local {
+									userColor := th.UserColor(msg.Username.Text)
+									msg.MessageStyle = msg.WithBubbleColor(th.Theme, userColor.NRGBA, userColor.Luminance)
+								}
 							}
 							return func(gtx C) D {
 								if state.Clicked() {

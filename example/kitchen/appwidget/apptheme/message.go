@@ -164,15 +164,6 @@ func NewRow(th *Theme, interact *appwidget.Row, menu *component.MenuState, msg M
 		ms.StatusIcon = ErrorIcon
 		ms.StatusIcon.Color = th.DangerColor
 	}
-	if !ms.Local {
-		userColors := th.UserColor(msg.Sender)
-		ms.BubbleStyle.Color = userColors.NRGBA
-		if userColors.Luminance < .5 {
-			for i := range ms.Content.Styles {
-				ms.Content.Styles[i].Color = th.Theme.Bg
-			}
-		}
-	}
 	return ms
 }
 
@@ -266,7 +257,7 @@ func Message(th *material.Theme, interact *appwidget.Message, content string, im
 }
 
 // WithNinePatch sets the message surface to a ninepatch image.
-func (c MessageStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) MessageStyle {
+func (c MessageStyle) WithNinePatch(th *material.Theme, np ninepatch.NinePatch) MessageStyle {
 	c.NinePatch = np
 	c.UseNinepatch = true
 	var (
@@ -282,8 +273,19 @@ func (c MessageStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) MessageSt
 	if cl, ok := np.Image.At(b.Dx()/2, b.Dy()/2).(color.NRGBA); ok {
 		if Luminance(cl) < 0.5 {
 			for i := range c.Content.Styles {
-				c.Content.Styles[i].Color = th.Theme.Bg
+				c.Content.Styles[i].Color = th.Bg
 			}
+		}
+	}
+	return c
+}
+
+// WithBubbleColor sets the message surface to a ninepatch image.
+func (c MessageStyle) WithBubbleColor(th *material.Theme, col color.NRGBA, luminance float64) MessageStyle {
+	c.BubbleStyle.Color = col
+	if luminance < .5 {
+		for i := range c.Content.Styles {
+			c.Content.Styles[i].Color = th.Bg
 		}
 	}
 	return c
