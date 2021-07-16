@@ -609,8 +609,8 @@ func min(a, b int) int {
 
 // FromModel converts a domain-specific model of a chat message into
 // the general-purpose MessageConfig.
-func FromModel(m model.Message) matchat.MessageConfig {
-	return matchat.MessageConfig{
+func FromModel(m model.Message) matchat.RowConfig {
+	return matchat.RowConfig{
 		Sender:  m.Sender,
 		Avatar:  m.Avatar,
 		Content: m.Content,

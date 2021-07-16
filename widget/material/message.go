@@ -42,9 +42,9 @@ type (
 	D = layout.Dimensions
 )
 
-// MessageConfig describes the aspects of a chat message relevant for
+// RowConfig describes the aspects of a chat message relevant for
 // displaying it within a widget.
-type MessageConfig struct {
+type RowConfig struct {
 	Sender  string
 	Avatar  image.Image
 	Content string
@@ -136,7 +136,7 @@ type RowStyle struct {
 }
 
 // NewRow creates a style type that can lay out the data for a message.
-func NewRow(th *material.Theme, interact *chatwidget.Row, menu *component.MenuState, msg MessageConfig) RowStyle {
+func NewRow(th *material.Theme, interact *chatwidget.Row, menu *component.MenuState, msg RowConfig) RowStyle {
 	ms := RowStyle{
 		OuterMargin:   chatlayout.VerticalMargin(),
 		GutterStyle:   chatlayout.Gutter(),
