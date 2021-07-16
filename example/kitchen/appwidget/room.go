@@ -1,38 +1,13 @@
 package appwidget
 
 import (
-	"image"
-
-	"gioui.org/op/paint"
 	"gioui.org/widget"
+	chatwidget "git.sr.ht/~gioverse/chat/widget"
 )
 
 // Room selector state.
 type Room struct {
 	widget.Clickable
-	Image  Image
+	Image  chatwidget.CachedImage
 	Active bool
-}
-
-// Image is a cacheable `paint.ImageOp`.
-type Image paint.ImageOp
-
-// Cache the image if it is not already set.
-func (img *Image) Cache(src image.Image) {
-	bake((*paint.ImageOp)(img), src)
-}
-
-// Op returns the concrete image operation.
-func (img Image) Op() paint.ImageOp {
-	return paint.ImageOp(img)
-}
-
-// bake the image into a paint.ImageOp, if not already.
-func bake(cache *paint.ImageOp, img image.Image) {
-	if cache == nil || img == nil {
-		return
-	}
-	if *cache == (paint.ImageOp{}) {
-		*cache = paint.NewImageOp(img)
-	}
 }
