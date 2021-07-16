@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"image"
 	"image/color"
@@ -731,9 +732,22 @@ func (ui *UI) layoutModal(gtx C) D {
 // TODO(jfm) [performance]: download images concurrently (parallel downloads,
 // async to the gui event loop).
 func randomImage(sz image.Point) (image.Image, error) {
-	cache := filepath.Join(os.TempDir(), "chat", fmt.Sprintf("%dx%d", sz.X, sz.Y))
+	mkCacheDir := func(base string) string {
+		return filepath.Join(base, "chat", fmt.Sprintf("%dx%d", sz.X, sz.Y))
+	}
+	cache := mkCacheDir(os.TempDir())
 	if err := os.MkdirAll(cache, 0755); err != nil {
-		return nil, fmt.Errorf("preparing cache directory: %w", err)
+		if !errors.Is(err, os.ErrPermission) {
+			return nil, fmt.Errorf("preparing cache directory: %w", err)
+		}
+		dir, err := app.DataDir()
+		if err != nil {
+			return nil, fmt.Errorf("failed finding application data dir: %w", err)
+		}
+		cache = mkCacheDir(dir)
+		if err := os.MkdirAll(cache, 0755); err != nil {
+			return nil, fmt.Errorf("preparing fallback cache directory: %w", err)
+		}
 	}
 	entries, err := ioutil.ReadDir(cache)
 	if err != nil {
