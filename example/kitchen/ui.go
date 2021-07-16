@@ -143,7 +143,7 @@ func NewUI(w *app.Window) *UI {
 					Allocator: func(data list.Element) interface{} {
 						switch data.(type) {
 						case model.Message:
-							return &appwidget.Message{}
+							return &appwidget.Row{}
 						default:
 							return nil
 						}
@@ -153,16 +153,16 @@ func NewUI(w *app.Window) *UI {
 					Presenter: func(data list.Element, state interface{}) layout.Widget {
 						switch data := data.(type) {
 						case model.Message:
-							state, ok := state.(*appwidget.Message)
+							state, ok := state.(*appwidget.Row)
 							if !ok {
 								return func(C) D { return D{} }
 							}
 							msg := apptheme.NewRow(th, state, &ui.MessageMenu, apptheme.FromModel(data))
 							switch data.Theme {
 							case "hotdog":
-								msg = msg.WithNinePatch(th, hotdog)
+								msg.MessageStyle = msg.WithNinePatch(th, hotdog)
 							case "cookie":
-								msg = msg.WithNinePatch(th, cookie)
+								msg.MessageStyle = msg.WithNinePatch(th, cookie)
 							}
 							return func(gtx C) D {
 								if state.Clicked() {

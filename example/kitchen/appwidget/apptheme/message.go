@@ -131,67 +131,31 @@ type RowStyle struct {
 	// StatusMessage defines a warning message to be displayed beneath the
 	// chat message.
 	StatusMessage material.LabelStyle
-	// Surface specifies the background surface of the chat message, typically
-	// a chat bubble.
-	Surface interface {
-		Layout(gtx C, w layout.Widget) D
-	}
 	// ContentMargin configures space around the chat bubble.
 	ContentMargin chatlayout.VerticalMarginStyle
-	// Image specifies optional image content for the message.
-	Image matchat.Image
-
 	// UserInfoStyle configures how the sender's information is displayed.
 	UserInfoStyle
-	// Content configures the actual contents of the chat bubble.
-	Content richtext.TextStyle
-	// ContentPadding defines space around the Content within the Bubble area.
-	ContentPadding layout.Inset
-	// MaxMessageWidth constrains messages width-wise.
-	// Excess content will wrap vertically.
-	MaxMessageWidth unit.Value
-	// MaxImageHeight constrains images height-wise.
-	// Images will be scaled-down to fit, preserving aspect ratio.
-	MaxImageHeight unit.Value
+	// MessageStyle configures how the text and its background are presented.
+	MessageStyle
 	// Interaction holds the interactive state of this message.
-	Interaction *appwidget.Message
+	Interaction *appwidget.Row
 	// Menu configures the right-click context menu for this message.
 	Menu component.MenuStyle
 }
 
 // NewRow creates a style type that can lay out the data for a message.
-func NewRow(th *Theme, interact *appwidget.Message, menu *component.MenuState, msg MessageConfig) RowStyle {
-	interact.Avatar.Cache(msg.Avatar)
-	interact.Image.Cache(msg.Image)
-	bubble := matchat.Bubble(th.Theme)
+func NewRow(th *Theme, interact *appwidget.Row, menu *component.MenuState, msg MessageConfig) RowStyle {
 	ms := RowStyle{
-		OuterMargin: chatlayout.VerticalMargin(),
-		GutterStyle: chatlayout.Gutter(),
-		Time:        material.Body2(th.Theme, msg.SentAt.Local().Format("15:04")),
-		Surface:     &bubble,
-		Content: richtext.Text(&interact.InteractiveText, th.Shaper, richtext.SpanStyle{
-			Font:    th.Fonts[0].Font,
-			Size:    material.Body1(th.Theme, "").TextSize,
-			Color:   th.Fg,
-			Content: msg.Content,
-		}),
-		Local:          msg.Local,
-		IconSize:       unit.Dp(32),
-		ContentPadding: layout.UniformInset(unit.Dp(8)),
-		ContentMargin:  chatlayout.VerticalMargin(),
-		UserInfoStyle:  UserInfo(th.Theme, &interact.UserInfo, msg.Sender, msg.Avatar),
-		Image: matchat.Image{
-			Image: widget.Image{
-				Src:      interact.Image.Op(),
-				Fit:      widget.ScaleDown,
-				Position: layout.Center,
-			},
-			Radii: unit.Dp(8),
-		},
-		MaxMessageWidth: th.MaxMessageWidth,
-		MaxImageHeight:  th.MaxImageHeight,
-		Interaction:     interact,
-		Menu:            component.Menu(th.Theme, menu),
+		OuterMargin:   chatlayout.VerticalMargin(),
+		GutterStyle:   chatlayout.Gutter(),
+		Time:          material.Body2(th.Theme, msg.SentAt.Local().Format("15:04")),
+		Local:         msg.Local,
+		IconSize:      unit.Dp(32),
+		ContentMargin: chatlayout.VerticalMargin(),
+		UserInfoStyle: UserInfo(th.Theme, &interact.UserInfo, msg.Sender, msg.Avatar),
+		Interaction:   interact,
+		Menu:          component.Menu(th.Theme, menu),
+		MessageStyle:  Message(th.Theme, &interact.Message, msg.Content, msg.Image),
 	}
 	ms.UserInfoStyle.Local = msg.Local
 	if msg.Status != "" {
@@ -202,7 +166,7 @@ func NewRow(th *Theme, interact *appwidget.Message, menu *component.MenuState, m
 	}
 	if !ms.Local {
 		userColors := th.UserColor(msg.Sender)
-		bubble.Color = userColors.NRGBA
+		ms.BubbleStyle.Color = userColors.NRGBA
 		if userColors.Luminance < .5 {
 			for i := range ms.Content.Styles {
 				ms.Content.Styles[i].Color = th.Theme.Bg
@@ -210,29 +174,6 @@ func NewRow(th *Theme, interact *appwidget.Message, menu *component.MenuState, m
 		}
 	}
 	return ms
-}
-
-// WithNinePatch sets the message surface to a ninepatch image.
-func (c RowStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) RowStyle {
-	c.Surface = np
-	var (
-		b = np.Image.Bounds()
-	)
-	// TODO(jfm): refine into more robust solution for picking the text color,
-	// as needed.
-	//
-	// Currently, we pick the middle pixel and use a heuristic formula to get
-	// relative luminance.
-	//
-	// Only considers color.NRGBA colors.
-	if cl, ok := np.Image.At(b.Dx()/2, b.Dy()/2).(color.NRGBA); ok {
-		if Luminance(cl) < 0.5 {
-			for i := range c.Content.Styles {
-				c.Content.Styles[i].Color = th.Theme.Bg
-			}
-		}
-	}
-	return c
 }
 
 // Layout the message.
@@ -271,29 +212,113 @@ func (c RowStyle) Layout(gtx C) D {
 	})
 }
 
-// layoutBubble lays out the chat bubble.
-func (c RowStyle) layoutBubble(gtx C) D {
+// MessageStyle configures the presentation of a chat message.
+type MessageStyle struct {
+	// Interaction holds the stateful parts of this message.
+	Interaction *appwidget.Message
+	// MaxMessageWidth constrains the display width of the message's background.
+	MaxMessageWidth unit.Value
+	// MaxImageHeight constrains the maximum height of an image message. The image
+	// will be scaled to fit within this height.
+	MaxImageHeight unit.Value
+	// ContentPadding separates the Content field from the edges of the background.
+	ContentPadding layout.Inset
+	// BubbleStyle configures a chat bubble beneath the message. If UseNinepatch is
+	// set, this field is ignored.
+	matchat.BubbleStyle
+	// Ninepatch provides a ninepatch stretchable image background. Only used if
+	// UseNinepatch is set.
+	ninepatch.NinePatch
+	// UseNinepatch chooses between a plain chat bubble background an a ninepatch
+	// image.
+	UseNinepatch bool
+	// Content is the actual styled text of the message.
+	Content richtext.TextStyle
+	// Image is the optional image content of the message.
+	matchat.Image
+}
+
+// Message constructs a MessageStyle with sensible defaults.
+func Message(th *material.Theme, interact *appwidget.Message, content string, img image.Image) MessageStyle {
+	interact.Image.Cache(img)
+	l := material.Body1(th, "")
+	return MessageStyle{
+		BubbleStyle: matchat.Bubble(th),
+		Content: richtext.Text(&interact.InteractiveText, th.Shaper, richtext.SpanStyle{
+			Font:    l.Font,
+			Size:    l.TextSize,
+			Color:   th.Fg,
+			Content: content,
+		}),
+		ContentPadding: layout.UniformInset(unit.Dp(8)),
+		Image: matchat.Image{
+			Image: widget.Image{
+				Src:      interact.Image.Op(),
+				Fit:      widget.ScaleDown,
+				Position: layout.Center,
+			},
+			Radii: unit.Dp(8),
+		},
+		MaxMessageWidth: defaultMaxMessageWidth,
+		MaxImageHeight:  defaultMaxImageHeight,
+		Interaction:     interact,
+	}
+}
+
+// WithNinePatch sets the message surface to a ninepatch image.
+func (c MessageStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) MessageStyle {
+	c.NinePatch = np
+	c.UseNinepatch = true
+	var (
+		b = np.Image.Bounds()
+	)
+	// TODO(jfm): refine into more robust solution for picking the text color,
+	// as needed.
+	//
+	// Currently, we pick the middle pixel and use a heuristic formula to get
+	// relative luminance.
+	//
+	// Only considers color.NRGBA colors.
+	if cl, ok := np.Image.At(b.Dx()/2, b.Dy()/2).(color.NRGBA); ok {
+		if Luminance(cl) < 0.5 {
+			for i := range c.Content.Styles {
+				c.Content.Styles[i].Color = th.Theme.Bg
+			}
+		}
+	}
+	return c
+}
+
+// Layout the message atop its background.
+func (m MessageStyle) Layout(gtx C) D {
 	gtx.Constraints.Max.X = int(float32(gtx.Constraints.Max.X) * 0.8)
-	max := gtx.Px(c.MaxMessageWidth)
+	max := gtx.Px(m.MaxMessageWidth)
 	if gtx.Constraints.Max.X > max {
 		gtx.Constraints.Max.X = max
 	}
+	if m.Image.Src == (paint.ImageOp{}) {
+		surface := m.BubbleStyle.Layout
+		if m.UseNinepatch {
+			surface = m.NinePatch.Layout
+		}
+		return surface(gtx, func(gtx C) D {
+			return m.ContentPadding.Layout(gtx, func(gtx C) D {
+				return m.Content.Layout(gtx)
+			})
+		})
+	}
+	defer pointer.CursorNameOp{Name: pointer.CursorPointer}.Add(gtx.Ops)
+	return material.Clickable(gtx, &m.Interaction.Clickable, func(gtx C) D {
+		gtx.Constraints.Max.Y = gtx.Px(m.MaxImageHeight)
+		return m.Image.Layout(gtx)
+	})
+}
+
+// layoutBubble lays out the chat bubble.
+func (c RowStyle) layoutBubble(gtx C) D {
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx C) D {
-			return c.ContentMargin.Layout(gtx, func(gtx C) D {
-				if c.Image.Src == (paint.ImageOp{}) {
-					return c.Surface.Layout(gtx, func(gtx C) D {
-						return c.ContentPadding.Layout(gtx, func(gtx C) D {
-							return c.Content.Layout(gtx)
-						})
-					})
-				}
-				defer pointer.CursorNameOp{Name: pointer.CursorPointer}.Add(gtx.Ops)
-				return material.Clickable(gtx, &c.Interaction.Clickable, func(gtx C) D {
-					gtx.Constraints.Max.Y = gtx.Px(c.MaxImageHeight)
-					return c.Image.Layout(gtx)
-				})
-			})
+			return c.ContentMargin.Layout(gtx, c.MessageStyle.Layout)
 		}),
 		layout.Expanded(func(gtx C) D {
 			return c.Interaction.ContextArea.Layout(gtx, func(gtx C) D {

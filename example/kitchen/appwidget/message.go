@@ -2,7 +2,6 @@ package appwidget
 
 import (
 	"gioui.org/widget"
-	"gioui.org/x/component"
 	"gioui.org/x/richtext"
 	chatwidget "git.sr.ht/~gioverse/chat/widget"
 )
@@ -15,8 +14,4 @@ type Message struct {
 	widget.Clickable
 	// Image contains the cached image op for the message.
 	Image chatwidget.CachedImage
-	// ContextArea holds the clicks state for the right-click context menu.
-	component.ContextArea
-
-	UserInfo
 }
