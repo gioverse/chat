@@ -62,6 +62,7 @@ func (r *Room) SendMessage() {
 	// 3. the "finalized" message is returned by the backend, and then the pushed
 	// in to the list, via it's Update method.
 	row := r.Messages.Send(sender, content)
+	r.Room.Latest = &row
 	go func() {
 		r.ListState.Update([]list.Element{row}, nil)
 	}()

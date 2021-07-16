@@ -134,20 +134,6 @@ func NewUI(w *app.Window) *UI {
 					}
 					return img
 				}(),
-				// TODO(jfm): sync this with something like `Room.Update()`.
-				// Latest needs to update when the message model for the room
-				/// changes.
-				Latest: func() *model.Message {
-					latest := rt.Latest()
-					if latest == nil {
-						return nil
-					}
-					msg, ok := latest.(model.Message)
-					if !ok {
-						return nil
-					}
-					return &msg
-				}(),
 			},
 			Messages: rt,
 			ListState: list.NewManager(25,
