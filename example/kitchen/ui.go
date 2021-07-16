@@ -157,7 +157,7 @@ func NewUI(w *app.Window) *UI {
 							if !ok {
 								return func(C) D { return D{} }
 							}
-							msg := apptheme.NewMessage(th, state, &ui.MessageMenu, apptheme.FromModel(data))
+							msg := apptheme.NewRow(th, state, &ui.MessageMenu, apptheme.FromModel(data))
 							switch data.Theme {
 							case "hotdog":
 								msg = msg.WithNinePatch(th, hotdog)

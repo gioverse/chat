@@ -15,8 +15,8 @@ type Message struct {
 	widget.Clickable
 	// Image contains the cached image op for the message.
 	Image chatwidget.CachedImage
-	// Avatar contains the cached image op for the avatar.
-	Avatar chatwidget.CachedImage
 	// ContextArea holds the clicks state for the right-click context menu.
 	component.ContextArea
+
+	UserInfo
 }

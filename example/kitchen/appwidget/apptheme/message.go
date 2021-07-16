@@ -62,9 +62,60 @@ func FromModel(m model.Message) MessageConfig {
 	}
 }
 
-// MessageStyle configures the presentation of a chat message within
+// UserInfoStyle defines the presentation of information about a user.
+// It can present the user's name and avatar with a space between them.
+type UserInfoStyle struct {
+	// Username configures the presentation of the user name text.
+	Username material.LabelStyle
+	// Avatar defines the image shown as the user's avatar.
+	Avatar matchat.Image
+	// Spacer is inserted between the username and avatar fields.
+	layout.Spacer
+	// Local controls the Left-to-Right ordering of layout. If false,
+	// the Left-to-Right order will be:
+	//   - Avatar
+	//   - Spacer
+	//   - Username
+	// If true, the order is reversed.
+	Local bool
+}
+
+// UserInfo constructs a UserInfoStyle with sensible defaults.
+func UserInfo(th *material.Theme, interact *appwidget.UserInfo, username string, avatar image.Image) UserInfoStyle {
+	interact.Avatar.Cache(avatar)
+	return UserInfoStyle{
+		Username: material.Body1(th, username),
+		Avatar: matchat.Image{
+			Image: widget.Image{
+				Src:      interact.Avatar.Op(),
+				Fit:      widget.Cover,
+				Position: layout.Center,
+			},
+			Radii:  unit.Dp(8),
+			Width:  defaultAvatarSize,
+			Height: defaultAvatarSize,
+		},
+		Spacer: layout.Spacer{Width: unit.Dp(8)},
+	}
+}
+
+// Layout the user information.
+func (ui UserInfoStyle) Layout(gtx C) D {
+	return layout.Flex{
+		Axis:      layout.Horizontal,
+		Alignment: layout.Middle,
+	}.Layout(gtx,
+		chatlayout.Reverse(ui.Local,
+			layout.Rigid(ui.Avatar.Layout),
+			layout.Rigid(ui.Spacer.Layout),
+			layout.Rigid(ui.Username.Layout),
+		)...,
+	)
+}
+
+// RowStyle configures the presentation of a chat message within
 // a vertical list of chat messages.
-type MessageStyle struct {
+type RowStyle struct {
 	OuterMargin chatlayout.VerticalMarginStyle
 	chatlayout.GutterStyle
 	// Local indicates that the message was sent by the local user,
@@ -89,14 +140,13 @@ type MessageStyle struct {
 	ContentMargin chatlayout.VerticalMarginStyle
 	// Image specifies optional image content for the message.
 	Image matchat.Image
-	// Avatar displays an image representing the sender.
-	Avatar matchat.Image
+
+	// UserInfoStyle configures how the sender's information is displayed.
+	UserInfoStyle
 	// Content configures the actual contents of the chat bubble.
 	Content richtext.TextStyle
 	// ContentPadding defines space around the Content within the Bubble area.
 	ContentPadding layout.Inset
-	// Sender is the name of the sender of the message.
-	Sender material.LabelStyle
 	// MaxMessageWidth constrains messages width-wise.
 	// Excess content will wrap vertically.
 	MaxMessageWidth unit.Value
@@ -109,12 +159,12 @@ type MessageStyle struct {
 	Menu component.MenuStyle
 }
 
-// NewMessage creates a style type that can lay out the data for a message.
-func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuState, msg MessageConfig) MessageStyle {
+// NewRow creates a style type that can lay out the data for a message.
+func NewRow(th *Theme, interact *appwidget.Message, menu *component.MenuState, msg MessageConfig) RowStyle {
 	interact.Avatar.Cache(msg.Avatar)
 	interact.Image.Cache(msg.Image)
 	bubble := matchat.Bubble(th.Theme)
-	ms := MessageStyle{
+	ms := RowStyle{
 		OuterMargin: chatlayout.VerticalMargin(),
 		GutterStyle: chatlayout.Gutter(),
 		Time:        material.Body2(th.Theme, msg.SentAt.Local().Format("15:04")),
@@ -129,7 +179,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuStat
 		IconSize:       unit.Dp(32),
 		ContentPadding: layout.UniformInset(unit.Dp(8)),
 		ContentMargin:  chatlayout.VerticalMargin(),
-		Sender:         material.Body1(th.Theme, msg.Sender),
+		UserInfoStyle:  UserInfo(th.Theme, &interact.UserInfo, msg.Sender, msg.Avatar),
 		Image: matchat.Image{
 			Image: widget.Image{
 				Src:      interact.Image.Op(),
@@ -141,18 +191,9 @@ func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuStat
 		MaxMessageWidth: th.MaxMessageWidth,
 		MaxImageHeight:  th.MaxImageHeight,
 		Interaction:     interact,
-		Avatar: matchat.Image{
-			Image: widget.Image{
-				Src:      interact.Avatar.Op(),
-				Fit:      widget.Cover,
-				Position: layout.Center,
-			},
-			Radii:  unit.Dp(8),
-			Width:  th.AvatarSize,
-			Height: th.AvatarSize,
-		},
-		Menu: component.Menu(th.Theme, menu),
+		Menu:            component.Menu(th.Theme, menu),
 	}
+	ms.UserInfoStyle.Local = msg.Local
 	if msg.Status != "" {
 		ms.StatusMessage = material.Body2(th.Theme, msg.Status)
 		ms.StatusMessage.Color = th.DangerColor
@@ -172,7 +213,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuStat
 }
 
 // WithNinePatch sets the message surface to a ninepatch image.
-func (c MessageStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) MessageStyle {
+func (c RowStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) RowStyle {
 	c.Surface = np
 	var (
 		b = np.Image.Bounds()
@@ -195,7 +236,7 @@ func (c MessageStyle) WithNinePatch(th *Theme, np ninepatch.NinePatch) MessageSt
 }
 
 // Layout the message.
-func (c MessageStyle) Layout(gtx C) D {
+func (c RowStyle) Layout(gtx C) D {
 	return c.OuterMargin.Layout(gtx, func(gtx C) D {
 		messageAlignment := layout.W
 		if c.Local {
@@ -206,24 +247,7 @@ func (c MessageStyle) Layout(gtx C) D {
 				return c.GutterStyle.Layout(gtx,
 					nil,
 					func(gtx C) D {
-						return messageAlignment.Layout(gtx, func(gtx C) D {
-							return layout.Flex{
-								Axis:      layout.Horizontal,
-								Alignment: layout.Middle,
-							}.Layout(gtx,
-								chatlayout.Reverse(messageAlignment == layout.E,
-									layout.Rigid(func(gtx C) D {
-										return c.Avatar.Layout(gtx)
-									}),
-									layout.Rigid(func(gtx C) D {
-										return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
-									}),
-									layout.Rigid(func(gtx C) D {
-										return c.Sender.Layout(gtx)
-									}),
-								)...,
-							)
-						})
+						return messageAlignment.Layout(gtx, c.UserInfoStyle.Layout)
 					},
 					nil,
 				)
@@ -248,7 +272,7 @@ func (c MessageStyle) Layout(gtx C) D {
 }
 
 // layoutBubble lays out the chat bubble.
-func (c MessageStyle) layoutBubble(gtx C) D {
+func (c RowStyle) layoutBubble(gtx C) D {
 	gtx.Constraints.Max.X = int(float32(gtx.Constraints.Max.X) * 0.8)
 	max := gtx.Px(c.MaxMessageWidth)
 	if gtx.Constraints.Max.X > max {
@@ -282,7 +306,7 @@ func (c MessageStyle) layoutBubble(gtx C) D {
 
 // layoutTimeOrIcon lays out a status icon if one is set, and
 // otherwise lays out the time the messages was sent.
-func (c MessageStyle) layoutTimeOrIcon(gtx C) D {
+func (c RowStyle) layoutTimeOrIcon(gtx C) D {
 	return layout.Center.Layout(gtx, func(gtx C) D {
 		if c.StatusIcon == nil {
 			return c.Time.Layout(gtx)
