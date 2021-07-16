@@ -325,15 +325,17 @@ func (ui *UI) layoutChat(gtx C) D {
 				serial := ui.ContextMenuTarget.Serial()
 				ui.Rooms.Active().DeleteRow(serial)
 			}
-			gutter := chatlayout.Gutter()
-			gutter.RightWidth = unit.Add(gtx.Metric, gutter.RightWidth, scrollWidth)
-			return gutter.Layout(gtx,
-				nil,
-				func(gtx C) D {
-					return ui.layoutEditor(gtx)
-				},
-				material.IconButton(th.Theme, &ui.AddBtn, Send).Layout,
-			)
+			return layout.Inset{Bottom: unit.Dp(8)}.Layout(gtx, func(gtx C) D {
+				gutter := chatlayout.Gutter()
+				gutter.RightWidth = unit.Add(gtx.Metric, gutter.RightWidth, scrollWidth)
+				return gutter.Layout(gtx,
+					nil,
+					func(gtx C) D {
+						return ui.layoutEditor(gtx)
+					},
+					material.IconButton(th.Theme, &ui.AddBtn, Send).Layout,
+				)
+			})
 		}),
 	)
 }
@@ -412,7 +414,7 @@ func (ui *UI) layoutRoomList(gtx C) D {
 func (ui *UI) layoutEditor(gtx C) D {
 	return chatlayout.Rounded(unit.Dp(8)).Layout(gtx, func(gtx C) D {
 		return chatlayout.Background(th.Bg).Layout(gtx, func(gtx C) D {
-			return layout.UniformInset(unit.Dp(15)).Layout(gtx, func(gtx C) D {
+			return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx C) D {
 				return material.Editor(th.Theme, &ui.Rooms.Active().Editor, "Send a message").Layout(gtx)
 			})
 		})
