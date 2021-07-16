@@ -84,8 +84,8 @@ type MessageStyle struct {
 
 // NewMessage creates a style type that can lay out the data for a message.
 func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuState, msg model.Message) MessageStyle {
-	interact.SetAvatar(msg.Avatar)
-	interact.SetImage(msg.Image)
+	interact.Avatar.Cache(msg.Avatar)
+	interact.Image.Cache(msg.Image)
 	bubble := matchat.Bubble(th.Theme)
 	ms := MessageStyle{
 		OuterMargin: chatlayout.VerticalMargin(),
@@ -105,7 +105,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuStat
 		Sender:         material.Body1(th.Theme, msg.Sender),
 		Image: matchat.Image{
 			Image: widget.Image{
-				Src:      interact.Image,
+				Src:      interact.Image.Op(),
 				Fit:      widget.ScaleDown,
 				Position: layout.Center,
 			},
@@ -116,7 +116,7 @@ func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuStat
 		Interaction:     interact,
 		Avatar: matchat.Image{
 			Image: widget.Image{
-				Src:      interact.Avatar,
+				Src:      interact.Avatar.Op(),
 				Fit:      widget.Cover,
 				Position: layout.Center,
 			},

@@ -26,3 +26,13 @@ func (img *Image) Cache(src image.Image) {
 func (img Image) Op() paint.ImageOp {
 	return paint.ImageOp(img)
 }
+
+// bake the image into a paint.ImageOp, if not already.
+func bake(cache *paint.ImageOp, img image.Image) {
+	if cache == nil || img == nil {
+		return
+	}
+	if *cache == (paint.ImageOp{}) {
+		*cache = paint.NewImageOp(img)
+	}
+}

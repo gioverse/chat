@@ -182,7 +182,7 @@ func NewUI(w *app.Window) *UI {
 									ui.Modal.Show(gtx.Now, func(gtx C) D {
 										return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
 											return widget.Image{
-												Src:      state.Image,
+												Src:      state.Image.Op(),
 												Fit:      widget.ScaleDown,
 												Position: layout.Center,
 											}.Layout(gtx)
