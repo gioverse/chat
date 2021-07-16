@@ -3,6 +3,7 @@ package apptheme
 import (
 	"image"
 	"image/color"
+	"time"
 
 	"gioui.org/io/pointer"
 	"gioui.org/layout"
@@ -34,6 +35,32 @@ type (
 	C = layout.Context
 	D = layout.Dimensions
 )
+
+// MessageConfig describes the aspects of a chat message relevant for
+// displaying it within a widget.
+type MessageConfig struct {
+	Sender  string
+	Avatar  image.Image
+	Content string
+	SentAt  time.Time
+	Image   image.Image
+	Local   bool
+	Status  string
+}
+
+// FromModel converts a domain-specific model of a chat message into
+// the general-purpose MessageConfig.
+func FromModel(m model.Message) MessageConfig {
+	return MessageConfig{
+		Sender:  m.Sender,
+		Avatar:  m.Avatar,
+		Content: m.Content,
+		SentAt:  m.SentAt,
+		Image:   m.Image,
+		Local:   m.Local,
+		Status:  m.Status,
+	}
+}
 
 // MessageStyle configures the presentation of a chat message within
 // a vertical list of chat messages.
@@ -83,7 +110,7 @@ type MessageStyle struct {
 }
 
 // NewMessage creates a style type that can lay out the data for a message.
-func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuState, msg model.Message) MessageStyle {
+func NewMessage(th *Theme, interact *appwidget.Message, menu *component.MenuState, msg MessageConfig) MessageStyle {
 	interact.Avatar.Cache(msg.Avatar)
 	interact.Image.Cache(msg.Image)
 	bubble := matchat.Bubble(th.Theme)
