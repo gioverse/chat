@@ -20,7 +20,6 @@ import (
 
 	"gioui.org/app"
 	"gioui.org/layout"
-	"gioui.org/op"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -331,9 +330,11 @@ func (ui *UI) layoutChat(gtx C) D {
 			return gutter.Layout(gtx,
 				nil,
 				func(gtx C) D {
-					return Background(th.Bg).Layout(gtx, func(gtx C) D {
-						return layout.UniformInset(unit.Dp(15)).Layout(gtx, func(gtx C) D {
-							return material.Editor(th.Theme, &ui.Rooms.Active().Editor, "Send a message").Layout(gtx)
+					return chatlayout.Rounded(unit.Dp(8)).Layout(gtx, func(gtx C) D {
+						return chatlayout.Background(th.Bg).Layout(gtx, func(gtx C) D {
+							return layout.UniformInset(unit.Dp(15)).Layout(gtx, func(gtx C) D {
+								return material.Editor(th.Theme, &ui.Rooms.Active().Editor, "Send a message").Layout(gtx)
+							})
 						})
 					})
 				},
@@ -771,24 +772,4 @@ func filter(list []fs.FileInfo, predicate func(fs.FileInfo) bool) (filtered []fs
 		}
 	}
 	return filtered
-}
-
-// Background lays out a widget over a colored background.
-type Background color.NRGBA
-
-func (bg Background) Layout(gtx C, w layout.Widget) D {
-	macro := op.Record(gtx.Ops)
-	dims := w(gtx)
-	call := macro.Stop()
-	return layout.Stack{}.Layout(
-		gtx,
-		layout.Expanded(component.Rect{
-			Size:  dims.Size,
-			Color: color.NRGBA(bg),
-		}.Layout),
-		layout.Stacked(func(gtx C) D {
-			call.Add(gtx.Ops)
-			return dims
-		}),
-	)
 }
