@@ -206,15 +206,12 @@ type MessageStyle struct {
 	MaxImageHeight unit.Value
 	// ContentPadding separates the Content field from the edges of the background.
 	ContentPadding layout.Inset
-	// BubbleStyle configures a chat bubble beneath the message. If UseNinepatch is
-	// set, this field is ignored.
+	// BubbleStyle configures a chat bubble beneath the message. If NinePatch is
+	// non-nil, this field is ignored.
 	BubbleStyle
 	// Ninepatch provides a ninepatch stretchable image background. Only used if
-	// UseNinepatch is set.
-	ninepatch.NinePatch
-	// UseNinepatch chooses between a plain chat bubble background an a ninepatch
-	// image.
-	UseNinepatch bool
+	// non-nil.
+	*ninepatch.NinePatch
 	// Content is the actual styled text of the message.
 	Content richtext.TextStyle
 	// Image is the optional image content of the message.
@@ -250,8 +247,7 @@ func Message(th *material.Theme, interact *chatwidget.Message, content string, i
 
 // WithNinePatch sets the message surface to a ninepatch image.
 func (c MessageStyle) WithNinePatch(th *material.Theme, np ninepatch.NinePatch) MessageStyle {
-	c.NinePatch = np
-	c.UseNinepatch = true
+	c.NinePatch = &np
 	var (
 		b = np.Image.Bounds()
 	)
@@ -292,7 +288,7 @@ func (m MessageStyle) Layout(gtx C) D {
 	}
 	if m.Image.Src == (paint.ImageOp{}) {
 		surface := m.BubbleStyle.Layout
-		if m.UseNinepatch {
+		if m.NinePatch != nil {
 			surface = m.NinePatch.Layout
 		}
 		return surface(gtx, func(gtx C) D {
