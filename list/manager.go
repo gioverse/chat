@@ -168,9 +168,11 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 				}
 			}
 			list.Position.First = newStartIndex
-			// Ensure that the list considers the possibility that new content
-			// has changed the end of the list.
-			list.Position.BeforeEnd = true
+			if !su.PreserveListEnd {
+				// Ensure that the list considers the possibility that new content
+				// has changed the end of the list.
+				list.Position.BeforeEnd = true
+			}
 		}
 		m.elements = su.Elements
 		// Delete the persistent widget state for any compacted element.

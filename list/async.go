@@ -11,6 +11,9 @@ type stateUpdate struct {
 	SerialToIndex map[Serial]int
 	// CompactedSerials is a slice of Serials that were compacted within this update.
 	CompactedSerials []Serial
+	// PreserveListEnd indicates whether or not the list.Position.BeforeEnd field
+	// should be reset when applying this state update.
+	PreserveListEnd bool
 }
 
 // populateWith sets s.Elements to the provided slice of elements
@@ -51,6 +54,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 				case modificationRequest:
 					newElems = req.Update
 					rmSerials = req.Remove
+					su.PreserveListEnd = true
 				case loadRequest:
 					if !more {
 						return
