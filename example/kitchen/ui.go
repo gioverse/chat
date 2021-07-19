@@ -152,9 +152,13 @@ func NewUI(w *app.Window) *UI {
 							case "cookie":
 								msg.MessageStyle = msg.WithNinePatch(th.Theme, cookie)
 							default:
+								uc := th.LocalUserColor()
 								if !msg.Local {
-									userColor := th.UserColor(msg.Username.Text)
-									msg.MessageStyle = msg.WithBubbleColor(th.Theme, userColor.NRGBA, userColor.Luminance)
+									uc = th.UserColor(msg.Username.Text)
+								}
+								msg.MessageStyle.BubbleStyle.Color = uc.NRGBA
+								for i := range msg.Content.Styles {
+									msg.Content.Styles[i].Color = th.Contrast(uc.Luminance)
 								}
 							}
 							return func(gtx C) D {
@@ -201,8 +205,7 @@ func NewUI(w *app.Window) *UI {
 		ui.Rooms.List[ii].List.Axis = layout.Vertical
 	}
 
-	// Configure a pleasing light gray background color.
-	ui.Bg = color.NRGBA{220, 220, 220, 255}
+	ui.Bg = th.Palette.Bg
 
 	return &ui
 }
@@ -289,12 +292,7 @@ func (ui *UI) layoutChat(gtx C) D {
 			)
 		}),
 		layout.Rigid(func(gtx C) D {
-			return chatlayout.Background(color.NRGBA{
-				R: 235,
-				G: 235,
-				B: 235,
-				A: 255,
-			}).Layout(gtx, func(gtx C) D {
+			return chatlayout.Background(th.Palette.BgSecondary).Layout(gtx, func(gtx C) D {
 				if ui.AddBtn.Clicked() {
 					ui.Rooms.Active().SendMessage()
 				}
@@ -333,7 +331,7 @@ func (ui *UI) layoutTopbar(gtx C) D {
 					X: gtx.Constraints.Max.X,
 					Y: gtx.Constraints.Min.Y,
 				},
-				Color: th.Bg,
+				Color: th.Palette.Surface,
 			}.Layout(gtx)
 		}),
 		layout.Stacked(func(gtx C) D {
@@ -377,7 +375,7 @@ func (ui *UI) layoutRoomList(gtx C) D {
 					X: gtx.Constraints.Min.X,
 					Y: gtx.Constraints.Max.Y,
 				},
-				Color: th.Bg,
+				Color: th.Palette.Surface,
 			}.Layout(gtx)
 		}),
 		layout.Stacked(func(gtx C) D {
@@ -394,7 +392,7 @@ func (ui *UI) layoutRoomList(gtx C) D {
 // layoutEditor lays out the message editor.
 func (ui *UI) layoutEditor(gtx C) D {
 	return chatlayout.Rounded(unit.Dp(8)).Layout(gtx, func(gtx C) D {
-		return chatlayout.Background(th.Bg).Layout(gtx, func(gtx C) D {
+		return chatlayout.Background(th.Palette.Surface).Layout(gtx, func(gtx C) D {
 			return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx C) D {
 				return material.Editor(th.Theme, &ui.Rooms.Active().Editor, "Send a message").Layout(gtx)
 			})
@@ -406,7 +404,11 @@ func (ui *UI) layoutModal(gtx C) D {
 	if ui.Modal.Clicked() {
 		ui.Modal.ToggleVisibility(gtx.Now)
 	}
-	return component.Modal(th.Theme, &ui.Modal).Layout(gtx)
+	// NOTE(jfm): scrim should be dark regardless of theme.
+	// Perhaps "scrim color" could be specified on the theme.
+	t := *th.Theme
+	t.Fg = apptheme.Dark.Surface
+	return component.Modal(&t, &ui.Modal).Layout(gtx)
 }
 
 // FromModel converts a domain-specific model of a chat message into

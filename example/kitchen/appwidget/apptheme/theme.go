@@ -22,6 +22,29 @@ var (
 	DefaultAvatarSize      = unit.Dp(24)
 )
 
+var (
+	Light = Palette{
+		Error:         rgb(0xB00020),
+		Surface:       rgb(0xFFFFFF),
+		Bg:            rgb(0xDCDCDC),
+		BgSecondary:   rgb(0xEBEBEB),
+		OnError:       rgb(0xFFFFFF),
+		OnSurface:     rgb(0x000000),
+		OnBg:          rgb(0x000000),
+		OnBgSecondary: rgb(0x000000),
+	}
+	Dark = Palette{
+		Error:         rgb(0xB00020),
+		Surface:       rgb(0x000000),
+		Bg:            rgb(0x222222),
+		BgSecondary:   rgb(0x444444),
+		OnError:       rgb(0xFFFFFF),
+		OnSurface:     rgb(0xFFFFFF),
+		OnBg:          rgb(0xFFFFFF),
+		OnBgSecondary: rgb(0xFFFFFF),
+	}
+)
+
 // ToNRGBA converts a colorful.Color to the nearest representable color.NRGBA.
 func ToNRGBA(c colorful.Color) color.NRGBA {
 	r, g, b, a := c.RGBA()
@@ -35,10 +58,29 @@ type Theme struct {
 	// UserColors tracks a mapping from chat username to the color
 	// chosen to represent that user.
 	UserColors map[string]UserColorData
-	// DangerColor is the color used to indicate errors.
-	DangerColor color.NRGBA
 	// AvatarSize specifies how large the avatar image should be.
 	AvatarSize unit.Value
+	// Palette specifies semantic colors.
+	Palette Palette
+}
+
+// Palette defines non-brand semantic colors.
+//
+// `On` colors define a color that is appropriate to display atop it's
+// counterpart.
+type Palette struct {
+	// Error used to indicate errors.
+	Error   color.NRGBA
+	OnError color.NRGBA
+	// Surface affect surfaces of components, such as cards, sheets and menus.
+	Surface   color.NRGBA
+	OnSurface color.NRGBA
+	// Bg appears behind scrollable content.
+	Bg   color.NRGBA
+	OnBg color.NRGBA
+	// BgSecondary appears behind scrollable content.
+	BgSecondary   color.NRGBA
+	OnBgSecondary color.NRGBA
 }
 
 // UserColorData tracks both a color and its luminance.
@@ -49,11 +91,26 @@ type UserColorData struct {
 
 // NewTheme instantiates a theme using the provided fonts.
 func NewTheme(fonts []text.FontFace) *Theme {
+	var (
+		base    = material.NewTheme(fonts)
+		palette = Dark
+	)
+	base.Bg = palette.Bg
+	base.Fg = palette.OnBg
 	return &Theme{
-		Theme:       material.NewTheme(fonts),
-		UserColors:  make(map[string]UserColorData),
-		DangerColor: color.NRGBA{R: 200, A: 255},
-		AvatarSize:  DefaultAvatarSize,
+		Theme:      base,
+		UserColors: make(map[string]UserColorData),
+		AvatarSize: DefaultAvatarSize,
+		Palette:    palette,
+	}
+}
+
+// Toggle the active theme between pre-configured Light and Dark palettes.
+func (t *Theme) Toggle() {
+	if t.Palette == Light {
+		t.Palette = Dark
+	} else {
+		t.Palette = Light
 	}
 }
 
@@ -71,4 +128,42 @@ func (t *Theme) UserColor(username string) UserColorData {
 	uc.Luminance = (0.299*float64(uc.NRGBA.R) + 0.587*float64(uc.NRGBA.G) + 0.114*float64(uc.NRGBA.B)) / 255
 	t.UserColors[username] = uc
 	return uc
+}
+
+// LocalUserColor returns a color for the "local" user.
+// Local user color is defined as the theme's surface color and it's luminance.
+func (t *Theme) LocalUserColor() UserColorData {
+	c := t.Palette.Surface
+	return UserColorData{
+		NRGBA:     c,
+		Luminance: (0.299*float64(c.R) + 0.587*float64(c.G) + 0.114*float64(c.B)) / 255,
+	}
+}
+
+// Contrast against a given luminance.
+//
+// Defaults to a color that contrasts the background color, if the threshold
+// is met, the background color itself is returned.
+//
+// Note this will depend on the specific palette in question, and may not be a
+// good generalization particularly for low-contrast palettes.
+func (t *Theme) Contrast(luminance float64) color.NRGBA {
+	var (
+		contrast = luminance < 0.5
+	)
+	if t.Palette == Dark {
+		contrast = luminance > 0.5
+	}
+	if contrast {
+		return t.Palette.Bg
+	}
+	return t.Palette.OnBg
+}
+
+func rgb(c uint32) color.NRGBA {
+	return argb(0xff000000 | c)
+}
+
+func argb(c uint32) color.NRGBA {
+	return color.NRGBA{A: uint8(c >> 24), R: uint8(c >> 16), G: uint8(c >> 8), B: uint8(c)}
 }
