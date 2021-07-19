@@ -92,25 +92,30 @@ type UserColorData struct {
 // NewTheme instantiates a theme using the provided fonts.
 func NewTheme(fonts []text.FontFace) *Theme {
 	var (
-		base    = material.NewTheme(fonts)
-		palette = Dark
+		base = material.NewTheme(fonts)
 	)
-	base.Bg = palette.Bg
-	base.Fg = palette.OnBg
-	return &Theme{
+	th := Theme{
 		Theme:      base,
 		UserColors: make(map[string]UserColorData),
 		AvatarSize: DefaultAvatarSize,
-		Palette:    palette,
 	}
+	th.UsePalette(Light)
+	return &th
+}
+
+// UsePalette changes to the specified palette.
+func (t *Theme) UsePalette(p Palette) {
+	t.Palette = p
+	t.Theme.Bg = t.Palette.Bg
+	t.Theme.Fg = t.Palette.OnBg
 }
 
 // Toggle the active theme between pre-configured Light and Dark palettes.
 func (t *Theme) Toggle() {
 	if t.Palette == Light {
-		t.Palette = Dark
+		t.UsePalette(Dark)
 	} else {
-		t.Palette = Light
+		t.UsePalette(Light)
 	}
 }
 
