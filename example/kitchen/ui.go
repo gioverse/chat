@@ -30,6 +30,14 @@ import (
 	lorem "github.com/drhodes/golorem"
 )
 
+var (
+	// SidebarMaxWidth specifies how large the side bar should be on
+	// desktop layouts.
+	SidebarMaxWidth = unit.Dp(250)
+	// Breakpoint at which to switch from desktop to mobile layout.
+	Breakpoint = unit.Dp(600)
+)
+
 // UI manages the state for the entire application's UI.
 type UI struct {
 	// Rooms is the root of the data, containing messages chunked by
@@ -199,18 +207,9 @@ func NewUI(w *app.Window) *UI {
 	return &ui
 }
 
-// TODO(jfm): find proper place for this.
-const (
-	// sideBarMaxWidth species the max width on large viewports.
-	sidebarMaxWidth = 250
-	// breakpoint at which the viewport becomes considered "small",
-	// and the UI layout changes to compensate.
-	breakpoint = 600
-)
-
 // Layout the application UI.
 func (ui *UI) Layout(gtx C) D {
-	small := gtx.Constraints.Max.X < gtx.Px(unit.Dp(breakpoint))
+	small := gtx.Constraints.Max.X < gtx.Px(Breakpoint)
 	for ii := range ui.Rooms.List {
 		r := &ui.Rooms.List[ii]
 		if r.Interact.Clicked() {
@@ -252,7 +251,7 @@ func (ui *UI) Layout(gtx C) D {
 	}.Layout(
 		gtx,
 		layout.Rigid(func(gtx C) D {
-			gtx.Constraints.Max.X = gtx.Px(unit.Dp(sidebarMaxWidth))
+			gtx.Constraints.Max.X = gtx.Px(SidebarMaxWidth)
 			gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
 			return ui.layoutRoomList(gtx)
 		}),
