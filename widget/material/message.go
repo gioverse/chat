@@ -268,7 +268,7 @@ func (c MessageStyle) WithNinePatch(th *material.Theme, np ninepatch.NinePatch) 
 	return c
 }
 
-// WithBubbleColor sets the message surface to a ninepatch image.
+// WithBubbleColor sets the message bubble color and selects a contrasted text color.
 func (c MessageStyle) WithBubbleColor(th *material.Theme, col color.NRGBA, luminance float64) MessageStyle {
 	c.BubbleStyle.Color = col
 	if luminance < .5 {
