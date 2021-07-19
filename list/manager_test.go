@@ -20,6 +20,36 @@ func (a actuallyStatefulElement) Serial() Serial {
 	return Serial(a.serial)
 }
 
+func TestStateUpdate(t *testing.T) {
+	elems := []Element{
+		actuallyStatefulElement{serial: "a"},
+		actuallyStatefulElement{serial: "b"},
+		actuallyStatefulElement{serial: ""},
+		actuallyStatefulElement{serial: ""},
+		actuallyStatefulElement{serial: "c"},
+		actuallyStatefulElement{serial: "d"},
+	}
+
+	var su stateUpdate
+	su.populateWith(elems)
+
+	for i := range su.Elements {
+		if elems[i].Serial() != su.Elements[i].Serial() {
+			t.Errorf("expected state update at index %d to match input", i)
+		}
+	}
+
+	for s, i := range su.SerialToIndex {
+		if elems[i].Serial() != s {
+			t.Errorf("state update mapping for serial %s is wrong", s)
+		}
+	}
+
+	if _, ok := su.SerialToIndex[NoSerial]; ok {
+		t.Errorf("state update should not map the lack of a serial to an index")
+	}
+}
+
 func TestManager(t *testing.T) {
 	// create a fake rendering context
 	var ops op.Ops

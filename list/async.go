@@ -19,7 +19,9 @@ func (s *stateUpdate) populateWith(elems []Element) {
 	s.Elements = elems
 	s.SerialToIndex = make(map[Serial]int)
 	for index, elem := range s.Elements {
-		s.SerialToIndex[elem.Serial()] = index
+		if elem.Serial() != NoSerial {
+			s.SerialToIndex[elem.Serial()] = index
+		}
 	}
 }
 
