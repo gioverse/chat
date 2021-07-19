@@ -28,18 +28,7 @@ import (
 	matchat "git.sr.ht/~gioverse/chat/widget/material"
 
 	lorem "github.com/drhodes/golorem"
-	"golang.org/x/exp/shiny/materialdesign/icons"
 )
-
-var NavBack *widget.Icon = func() *widget.Icon {
-	icon, _ := widget.NewIcon(icons.NavigationArrowBack)
-	return icon
-}()
-
-var Send *widget.Icon = func() *widget.Icon {
-	icon, _ := widget.NewIcon(icons.ContentSend)
-	return icon
-}()
 
 // UI manages the state for the entire application's UI.
 type UI struct {
