@@ -24,6 +24,8 @@ var (
 	max int
 	// maxRooms to generate.
 	maxRooms int
+	// theme to use (light/dark).
+	theme string
 )
 
 // th is the active theme object.
@@ -36,7 +38,14 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 	flag.IntVar(&max, "max", 100, "max images to generate (default 100)")
 	flag.IntVar(&maxRooms, "rooms", 10, "max rooms to generate (default 10)")
+	flag.StringVar(&theme, "theme", "light", "theme to use 'light'/'dark' (default 'light')")
 	flag.Parse()
+	switch theme {
+	case "light":
+		th.UsePalette(apptheme.Light)
+	case "dark":
+		th.UsePalette(apptheme.Dark)
+	}
 }
 
 type (
