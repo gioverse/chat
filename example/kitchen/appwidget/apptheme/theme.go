@@ -40,7 +40,7 @@ var (
 		BgSecondary:   rgb(0x444444),
 		OnError:       rgb(0xFFFFFF),
 		OnSurface:     rgb(0xFFFFFF),
-		OnBg:          rgb(0xFFFFFF),
+		OnBg:          rgb(0xEEEEEE),
 		OnBgSecondary: rgb(0xFFFFFF),
 	}
 )
