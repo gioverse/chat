@@ -154,7 +154,19 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 		if len(m.elements) > 0 {
 			listStart := min(list.Position.First, len(m.elements)-1)
 			startSerial := m.elements[listStart].Serial()
-			newStartIndex := su.SerialToIndex[startSerial]
+			newStartIndex, ok := su.SerialToIndex[startSerial]
+			if !ok {
+				// The element that was previously at the top of the viewport
+				// is no longer within the list. Walk backwards towards the
+				// beginning of the list, searching for an element that is
+				// both in the old state list and in the updated one.
+				// If this fails to find a matching element, just set the
+				// viewport to start on the first element.
+				for ii := listStart - 1; (startSerial == NoSerial || !ok) && ii >= 0; ii-- {
+					startSerial = m.elements[ii].Serial()
+					newStartIndex, ok = su.SerialToIndex[startSerial]
+				}
+			}
 			list.Position.First = newStartIndex
 			// Ensure that the list considers the possibility that new content
 			// has changed the end of the list.

@@ -389,6 +389,166 @@ func TestManagerPrefetch(t *testing.T) {
 	}
 }
 
+// dupSlice returns a slice composed of the same elements in the same order,
+// but backed by a different array.
+func dupSlice(in []Element) []Element {
+	out := make([]Element, len(in))
+	for i := range in {
+		out[i] = in[i]
+	}
+	return out
+}
+
+func TestManagerViewportOnRemoval(t *testing.T) {
+	// create a fake rendering context
+	var ops op.Ops
+	gtx := layout.NewContext(&ops, system.FrameEvent{
+		Now: time.Now(),
+		Metric: unit.Metric{
+			PxPerDp: 1,
+			PxPerSp: 1,
+		},
+		// Make the viewport small enough that only a few list elements
+		// fit on screen at a time.
+		Size: image.Pt(10, 10),
+	})
+	var list layout.List
+
+	m := NewManager(6, Hooks{
+		Allocator: func(e Element) interface{} { return nil },
+		Presenter: func(e Element, state interface{}) layout.Widget {
+			return layout.Spacer{
+				Width:  unit.Dp(5),
+				Height: unit.Dp(5),
+			}.Layout
+		},
+		Loader:      func(dir Direction, relativeTo Serial) []Element { return nil },
+		Invalidator: func() {},
+		Comparator:  func(a, b Element) bool { return true },
+		Synthesizer: func(a, b Element) []Element { return nil },
+	})
+	// Shut down the existing background processing for this manager.
+	close(m.requests)
+
+	// Replace the background processing channels with channels we can control
+	// from within the test.
+	updates := make(chan stateUpdate, 1)
+	m.requests = nil
+	m.stateUpdates = updates
+
+	var persistentElements []Element
+
+	type testcase struct {
+		name                           string
+		sendUpdate                     bool
+		update                         stateUpdate
+		startFirstIndex, endFirstIndex int
+	}
+	for _, tc := range []testcase{
+		{
+			name:       "load inital elements",
+			sendUpdate: true,
+			update: func() stateUpdate {
+				// Send an update to provide a few elements to work with.
+				persistentElements = dupSlice(testElements)
+				var su stateUpdate
+				su.populateWith(persistentElements)
+				return su
+			}(),
+			startFirstIndex: 0,
+			endFirstIndex:   0,
+		},
+		{
+			name:       "remove first visible element",
+			sendUpdate: true,
+			update: func() stateUpdate {
+				persistentElements = dupSlice(append(testElements[0:2], testElements[3:]...))
+				var su stateUpdate
+				su.populateWith(persistentElements)
+				return su
+			}(),
+			startFirstIndex: 2,
+			endFirstIndex:   1,
+		},
+		{
+			name:       "replace all elements, inserting many non-serial elements",
+			sendUpdate: true,
+			update: func() stateUpdate {
+				persistentElements = dupSlice([]Element{
+					testElement{
+						serial:     string(NoSerial),
+						synthCount: 1,
+					},
+					testElement{
+						serial:     string(NoSerial),
+						synthCount: 1,
+					},
+					testElements[len(testElements)-1],
+					testElement{
+						serial:     string(NoSerial),
+						synthCount: 1,
+					},
+					testElement{
+						serial:     string(NoSerial),
+						synthCount: 1,
+					},
+				})
+				var su stateUpdate
+				su.populateWith(persistentElements)
+				return su
+			}(),
+			startFirstIndex: 0,
+			endFirstIndex:   0,
+		},
+		{
+			name:       "remove the one stateful element",
+			sendUpdate: true,
+			update: func() stateUpdate {
+				persistentElements = dupSlice([]Element{
+					testElement{
+						serial:     string(NoSerial),
+						synthCount: 1,
+					},
+					testElement{
+						serial:     string(NoSerial),
+						synthCount: 1,
+					},
+					testElement{
+						serial:     string(NoSerial),
+						synthCount: 1,
+					},
+					testElement{
+						serial:     string(NoSerial),
+						synthCount: 1,
+					},
+				})
+				var su stateUpdate
+				su.populateWith(persistentElements)
+				return su
+			}(),
+			startFirstIndex: 2,
+			endFirstIndex:   0,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// Send a state update if configured.
+			if tc.sendUpdate {
+				updates <- tc.update
+			}
+
+			// Lay out the managed list.
+			list.Position.First = tc.startFirstIndex
+			list.Layout(gtx, m.UpdatedLen(&list), m.Layout)
+
+			// Ensure that the viewport is in the right place afterward.
+			if list.Position.First != tc.endFirstIndex {
+				t.Errorf("Expected list.Position.First to be %d after layout, got %d",
+					tc.endFirstIndex, list.Position.First)
+			}
+		})
+	}
+}
+
 // testHooks allocates default hooks for testing.
 var testHooks = Hooks{
 	Allocator: func(e Element) interface{} {
