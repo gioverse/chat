@@ -186,7 +186,7 @@ func TestProcessorSynthesize(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := newProcessor(testSynthesizer, testComparator)
-			p.Update(tc.input, nil)
+			p.Update(tc.input, nil, nil)
 			processed := p.Synthesize()
 			if !elementsEqual(processed, tc.output) {
 				t.Errorf("Expected %v, got %v", tc.output, processed)
@@ -195,16 +195,17 @@ func TestProcessorSynthesize(t *testing.T) {
 	}
 }
 
-// TestProcessorUpdates ensures that the processor correctly updates
+// TestProcessorModify ensures that the processor correctly updates
 // elements with that share serial values with elements that are already in
 // the managed list.
-func TestProcessorUpdates(t *testing.T) {
+func TestProcessorModify(t *testing.T) {
 	p := newProcessor(testSynthesizer, testComparator)
 	type testcase struct {
-		name     string
-		updates  []Element
-		removals []Serial
-		output   []Element
+		name         string
+		newOrUpdates []Element
+		updates      []Element
+		removals     []Serial
+		output       []Element
 	}
 	// Run all testcases on a single processor instance to check its behavior over time.
 	for _, tc := range []testcase{
@@ -213,7 +214,7 @@ func TestProcessorUpdates(t *testing.T) {
 		},
 		{
 			name: "one produces one",
-			updates: []Element{
+			newOrUpdates: []Element{
 				testElement{
 					serial:     "a",
 					synthCount: 1,
@@ -227,8 +228,32 @@ func TestProcessorUpdates(t *testing.T) {
 			},
 		},
 		{
-			name: "one updated produces two",
+			name: "updating nonexistent changes nothing",
 			updates: []Element{
+				testElement{
+					serial:     "b",
+					synthCount: 1,
+				},
+			},
+			output: []Element{
+				testElement{
+					serial:     "a",
+					synthCount: 1,
+				},
+			},
+		},
+		{
+			name: "updating existing take effect",
+			updates: []Element{
+				testElement{
+					serial:     "a",
+					synthCount: 0,
+				},
+			},
+		},
+		{
+			name: "one updated produces two",
+			newOrUpdates: []Element{
 				testElement{
 					serial:     "a",
 					synthCount: 2,
@@ -247,7 +272,7 @@ func TestProcessorUpdates(t *testing.T) {
 		},
 		{
 			name: "insert some more data",
-			updates: []Element{
+			newOrUpdates: []Element{
 				testElement{
 					serial:     "a",
 					synthCount: 1,
@@ -286,7 +311,7 @@ func TestProcessorUpdates(t *testing.T) {
 		},
 		{
 			name: "update every other element",
-			updates: []Element{
+			newOrUpdates: []Element{
 				testElement{
 					serial:     "a",
 					synthCount: 2,
@@ -384,7 +409,7 @@ func TestProcessorUpdates(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			p.Update(tc.updates, tc.removals)
+			p.Update(tc.newOrUpdates, tc.updates, tc.removals)
 			processed := p.Synthesize()
 			if !elementsEqual(processed, tc.output) {
 				t.Errorf("Expected %v, got %v", tc.output, processed)
@@ -524,7 +549,7 @@ func TestProcessorCompact(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			p := newProcessor(testSynthesizer, testComparator)
-			p.Update(tc.input, nil)
+			p.Update(tc.input, nil, nil)
 			_ = p.Synthesize()
 			compacted := p.Compact(tc.req.MaxSize, tc.req.Viewport)
 			if !serialsEqual(compacted, tc.compacted) {

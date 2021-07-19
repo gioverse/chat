@@ -64,7 +64,7 @@ func (r *Room) SendMessage() {
 	row := r.Messages.Send(sender, content)
 	r.Room.Latest = &row
 	go func() {
-		r.ListState.Update([]list.Element{row}, nil)
+		r.ListState.Modify([]list.Element{row}, nil, nil)
 	}()
 }
 
@@ -72,14 +72,14 @@ func (r *Room) SendMessage() {
 // into the list manager for the room.
 func (r *Room) NewRow() {
 	row := r.Messages.NewRow()
-	go r.ListState.Update([]list.Element{row}, nil)
+	go r.ListState.Modify([]list.Element{row}, nil, nil)
 }
 
 // DeleteRow removes the row with the provided serial from both the
 // row tracker and the list manager for the room.
 func (r *Room) DeleteRow(serial list.Serial) {
 	r.Messages.Delete(serial)
-	go r.ListState.Update(nil, []list.Serial{serial})
+	go r.ListState.Modify(nil, nil, []list.Serial{serial})
 }
 
 // Active returns the active room, empty if not rooms are available.

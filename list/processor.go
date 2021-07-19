@@ -168,8 +168,9 @@ type loadRequest struct {
 // modificationRequest represents a request to insert or update some elements
 // within the managed list.
 type modificationRequest struct {
-	Update []Element
-	Remove []Serial
+	NewOrUpdate []Element
+	UpdateOnly  []Element
+	Remove      []Serial
 }
 
 // processor transforms a list of unsorted elements into sorted,
@@ -207,7 +208,7 @@ func sliceRemove(s *[]Element, index int) {
 // This method updates the value of any existing element in Raw with
 // the new value for that serial provided in newElems, appends
 // all totally new elements to the end of Raw, and sorts Raw.
-func (r *processor) Update(newElems []Element, removed []Serial) {
+func (r *processor) Update(newElems []Element, updateOnly []Element, removed []Serial) {
 	serialToRaw := make(map[Serial]int)
 	for i, elem := range r.Raw {
 		serialToRaw[elem.Serial()] = i
@@ -226,6 +227,15 @@ func (r *processor) Update(newElems []Element, removed []Serial) {
 		sliceRemove(&newElems, i)
 		// Check the element at this index again next iteration.
 		i--
+	}
+
+	// Update elements if and only if they are present.
+	for _, elem := range updateOnly {
+		index, isPresent := serialToRaw[elem.Serial()]
+		if !isPresent {
+			continue
+		}
+		r.Raw[index] = elem
 	}
 
 	// Find the index of each element needing removal.
