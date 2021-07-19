@@ -31,16 +31,7 @@ func NewExampleData(size int) *RowTracker {
 	}
 	go func() {
 		for i := 0; i < size; i++ {
-			rt.Lock()
-			r := newRow(size - i)
-			rt.Rows = append(rt.Rows, r)
-			sort.Slice(rt.Rows, func(i, j int) bool {
-				return rowLessThan(rt.Rows[i], rt.Rows[j])
-			})
-			for index, element := range rt.Rows {
-				rt.SerialToIndex[element.Serial()] = index
-			}
-			rt.Unlock()
+			rt.Add(newRow(size - i))
 		}
 	}()
 	return rt
@@ -57,7 +48,7 @@ func NewExampleData(size int) *RowTracker {
 // For example, this method needs to optionally accept images, and that
 // might make the params list grow arbitrarily large, depending on the
 // types of client-side data that need to be supported.
-func (r *RowTracker) Send(sender, content string) model.Message {
+func (rt *RowTracker) Send(sender, content string) model.Message {
 	msg := model.Message{
 		Sender:  sender,
 		Content: content,
@@ -76,16 +67,16 @@ func (r *RowTracker) Send(sender, content string) model.Message {
 		Local:  true,
 		SentAt: time.Now(),
 	}
-	r.Lock()
-	r.Rows = append(r.Rows, list.Element(msg))
-	sort.Slice(r.Rows, func(i, j int) bool {
-		return rowLessThan(r.Rows[i], r.Rows[j])
-	})
-	for index, element := range r.Rows {
-		r.SerialToIndex[element.Serial()] = index
-	}
-	r.Unlock()
+	rt.Add(msg)
 	return msg
+}
+
+// Add a list element as a row of data to track.
+func (rt *RowTracker) Add(r list.Element) {
+	rt.Lock()
+	rt.Rows = append(rt.Rows, r)
+	rt.reindex()
+	rt.Unlock()
 }
 
 // Latest returns the latest element, or nil.
@@ -158,6 +149,9 @@ func (r *RowTracker) Delete(serial list.Serial) {
 }
 
 func (r *RowTracker) reindex() {
+	sort.Slice(r.Rows, func(i, j int) bool {
+		return rowLessThan(r.Rows[i], r.Rows[j])
+	})
 	r.SerialToIndex = make(map[list.Serial]int)
 	for i, row := range r.Rows {
 		r.SerialToIndex[row.Serial()] = i
