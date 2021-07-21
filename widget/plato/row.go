@@ -20,7 +20,7 @@ type RowStyle struct {
 	OuterMargin chatlayout.VerticalMarginStyle
 	chatlayout.GutterStyle
 	// Local indicates that the message was sent by the local user,
-	// and should be left-aligned.
+	// and should be right-aligned.
 	Local bool
 	// Time is the timestamp associated with the message.
 	Time material.LabelStyle
