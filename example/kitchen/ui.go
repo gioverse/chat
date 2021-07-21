@@ -26,6 +26,7 @@ import (
 	"git.sr.ht/~gioverse/chat/res"
 	chatwidget "git.sr.ht/~gioverse/chat/widget"
 	matchat "git.sr.ht/~gioverse/chat/widget/material"
+	"git.sr.ht/~gioverse/chat/widget/plato"
 
 	lorem "github.com/drhodes/golorem"
 )
@@ -141,25 +142,52 @@ func NewUI(w *app.Window) *UI {
 					Presenter: func(data list.Element, state interface{}) layout.Widget {
 						switch data := data.(type) {
 						case model.Message:
+							var w layout.Widget
 							state, ok := state.(*chatwidget.Row)
 							if !ok {
 								return func(C) D { return D{} }
 							}
-							msg := matchat.NewRow(th.Theme, state, &ui.MessageMenu, FromModel(data))
-							switch data.Theme {
-							case "hotdog":
-								msg.MessageStyle = msg.WithNinePatch(th.Theme, hotdog)
-							case "cookie":
-								msg.MessageStyle = msg.WithNinePatch(th.Theme, cookie)
-							default:
-								uc := th.LocalUserColor()
-								if !msg.Local {
-									uc = th.UserColor(msg.Username.Text)
+							if usePlato {
+								msg := plato.NewRow(th.Theme, state, &ui.MessageMenu, plato.RowConfig{
+									Sender:  data.Sender,
+									Content: data.Content,
+									Avatar:  data.Avatar,
+									Local:   data.Local,
+									SentAt:  data.SentAt,
+								})
+								switch data.Theme {
+								case "hotdog":
+									msg.MessageStyle = msg.WithNinePatch(th.Theme, hotdog)
+								case "cookie":
+									msg.MessageStyle = msg.WithNinePatch(th.Theme, cookie)
 								}
-								msg.MessageStyle.BubbleStyle.Color = uc.NRGBA
-								for i := range msg.Content.Styles {
-									msg.Content.Styles[i].Color = th.Contrast(uc.Luminance)
+								if msg.MessageStyle.NinePatch != nil {
+									np := msg.NinePatch
+									if cl, ok := np.Image.At(np.Bounds().Dx()/2, np.Bounds().Dy()/2).(color.NRGBA); ok {
+										msg.TextColor(th.Contrast(matchat.Luminance(cl)))
+									}
+								} else {
+									msg.TextColor(th.Contrast(matchat.Luminance(msg.BubbleStyle.Color)))
 								}
+								w = msg.Layout
+							} else {
+								msg := matchat.NewRow(th.Theme, state, &ui.MessageMenu, FromModel(data))
+								switch data.Theme {
+								case "hotdog":
+									msg.MessageStyle = msg.WithNinePatch(th.Theme, hotdog)
+								case "cookie":
+									msg.MessageStyle = msg.WithNinePatch(th.Theme, cookie)
+								default:
+									uc := th.LocalUserColor()
+									if !msg.Local {
+										uc = th.UserColor(msg.Username.Text)
+									}
+									msg.MessageStyle.BubbleStyle.Color = uc.NRGBA
+									for i := range msg.Content.Styles {
+										msg.Content.Styles[i].Color = th.Contrast(uc.Luminance)
+									}
+								}
+								w = msg.Layout
 							}
 							return func(gtx C) D {
 								if state.Clicked() {
@@ -179,7 +207,7 @@ func NewUI(w *app.Window) *UI {
 									// taken within that menu.
 									ui.ContextMenuTarget = &data
 								}
-								return msg.Layout(gtx)
+								return w(gtx)
 							}
 						case model.DateBoundary:
 							return matchat.DateSeparator(th.Theme, data.Date).Layout

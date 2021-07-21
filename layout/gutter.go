@@ -42,22 +42,16 @@ func (g GutterStyle) Layout(gtx layout.Context, left, center, right layout.Widge
 // layoutGutterSide lays out a spacer with a given width, and stacks another
 // widget on top.
 func layoutGutterSide(gtx layout.Context, width unit.Value, widget layout.Widget) layout.Dimensions {
-	spacer := layout.Spacer{
-		Width: width,
-	}
+	spacer := layout.Spacer{Width: width}
 	if widget == nil {
 		return spacer.Layout(gtx)
 	}
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx layout.Context) layout.Dimensions {
-			d := layout.Spacer{
-				Width: width,
-			}.Layout(gtx)
-			return d
+			return layout.Spacer{Width: width}.Layout(gtx)
 		}),
 		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
-			d := widget(gtx)
-			return d
+			return widget(gtx)
 		}),
 	)
 }

@@ -26,8 +26,8 @@ var (
 	maxRooms int
 	// theme to use (light/dark).
 	theme string
-	// plato to use plato themed widgets.
-	plato bool
+	// usePlato to use plato themed widgets.
+	usePlato bool
 )
 
 // th is the active theme object.
@@ -41,7 +41,7 @@ func init() {
 	flag.IntVar(&max, "max", 100, "max images to generate (default 100)")
 	flag.IntVar(&maxRooms, "rooms", 10, "max rooms to generate (default 10)")
 	flag.StringVar(&theme, "theme", "light", "theme to use 'light'/'dark' (default 'light')")
-	flag.BoolVar(&plato, "plato", false, "use Plato Team Inc themed widgets (default false)")
+	flag.BoolVar(&usePlato, "plato", false, "use Plato Team Inc themed widgets (default false)")
 	flag.Parse()
 	switch theme {
 	case "light":

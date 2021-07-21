@@ -23,7 +23,7 @@ type BubbleStyle struct {
 // background color and rounded corners.
 func Bubble(th *material.Theme) BubbleStyle {
 	return BubbleStyle{
-		CornerRadius: unit.Dp(8),
+		CornerRadius: unit.Dp(12),
 		Color:        th.Bg,
 	}
 }
