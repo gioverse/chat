@@ -35,8 +35,8 @@ var (
 	}
 	Dark = Palette{
 		Error:         rgb(0xB00020),
-		Surface:       rgb(0x000000),
-		Bg:            rgb(0x222222),
+		Surface:       rgb(0x222222),
+		Bg:            rgb(0x000000),
 		BgSecondary:   rgb(0x444444),
 		OnError:       rgb(0xFFFFFF),
 		OnSurface:     rgb(0xFFFFFF),
