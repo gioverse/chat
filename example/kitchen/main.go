@@ -20,10 +20,6 @@ import (
 )
 
 var (
-	// max images to generate.
-	max int
-	// maxRooms to generate.
-	maxRooms int
 	// theme to use (light/dark).
 	theme string
 	// usePlato to use plato themed widgets.
@@ -38,8 +34,6 @@ var (
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
-	flag.IntVar(&max, "max", 100, "max images to generate (default 100)")
-	flag.IntVar(&maxRooms, "rooms", 10, "max rooms to generate (default 10)")
 	flag.StringVar(&theme, "theme", "light", "theme to use 'light'/'dark' (default 'light')")
 	flag.BoolVar(&usePlato, "plato", false, "use Plato Team Inc themed widgets (default false)")
 	flag.Parse()
