@@ -1,6 +1,8 @@
 package layout
 
-import "gioui.org/layout"
+import (
+	"gioui.org/layout"
+)
 
 // Reverse the order of the provided flex children if the boolean is true.
 func Reverse(shouldReverse bool, items ...layout.FlexChild) []layout.FlexChild {
@@ -8,7 +10,7 @@ func Reverse(shouldReverse bool, items ...layout.FlexChild) []layout.FlexChild {
 		return items
 	}
 	if shouldReverse {
-		for ii := 0; ii < len(items); ii++ {
+		for ii := 0; ii < len(items)/2; ii++ {
 			var (
 				head = ii
 				tail = len(items) - 1 - ii
