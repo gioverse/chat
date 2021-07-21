@@ -34,7 +34,6 @@ var TickIcon = func() *widget.Icon {
 }()
 
 // UserInfoStyle defines the presentation of information about a user.
-// It can present the user's name and avatar with a space between them.
 type UserInfoStyle struct {
 	// Username configures the presentation of the user name text.
 	Username material.LabelStyle
