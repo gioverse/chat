@@ -8,6 +8,7 @@ import (
 	"log"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	"gioui.org/app"
@@ -111,11 +112,23 @@ func NewUI(w *app.Window) *UI {
 		}()
 	)
 
+	// Generate up to 30 unique users.
+	users := GenUsers(10, 30)
+	// local user that from the perspective of the client.
+	// This is the user that is "signed-in".
+	local := users.Random()
+
+	// Messager can generate messages asynchronously based on the given user
+	// data.
+	messager := Messager{
+		Users: users,
+	}
+
 	for ii := rand.Intn(10) + 5; ii > 0; ii-- {
-		rt := NewExampleData(100)
+		rt := NewExampleData(local, &messager, 100)
 		ui.Rooms.List = append(ui.Rooms.List, Room{
 			Room: model.Room{
-				Name: lorem.Sentence(1, 5),
+				Name: strings.Trim(lorem.Sentence(1, 5), "."),
 				Image: func() image.Image {
 					img, err := randomImage(image.Pt(64, 64))
 					if err != nil {
@@ -147,18 +160,24 @@ func NewUI(w *app.Window) *UI {
 							if !ok {
 								return func(C) D { return D{} }
 							}
+							user, ok := users.Lookup(data.Sender)
+							if !ok {
+								// We don't know about this user, what to do?
+								log.Printf("unknown user: %v", data.Sender)
+								return func(C) D { return D{} }
+							}
 							if usePlato {
 								msg := plato.NewRow(th.Theme, state, &ui.MessageMenu, plato.RowConfig{
 									Sender:  data.Sender,
 									Content: data.Content,
 									Avatar:  data.Avatar,
-									Local:   data.Local,
+									Local:   user.Name == local.Name,
 									SentAt:  data.SentAt,
 								})
-								switch data.Theme {
-								case "hotdog":
+								switch user.Theme {
+								case model.ThemeHotdog:
 									msg.MessageStyle = msg.WithNinePatch(th.Theme, hotdog)
-								case "cookie":
+								case model.ThemePlatoCookie:
 									msg.MessageStyle = msg.WithNinePatch(th.Theme, cookie)
 								}
 								if msg.MessageStyle.NinePatch != nil {
@@ -172,20 +191,20 @@ func NewUI(w *app.Window) *UI {
 								w = msg.Layout
 							} else {
 								msg := matchat.NewRow(th.Theme, state, &ui.MessageMenu, FromModel(data))
-								switch data.Theme {
-								case "hotdog":
+								switch user.Theme {
+								case model.ThemeHotdog:
 									msg.MessageStyle = msg.WithNinePatch(th.Theme, hotdog)
-								case "cookie":
+								case model.ThemePlatoCookie:
 									msg.MessageStyle = msg.WithNinePatch(th.Theme, cookie)
-								default:
-									uc := th.LocalUserColor()
-									if !msg.Local {
-										uc = th.UserColor(msg.Username.Text)
-									}
-									msg.MessageStyle.BubbleStyle.Color = uc.NRGBA
-									for i := range msg.Content.Styles {
-										msg.Content.Styles[i].Color = th.Contrast(uc.Luminance)
-									}
+								}
+								uc := th.LocalUserColor()
+								if !msg.Local {
+									uc = th.UserColor(msg.Username.Text)
+								}
+								msg.Local = user.Name == local.Name
+								msg.MessageStyle.BubbleStyle.Color = uc.NRGBA
+								for i := range msg.Content.Styles {
+									msg.Content.Styles[i].Color = th.Contrast(uc.Luminance)
 								}
 								w = msg.Layout
 							}
@@ -448,68 +467,7 @@ func FromModel(m model.Message) matchat.RowConfig {
 		Content: m.Content,
 		SentAt:  m.SentAt,
 		Image:   m.Image,
-		Local:   m.Local,
 		Status:  m.Status,
-	}
-}
-
-// newRow returns a new synthetic row of chat data.
-func newRow(serial int) list.Element {
-	return model.Message{
-		SerialID: fmt.Sprintf("%05d", serial),
-		Content:  lorem.Paragraph(1, 5),
-		SentAt:   time.Now().Add(time.Hour * time.Duration(serial)),
-		Sender:   lorem.Word(3, 10),
-		Local:    serial%2 == 0,
-		Status: func() string {
-			if rand.Int()%10 == 0 {
-				return matchat.FailedToSend
-			}
-			return ""
-		}(),
-		Theme: func() string {
-			switch val := rand.Intn(10); val {
-			case 0:
-				return "cookie"
-			case 1:
-				return "hotdog"
-			default:
-				return ""
-			}
-		}(),
-		Image: func() image.Image {
-			if rand.Float32() < 0.7 {
-				return nil
-			}
-			sizes := []image.Point{
-				image.Pt(1792, 828),
-				image.Pt(828, 1792),
-				image.Pt(600, 600),
-				image.Pt(300, 300),
-			}
-			img, err := randomImage(sizes[rand.Intn(len(sizes))])
-			if err != nil {
-				log.Print(err)
-				return nil
-			}
-			return img
-		}(),
-		Avatar: func() image.Image {
-			sizes := []image.Point{
-				image.Pt(64, 64),
-				image.Pt(32, 32),
-				image.Pt(24, 24),
-			}
-			img, err := randomImage(sizes[rand.Intn(len(sizes))])
-			if err != nil {
-				log.Print(err)
-				return nil
-			}
-			return img
-		}(),
-		Read: func() bool {
-			return serial < 95
-		}(),
 	}
 }
 

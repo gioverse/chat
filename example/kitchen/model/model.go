@@ -5,6 +5,9 @@ package model
 
 import (
 	"image"
+	"image/color"
+	"math/rand"
+	"sync"
 	"time"
 
 	"git.sr.ht/~gioverse/chat/list"
@@ -15,8 +18,6 @@ type Message struct {
 	SerialID                string
 	Sender, Content, Status string
 	SentAt                  time.Time
-	Local                   bool
-	Theme                   string
 	Image                   image.Image
 	Avatar                  image.Image
 	Read                    bool
@@ -58,3 +59,66 @@ type Room struct {
 	// Latest message in the room, if any.
 	Latest *Message
 }
+
+// User is a unique identity that can send messages and participate in rooms.
+type User struct {
+	// Name of user.
+	Name string
+	// Avatar is the image of the user.
+	Avatar image.Image
+	// Theme specifies the name of a 9patch theme to use for messages from this
+	// user. If theme is specified it will be the preferred message surface.
+	// Empty string indicates no theme.
+	Theme Theme
+	// Color to use for message bubbles of messages from this user.
+	Color color.NRGBA
+}
+
+// Users structure manages a collection of user data.
+type Users struct {
+	list  []User
+	index map[string]*User
+	once  sync.Once
+}
+
+// Add user to collection.
+func (us *Users) Add(u User) {
+	us.once.Do(func() {
+		us.index = map[string]*User{}
+	})
+	us.list = append(us.list, u)
+	us.index[u.Name] = &us.list[len(us.list)-1]
+}
+
+// List returns an ordered list of user data.
+func (us *Users) List() (list []*User) {
+	list = make([]*User, len(us.list))
+	for ii := range us.list {
+		list[ii] = &us.list[ii]
+	}
+	return list
+}
+
+// Lookup user by name.
+func (us *Users) Lookup(name string) (*User, bool) {
+	v, ok := us.index[name]
+	return v, ok
+}
+
+// Random returns a randomly selected user from the collection.
+// If there are no users, nil is returned.
+func (us *Users) Random() *User {
+	if len(us.list) == 0 {
+		return nil
+	}
+	return &us.list[rand.Intn(len(us.list)-1)]
+}
+
+// Theme enumerates the various 9patch themes.
+type Theme int
+
+const (
+	ThemeEmpty Theme = iota
+	ThemePlatoCookie
+	ThemeHotdog
+)

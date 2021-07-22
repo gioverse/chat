@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"sort"
@@ -10,7 +9,6 @@ import (
 
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 	"git.sr.ht/~gioverse/chat/list"
-	matchat "git.sr.ht/~gioverse/chat/widget/material"
 )
 
 // RowTracker is a stand-in for an application's data access logic.
@@ -21,17 +19,22 @@ type RowTracker struct {
 	sync.Mutex
 	Rows          []list.Element
 	SerialToIndex map[list.Serial]int
+	Local         *model.User
+	messager      *Messager
 }
 
 // NewExampleData constructs a RowTracker populated with the provided
 // quantity of messages.
-func NewExampleData(size int) *RowTracker {
+func NewExampleData(local *model.User, m *Messager, size int) *RowTracker {
 	rt := &RowTracker{
 		SerialToIndex: make(map[list.Serial]int),
+		messager:      m,
+		Local:         local,
 	}
 	go func() {
+		time.Sleep(time.Millisecond * 1)
 		for i := 0; i < size; i++ {
-			rt.Add(newRow(size - i))
+			rt.Add(m.Generate())
 		}
 	}()
 	return rt
@@ -39,34 +42,8 @@ func NewExampleData(size int) *RowTracker {
 
 // SendMessage adds the message to the data model.
 // This is analogous to interacting with the backend api.
-//
-// NOTE(jfm): should probably make the "this is the mock business api" more
-// clear.
-//
-// TODO(jfm): roll client-side data into "message body", and server-side
-// data can then fill out the rest of the `model.Message`.
-// For example, this method needs to optionally accept images, and that
-// might make the params list grow arbitrarily large, depending on the
-// types of client-side data that need to be supported.
-func (rt *RowTracker) Send(sender, content string) model.Message {
-	msg := model.Message{
-		Sender:  sender,
-		Content: content,
-		// Backend controls content ID, thus we unconditionally override it,
-		// simulating some "unique ID" algorithm.
-		SerialID: fmt.Sprintf("%05d", time.Now().UnixNano()),
-		// Simulate network failure.
-		Status: func() string {
-			if rand.Int()%10 == 0 {
-				return matchat.FailedToSend
-			}
-			return ""
-		}(),
-		// Well, "we" sent it!
-		Read:   true,
-		Local:  true,
-		SentAt: time.Now(),
-	}
+func (rt *RowTracker) Send(content string) model.Message {
+	msg := rt.messager.Send(rt.Local.Name, content)
 	rt.Add(msg)
 	return msg
 }
@@ -101,14 +78,11 @@ func (r *RowTracker) Index(ii int) list.Element {
 	return r.Rows[ii]
 }
 
+// NewRow generates a new row.
 func (r *RowTracker) NewRow() list.Element {
-	r.Lock()
-	defer r.Unlock()
-	index := len(r.Rows)
-	element := newRow(index)
-	r.Rows = append(r.Rows, element)
-	r.SerialToIndex[element.Serial()] = index
-	return element
+	el := r.messager.Generate()
+	r.Add(el)
+	return el
 }
 
 // Load simulates loading chat history from a database or API. It
