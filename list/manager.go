@@ -96,8 +96,9 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 // DefaultPrefetch is the default prefetching threshold.
 const DefaultPrefetch = 0.15
 
-// Modify is a thread-safe means of inserting elements into, updating
-// elements within, or removing elements from the managed list state.
+// Modify is a thread-safe means of atomically modifying the Manager:
+// inserting elements into, updating elements within, or removing elements
+// from the managed list state.
 //
 // Elements in the newOrUpdated parameter will be inserted into the managed state,
 // and any pre-existing element with the same serial will be removed.
@@ -106,12 +107,52 @@ const DefaultPrefetch = 0.15
 // Elements with a serial in the remove parameter will be removed from
 // the managed list.
 //
+//
 // This method may block, and should not be called from the goroutine that
 // is performing layout.
+//
+// Use this method to perform several types of modifications atomically.
 func (m *Manager) Modify(newOrUpdated []Element, updateOnly []Element, remove []Serial) {
 	m.requests <- modificationRequest{
 		NewOrUpdate: newOrUpdated,
 		UpdateOnly:  updateOnly,
+		Remove:      remove,
+	}
+}
+
+// Update atomically modifies the Manager to insert or update from the provided
+// elements.
+//
+// Elements provided that exist in the Manager will be updated in-place, and those
+// that do not will be inserted as new elements.
+func (m *Manager) Update(newOrUpdated []Element) {
+	m.requests <- modificationRequest{
+		NewOrUpdate: newOrUpdated,
+		UpdateOnly:  nil,
+		Remove:      nil,
+	}
+}
+
+// InPlace atomically modifies the Manager to update from the provided elements.
+//
+// Elements provided that exist in the Manager will be updated in-place, and those
+// that do not  will be ignored.
+func (m *Manager) InPlace(updateOnly []Element) {
+	m.requests <- modificationRequest{
+		NewOrUpdate: nil,
+		UpdateOnly:  updateOnly,
+		Remove:      nil,
+	}
+}
+
+// Remove atomically modifies the Manager to remove elements based on a Serial.
+//
+// Elements in the Manager that are specified in the remove list will be deleted.
+// Serials that map to non-existant elements will be ignored.
+func (m *Manager) Remove(remove []Serial) {
+	m.requests <- modificationRequest{
+		NewOrUpdate: nil,
+		UpdateOnly:  nil,
 		Remove:      remove,
 	}
 }
