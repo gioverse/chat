@@ -204,6 +204,22 @@ func sliceRemove(s *[]Element, index int) {
 	*s = (*s)[:lastIndex]
 }
 
+// sliceFilter removes elements for which the predicate returns false
+// from the slice.
+func sliceFilter(s *[]Element, predicate func(elem Element) bool) {
+	// Avoids using a range loop because we modify the slice as we iterate.
+	for i := 0; i < len(*s); i++ {
+		elem := (*s)[i]
+		if predicate(elem) {
+			continue
+		}
+		// Remove this element from the new slice.
+		sliceRemove(s, i)
+		// Check the element at this index again next iteration.
+		i--
+	}
+}
+
 // Update updates the internal Raw element slice with new elements.
 // This method updates the value of any existing element in Raw with
 // the new value for that serial provided in newElems, appends
@@ -214,20 +230,15 @@ func (r *processor) Update(newElems []Element, updateOnly []Element, removed []S
 		serialToRaw[elem.Serial()] = i
 	}
 	// Search newElems for elements that already exist within the Raw slice.
-	// Avoids using a range loop because we modify the slice as we iterate.
-	for i := 0; i < len(newElems); i++ {
-		elem := newElems[i]
+	sliceFilter(&newElems, func(elem Element) bool {
 		rawIndex, exists := serialToRaw[elem.Serial()]
-		if !exists {
-			continue
+		if exists {
+			// Update the stored existing element.
+			r.Raw[rawIndex] = elem
+			return false
 		}
-		// Update the stored existing element.
-		r.Raw[rawIndex] = elem
-		// Remove this element from the new slice.
-		sliceRemove(&newElems, i)
-		// Check the element at this index again next iteration.
-		i--
-	}
+		return true
+	})
 
 	// Update elements if and only if they are present.
 	for _, elem := range updateOnly {

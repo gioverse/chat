@@ -57,6 +57,38 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 					rmSerials = req.Remove
 					updateOnly = req.UpdateOnly
 					su.PreserveListEnd = true
+
+					/*
+						In order to preserve the invariant that the Raw list contains a
+						contiguous slice of elements, we need to remove any elements
+						from the update that sort to the beginning or end of the Raw list
+						unless we are at the beginning or end of the underlying data.
+						This is because we cannot tell how far away new elements are from the
+						beginning or end of the list, and therefore how many elements
+						might exist between them and the current boundaries of the list.
+						The loader hook will serve the new elements to us at their appropriate
+						position, so we should rely upon it to do so.
+					*/
+					sliceFilter(&newElems, func(elem Element) bool {
+						if len(processor.Raw) == 0 {
+							return true
+						}
+						beginning := processor.Comparator(elem, processor.Raw[0])
+						end := processor.Comparator(processor.Raw[len(processor.Raw)-1], elem)
+						// If this element sorts before the beginning of the list or after
+						// the end of the list, it should not be inserted unless we are at
+						// the appropriate end of the list.
+						switch {
+						case beginning && ignoreDirection == Before:
+							return true
+						case end && ignoreDirection == After:
+							return true
+						case beginning || end:
+							return false
+						}
+						return true
+					})
+					ignoreDirection = noDirection
 				case loadRequest:
 					if !more {
 						return
