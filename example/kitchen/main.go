@@ -20,7 +20,7 @@ import (
 )
 
 var (
-	// theme to use (light/dark).
+	// theme to use {light,dark}.
 	theme string
 	// usePlato to use plato themed widgets.
 	usePlato bool
@@ -34,8 +34,8 @@ var (
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
-	flag.StringVar(&theme, "theme", "light", "theme to use 'light'/'dark' (default 'light')")
-	flag.BoolVar(&usePlato, "plato", false, "use Plato Team Inc themed widgets (default false)")
+	flag.StringVar(&theme, "theme", "light", "theme to use {light,dark}")
+	flag.BoolVar(&usePlato, "plato", false, "use Plato Team Inc themed widgets")
 	flag.Parse()
 	switch theme {
 	case "light":
