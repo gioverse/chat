@@ -53,8 +53,9 @@ type MessageConfig struct {
 	Seen bool
 	// Time indicates when this message was sent.
 	Time time.Time
-	// Local indicates whether this message pertains to the "local" user.
-	Local bool
+	// Color of the message bubble.
+	// Defaults to LocalMessageColor.
+	Color color.NRGBA
 }
 
 // Message constructs a MessageStyle with sensible defaults.
@@ -64,10 +65,10 @@ func Message(th *material.Theme, interact *chatwidget.Message, msg MessageConfig
 	return MessageStyle{
 		BubbleStyle: func() chatmaterial.BubbleStyle {
 			b := chatmaterial.Bubble(th)
-			b.Color = NonLocalMessageColor
-			if msg.Local {
-				b.Color = LocalMessageColor
+			if msg.Color == (color.NRGBA{}) {
+				msg.Color = LocalMessageColor
 			}
+			b.Color = msg.Color
 			return b
 		}(),
 		Content: richtext.Text(&interact.InteractiveText, th.Shaper, richtext.SpanStyle{

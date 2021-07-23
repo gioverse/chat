@@ -2,6 +2,7 @@ package plato
 
 import (
 	"image"
+	"image/color"
 	"time"
 
 	"gioui.org/layout"
@@ -91,7 +92,12 @@ func NewRow(
 			Content: msg.Content,
 			Seen:    true,
 			Time:    msg.SentAt,
-			Local:   msg.Local,
+			Color: func() color.NRGBA {
+				if msg.Local {
+					return LocalMessageColor
+				}
+				return NonLocalMessageColor
+			}(),
 		}),
 	}
 	ms.UserInfoStyle.Local = msg.Local
