@@ -231,7 +231,7 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 	}
 	if len(m.elements) == 0 {
 		// Push an initial request to populate the first few messages.
-		m.requests <- loadRequest{Direction: After}
+		m.tryRequest(After)
 	}
 
 	// Update the cached copy of the list position to the latest value.
