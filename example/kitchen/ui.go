@@ -126,6 +126,7 @@ func NewUI(w *app.Window) *UI {
 
 	for ii := rand.Intn(10) + 5; ii > 0; ii-- {
 		rt := NewExampleData(local, &messager, 100)
+		rt.SimulateLatency = latency
 		ui.Rooms.List = append(ui.Rooms.List, Room{
 			Room: model.Room{
 				Name: strings.Trim(lorem.Sentence(1, 5), "."),

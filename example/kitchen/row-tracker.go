@@ -16,6 +16,9 @@ import (
 // It simulates network latency during the load operations for
 // realism.
 type RowTracker struct {
+	// SimulateLatency specifies whether to sleep for some random duration to
+	// simulate blocking on a network call.
+	SimulateLatency bool
 	sync.Mutex
 	Rows          []list.Element
 	SerialToIndex map[list.Serial]int
@@ -89,9 +92,11 @@ func (r *RowTracker) NewRow() list.Element {
 // sleeps for a random number of milliseconds and then returns
 // some messages.
 func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded []list.Element) {
-	duration := time.Millisecond * time.Duration(rand.Intn(1000))
-	log.Println("sleeping", duration)
-	time.Sleep(duration)
+	if r.SimulateLatency {
+		duration := time.Millisecond * time.Duration(rand.Intn(1000))
+		log.Println("sleeping", duration)
+		time.Sleep(duration)
+	}
 	r.Lock()
 	defer r.Unlock()
 	defer func() {

@@ -24,6 +24,8 @@ var (
 	theme string
 	// usePlato to use plato themed widgets.
 	usePlato bool
+	// latency specifies whether to simulate latency.
+	latency bool
 )
 
 // th is the active theme object.
@@ -36,6 +38,7 @@ func init() {
 	rand.Seed(time.Now().UnixNano())
 	flag.StringVar(&theme, "theme", "light", "theme to use {light,dark}")
 	flag.BoolVar(&usePlato, "plato", false, "use Plato Team Inc themed widgets")
+	flag.BoolVar(&latency, "latency", true, "whether to simulate network latency")
 	flag.Parse()
 	switch theme {
 	case "light":
