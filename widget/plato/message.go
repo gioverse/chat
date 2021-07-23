@@ -45,11 +45,16 @@ type MessageStyle struct {
 	Receipt *widget.Icon
 }
 
+// MessageConfig describes aspects of a chat message.
 type MessageConfig struct {
+	// Content specifies the raw textual content of the message.
 	Content string
-	Seen    bool
-	Time    time.Time
-	Local   bool
+	// Seen indicates whether this message has been "seen" by other users.
+	Seen bool
+	// Time indicates when this message was sent.
+	Time time.Time
+	// Local indicates whether this message pertains to the "local" user.
+	Local bool
 }
 
 // Message constructs a MessageStyle with sensible defaults.

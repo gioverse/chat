@@ -16,6 +16,9 @@ import (
 
 // RowStyle configures the presentation of a chat message within
 // a vertical list of chat messages.
+//
+// In particular, RowStyle is repsonsible for gutters and anchoring of
+// messages.
 type RowStyle struct {
 	OuterMargin chatlayout.VerticalMarginStyle
 	chatlayout.GutterStyle
@@ -41,8 +44,8 @@ type RowStyle struct {
 	Menu component.MenuStyle
 }
 
-// RowConfig describes the aspects of a chat message relevant for
-// displaying it within a widget.
+// RowConfig describes the aspects of a chat row relevant for displaying
+// it within a widget.
 type RowConfig struct {
 	Sender  string
 	Avatar  image.Image
