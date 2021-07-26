@@ -43,6 +43,9 @@ type MessageStyle struct {
 	Time material.LabelStyle
 	// Receipt lays out the read receipt.
 	Receipt *widget.Icon
+	// Clickable indicates whether the message content should be able to receive
+	// click events.
+	Clickable bool
 }
 
 // MessageConfig describes aspects of a chat message.
@@ -87,7 +90,7 @@ func Message(th *material.Theme, interact *chatwidget.Message, msg MessageConfig
 			l.Color = component.WithAlpha(l.Color, 200)
 			return l
 		}(),
-		Receipt: TickIcon,
+		Receipt:   TickIcon,
 	}
 }
 
@@ -132,35 +135,45 @@ func (m MessageStyle) Layout(gtx C) D {
 		return m.Content.Layout(gtx)
 	})
 	call := macro.Stop()
-	return surface(gtx, func(gtx C) D {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(func(gtx C) D {
-				call.Add(gtx.Ops)
-				return dims
-			}),
-			layout.Rigid(func(gtx C) D {
-				width := gtx.Px(m.MinMessageWidth)
-				if dims.Size.X > width {
-					width = dims.Size.X
-				}
-				gtx.Constraints.Max.X = width
-				return m.ContentPadding.Layout(gtx, func(gtx C) D {
-					return layout.Flex{
-						Axis:      layout.Horizontal,
-						Alignment: layout.Middle,
-					}.Layout(gtx,
-						layout.Flexed(1, func(gtx C) D {
-							return D{Size: gtx.Constraints.Min}
-						}),
-						layout.Rigid(func(gtx C) D {
-							return m.Time.Layout(gtx)
-						}),
-						layout.Rigid(func(gtx C) D {
-							return m.Receipt.Layout(gtx)
-						}),
-					)
-				})
-			}),
-		)
-	})
+	return layout.Stack{}.Layout(gtx,
+		layout.Expanded(func(gtx C) D {
+			if !m.Clickable {
+				return D{}
+			}
+			return m.Interaction.Clickable.Layout(gtx)
+		}),
+		layout.Stacked(func(gtx C) D {
+			return surface(gtx, func(gtx C) D {
+				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+					layout.Rigid(func(gtx C) D {
+						call.Add(gtx.Ops)
+						return dims
+					}),
+					layout.Rigid(func(gtx C) D {
+						width := gtx.Px(m.MinMessageWidth)
+						if dims.Size.X > width {
+							width = dims.Size.X
+						}
+						gtx.Constraints.Max.X = width
+						return m.ContentPadding.Layout(gtx, func(gtx C) D {
+							return layout.Flex{
+								Axis:      layout.Horizontal,
+								Alignment: layout.Middle,
+							}.Layout(gtx,
+								layout.Flexed(1, func(gtx C) D {
+									return D{Size: gtx.Constraints.Min}
+								}),
+								layout.Rigid(func(gtx C) D {
+									return m.Time.Layout(gtx)
+								}),
+								layout.Rigid(func(gtx C) D {
+									return m.Receipt.Layout(gtx)
+								}),
+							)
+						})
+					}),
+				)
+			})
+		}),
+	)
 }
