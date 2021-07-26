@@ -61,6 +61,8 @@ Here's a diagram showing how the various hooks work together:
 
 ![diagram](https://git.sr.ht/~gioverse/chat/blob/main/list/assets/dataflow-diagram.png)
 
+For a relatively simple implementation of using all of the hooks together to build something useful, see `./example/carousel/`.
+
 ## License
 
 Dual Unlicense/MIT, same as Gio
