@@ -172,8 +172,8 @@ func NewUI(w *app.Window) *UI {
 									Sender:  data.Sender,
 									Content: data.Content,
 									Avatar:  data.Avatar,
-									Local:   user.Name == local.Name,
 									SentAt:  data.SentAt,
+									Local:   user.Name == local.Name,
 								})
 								switch user.Theme {
 								case model.ThemeHotdog:
@@ -191,7 +191,13 @@ func NewUI(w *app.Window) *UI {
 								}
 								w = msg.Layout
 							} else {
-								msg := matchat.NewRow(th.Theme, state, &ui.MessageMenu, FromModel(data))
+								msg := matchat.NewRow(th.Theme, state, &ui.MessageMenu, matchat.RowConfig{
+									Sender:  data.Sender,
+									Content: data.Content,
+									Avatar:  data.Avatar,
+									SentAt:  data.SentAt,
+									Local:   user.Name == local.Name,
+								})
 								switch user.Theme {
 								case model.ThemeHotdog:
 									msg.MessageStyle = msg.WithNinePatch(th.Theme, hotdog)
@@ -202,7 +208,6 @@ func NewUI(w *app.Window) *UI {
 								if !msg.Local {
 									uc = th.UserColor(msg.Username.Text)
 								}
-								msg.Local = user.Name == local.Name
 								msg.MessageStyle.BubbleStyle.Color = uc.NRGBA
 								for i := range msg.Content.Styles {
 									msg.Content.Styles[i].Color = th.Contrast(uc.Luminance)
