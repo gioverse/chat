@@ -63,6 +63,12 @@ func NewRow(
 	menu *component.MenuState,
 	msg RowConfig,
 ) RowStyle {
+	if interact == nil {
+		interact = &chatwidget.Row{}
+	}
+	if menu == nil {
+		menu = &component.MenuState{}
+	}
 	interact.Avatar.Cache(msg.Avatar)
 	ms := RowStyle{
 		OuterMargin: chatlayout.VerticalMargin(),
