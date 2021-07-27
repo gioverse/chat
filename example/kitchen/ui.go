@@ -5,7 +5,6 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"log"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -437,63 +436,9 @@ func rowLessThan(a, b list.Element) bool {
 func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget {
 	switch data := data.(type) {
 	case model.Message:
-		var (
-			w  layout.Widget
-			np *ninepatch.NinePatch = nil
-		)
 		state, ok := state.(*chatwidget.Row)
 		if !ok {
 			return func(C) D { return D{} }
-		}
-		user, ok := ui.Users.Lookup(data.Sender)
-		if !ok {
-			// We don't know about this user, what to do?
-			log.Printf("unknown user: %v", data.Sender)
-			return func(C) D { return D{} }
-		}
-		switch user.Theme {
-		case model.ThemeHotdog:
-			np = &hotdog
-		case model.ThemePlatoCookie:
-			np = &cookie
-		}
-		if usePlato {
-			msg := plato.NewRow(th.Theme, state, &ui.MessageMenu, plato.RowConfig{
-				Sender:  data.Sender,
-				Content: data.Content,
-				Avatar:  data.Avatar,
-				SentAt:  data.SentAt,
-				Local:   user.Name == ui.Local.Name,
-			})
-			if np != nil {
-				msg.MessageStyle = msg.WithNinePatch(th.Theme, *np)
-				if cl, ok := np.Image.At(np.Bounds().Dx()/2, np.Bounds().Dy()/2).(color.NRGBA); ok {
-					msg.TextColor(th.Contrast(matchat.Luminance(cl)))
-				}
-			} else {
-				msg.TextColor(th.Contrast(matchat.Luminance(msg.BubbleStyle.Color)))
-			}
-			w = msg.Layout
-		} else {
-			msg := matchat.NewRow(th.Theme, state, &ui.MessageMenu, matchat.RowConfig{
-				Sender:  data.Sender,
-				Content: data.Content,
-				Avatar:  data.Avatar,
-				SentAt:  data.SentAt,
-				Local:   user.Name == ui.Local.Name,
-			})
-			if np != nil {
-				msg.MessageStyle = msg.WithNinePatch(th.Theme, *np)
-			}
-			uc := th.LocalUserColor()
-			if !msg.Local {
-				uc = th.UserColor(msg.Username.Text)
-			}
-			msg.MessageStyle.BubbleStyle.Color = uc.NRGBA
-			for i := range msg.Content.Styles {
-				msg.Content.Styles[i].Color = th.Contrast(uc.Luminance)
-			}
-			w = msg.Layout
 		}
 		return func(gtx C) D {
 			if state.Clicked() {
@@ -513,7 +458,7 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 				// taken within that menu.
 				ui.ContextMenuTarget = &data
 			}
-			return w(gtx)
+			return ui.row(usePlato, data, state)(gtx)
 		}
 	case model.DateBoundary:
 		return matchat.DateSeparator(th.Theme, data.Date).Layout
@@ -522,4 +467,59 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 	default:
 		return func(gtx C) D { return D{} }
 	}
+}
+
+// row returns either a plato.RowStyle or a chatmaterial.RowStyle based on the
+// provided boolean.
+func (ui *UI) row(usePlato bool, data model.Message, state *chatwidget.Row) layout.Widget {
+	user, ok := ui.Users.Lookup(data.Sender)
+	if !ok {
+		return func(C) D { return D{} }
+	}
+	np := func() *ninepatch.NinePatch {
+		switch user.Theme {
+		case model.ThemeHotdog:
+			return &hotdog
+		case model.ThemePlatoCookie:
+			return &cookie
+		}
+		return nil
+	}()
+	if usePlato {
+		msg := plato.NewRow(th.Theme, state, &ui.MessageMenu, plato.RowConfig{
+			Sender:  data.Sender,
+			Content: data.Content,
+			Avatar:  data.Avatar,
+			SentAt:  data.SentAt,
+			Local:   user.Name == ui.Local.Name,
+		})
+		if np != nil {
+			msg.MessageStyle = msg.WithNinePatch(th.Theme, *np)
+			if cl, ok := np.Image.At(np.Bounds().Dx()/2, np.Bounds().Dy()/2).(color.NRGBA); ok {
+				msg.TextColor(th.Contrast(matchat.Luminance(cl)))
+			}
+		} else {
+			msg.TextColor(th.Contrast(matchat.Luminance(msg.BubbleStyle.Color)))
+		}
+		return msg.Layout
+	}
+	msg := matchat.NewRow(th.Theme, state, &ui.MessageMenu, matchat.RowConfig{
+		Sender:  data.Sender,
+		Content: data.Content,
+		Avatar:  data.Avatar,
+		SentAt:  data.SentAt,
+		Local:   user.Name == ui.Local.Name,
+	})
+	if np != nil {
+		msg.MessageStyle = msg.WithNinePatch(th.Theme, *np)
+	}
+	uc := th.LocalUserColor()
+	if !msg.Local {
+		uc = th.UserColor(msg.Username.Text)
+	}
+	msg.MessageStyle.BubbleStyle.Color = uc.NRGBA
+	for i := range msg.Content.Styles {
+		msg.Content.Styles[i].Color = th.Contrast(uc.Luminance)
+	}
+	return msg.Layout
 }
