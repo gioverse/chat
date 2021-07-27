@@ -156,7 +156,10 @@ func NewUI(w *app.Window) *UI {
 					Presenter: func(data list.Element, state interface{}) layout.Widget {
 						switch data := data.(type) {
 						case model.Message:
-							var w layout.Widget
+							var (
+								w  layout.Widget
+								np *ninepatch.NinePatch = nil
+							)
 							state, ok := state.(*chatwidget.Row)
 							if !ok {
 								return func(C) D { return D{} }
@@ -167,6 +170,12 @@ func NewUI(w *app.Window) *UI {
 								log.Printf("unknown user: %v", data.Sender)
 								return func(C) D { return D{} }
 							}
+							switch user.Theme {
+							case model.ThemeHotdog:
+								np = &hotdog
+							case model.ThemePlatoCookie:
+								np = &cookie
+							}
 							if usePlato {
 								msg := plato.NewRow(th.Theme, state, &ui.MessageMenu, plato.RowConfig{
 									Sender:  data.Sender,
@@ -175,14 +184,8 @@ func NewUI(w *app.Window) *UI {
 									SentAt:  data.SentAt,
 									Local:   user.Name == local.Name,
 								})
-								switch user.Theme {
-								case model.ThemeHotdog:
-									msg.MessageStyle = msg.WithNinePatch(th.Theme, hotdog)
-								case model.ThemePlatoCookie:
-									msg.MessageStyle = msg.WithNinePatch(th.Theme, cookie)
-								}
-								if msg.MessageStyle.NinePatch != nil {
-									np := msg.NinePatch
+								if np != nil {
+									msg.MessageStyle = msg.WithNinePatch(th.Theme, *np)
 									if cl, ok := np.Image.At(np.Bounds().Dx()/2, np.Bounds().Dy()/2).(color.NRGBA); ok {
 										msg.TextColor(th.Contrast(matchat.Luminance(cl)))
 									}
@@ -198,11 +201,8 @@ func NewUI(w *app.Window) *UI {
 									SentAt:  data.SentAt,
 									Local:   user.Name == local.Name,
 								})
-								switch user.Theme {
-								case model.ThemeHotdog:
-									msg.MessageStyle = msg.WithNinePatch(th.Theme, hotdog)
-								case model.ThemePlatoCookie:
-									msg.MessageStyle = msg.WithNinePatch(th.Theme, cookie)
+								if np != nil {
+									msg.MessageStyle = msg.WithNinePatch(th.Theme, *np)
 								}
 								uc := th.LocalUserColor()
 								if !msg.Local {
