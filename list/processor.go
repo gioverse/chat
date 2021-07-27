@@ -34,7 +34,7 @@ type Element interface {
 // if the Synthesizer is invoked at the beginning of the list. This
 // function may choose to return nil to prevent current from
 // being shown.
-type Synthesizer func(previous, current Element) []Element
+type Synthesizer func(previous, current, next Element) []Element
 
 // Comparator returns whether element a sorts before element b in the
 // list.
@@ -95,7 +95,7 @@ func newDefaultElements() (out []Element) {
 // It does populate the Invalidator field with w.Invalidate.
 func DefaultHooks(w *app.Window, th *material.Theme) Hooks {
 	return Hooks{
-		Synthesizer: func(prev, curr Element) []Element {
+		Synthesizer: func(prev, curr, next Element) []Element {
 			return []Element{curr}
 		},
 		Comparator: func(a, b Element) bool {
@@ -283,11 +283,17 @@ func (r *processor) Synthesize() []Element {
 	// Synthesize any elements that need to be created between existing
 	// ones.
 	for i, elem := range r.Raw {
-		var previous Element
+		var (
+			previous Element
+			next     Element
+		)
 		if i > 0 {
 			previous = r.Raw[i-1]
 		}
-		synthesized := r.Synthesizer(previous, elem)
+		if i < len(r.Raw)-1 {
+			next = r.Raw[i+1]
+		}
+		synthesized := r.Synthesizer(previous, elem, next)
 		// Mark that each of these synthesized elements came from the
 		// raw element at index i.
 		for range synthesized {

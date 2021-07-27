@@ -474,7 +474,7 @@ func FromModel(m model.Message) matchat.RowConfig {
 
 // synth inserts date separators and unread separators
 // between chat rows as a list.Synthesizer.
-func synth(previous, row list.Element) []list.Element {
+func synth(previous, row, next list.Element) []list.Element {
 	var out []list.Element
 	asMessage, ok := row.(model.Message)
 	if !ok {

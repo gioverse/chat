@@ -93,7 +93,7 @@ func TestManager(t *testing.T) {
 		},
 		Invalidator: func() {},
 		Comparator:  func(a, b Element) bool { return true },
-		Synthesizer: func(a, b Element) []Element { return nil },
+		Synthesizer: func(a, b, c Element) []Element { return nil },
 	})
 	// Shut down the existing background processing for this manager.
 	close(m.requests)
@@ -425,7 +425,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 		Loader:      func(dir Direction, relativeTo Serial) []Element { return nil },
 		Invalidator: func() {},
 		Comparator:  func(a, b Element) bool { return true },
-		Synthesizer: func(a, b Element) []Element { return nil },
+		Synthesizer: func(a, b, c Element) []Element { return nil },
 	})
 	// Shut down the existing background processing for this manager.
 	close(m.requests)
@@ -575,5 +575,5 @@ var testHooks = Hooks{
 	},
 	Invalidator: func() {},
 	Comparator:  func(a, b Element) bool { return true },
-	Synthesizer: func(a, b Element) []Element { return nil },
+	Synthesizer: func(a, b, c Element) []Element { return nil },
 }

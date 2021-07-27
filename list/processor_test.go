@@ -17,7 +17,7 @@ func (t testElement) Serial() Serial {
 	return Serial(t.serial)
 }
 
-func testSynthesizer(previous, current Element) []Element {
+func testSynthesizer(previous, current, next Element) []Element {
 	out := []Element{}
 	for i := 0; i < current.(testElement).synthCount; i++ {
 		out = append(out, current)
