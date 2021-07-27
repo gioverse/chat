@@ -47,6 +47,10 @@ type UI struct {
 	// It also contains interact state, rather than maintaining two
 	// separate lists for the model and state.
 	Rooms Rooms
+	// Local user for this client.
+	Local *model.User
+	// Users contains user data.
+	Users *model.Users
 	// RoomList for the sidebar.
 	RoomList widget.List
 	// Modal can show widgets atop the rest of the ui.
@@ -58,11 +62,9 @@ type UI struct {
 	// InsideRoom if we are currently in the room view.
 	// Used to decide when to render the sidebar on small viewports.
 	InsideRoom bool
-
 	// AddBtn holds click state for a button that adds a new message to
 	// the current room.
 	AddBtn widget.Clickable
-
 	// DeleteBtn holds click state for a button that removes a message
 	// from the current room.
 	DeleteBtn widget.Clickable
@@ -72,6 +74,33 @@ type UI struct {
 	// menu is currently acting.
 	ContextMenuTarget *model.Message
 }
+
+var (
+	cookie = func() ninepatch.NinePatch {
+		imgf, err := res.Resources.Open("9-Patch/iap_platocookie_asset_2.png")
+		if err != nil {
+			panic(fmt.Errorf("opening image: %w", err))
+		}
+		defer imgf.Close()
+		img, err := png.Decode(imgf)
+		if err != nil {
+			panic(fmt.Errorf("decoding png: %w", err))
+		}
+		return ninepatch.DecodeNinePatch(img)
+	}()
+	hotdog = func() ninepatch.NinePatch {
+		imgf, err := res.Resources.Open("9-Patch/iap_hotdog_asset.png")
+		if err != nil {
+			panic(fmt.Errorf("opening image: %w", err))
+		}
+		defer imgf.Close()
+		img, err := png.Decode(imgf)
+		if err != nil {
+			panic(fmt.Errorf("decoding png: %w", err))
+		}
+		return ninepatch.DecodeNinePatch(img)
+	}()
+)
 
 // NewUI constructs a UI and populates it with dummy data.
 func NewUI(w *app.Window) *UI {
@@ -85,37 +114,7 @@ func NewUI(w *app.Window) *UI {
 		},
 	}
 
-	var (
-		cookie = func() ninepatch.NinePatch {
-			imgf, err := res.Resources.Open("9-Patch/iap_platocookie_asset_2.png")
-			if err != nil {
-				panic(fmt.Errorf("opening image: %w", err))
-			}
-			defer imgf.Close()
-			img, err := png.Decode(imgf)
-			if err != nil {
-				panic(fmt.Errorf("decoding png: %w", err))
-			}
-			return ninepatch.DecodeNinePatch(img)
-		}()
-		hotdog = func() ninepatch.NinePatch {
-			imgf, err := res.Resources.Open("9-Patch/iap_hotdog_asset.png")
-			if err != nil {
-				panic(fmt.Errorf("opening image: %w", err))
-			}
-			defer imgf.Close()
-			img, err := png.Decode(imgf)
-			if err != nil {
-				panic(fmt.Errorf("decoding png: %w", err))
-			}
-			return ninepatch.DecodeNinePatch(img)
-		}()
-	)
-
-	// Generate up to 30 unique users.
 	users := GenUsers(10, 30)
-	// local user that from the perspective of the client.
-	// This is the user that is "signed-in".
 	local := users.Random()
 
 	// Messager can generate messages asynchronously based on the given user
@@ -153,95 +152,7 @@ func NewUI(w *app.Window) *UI {
 					},
 					// Define a presenter that can transform each kind of row data
 					// and state into a widget.
-					Presenter: func(data list.Element, state interface{}) layout.Widget {
-						switch data := data.(type) {
-						case model.Message:
-							var (
-								w  layout.Widget
-								np *ninepatch.NinePatch = nil
-							)
-							state, ok := state.(*chatwidget.Row)
-							if !ok {
-								return func(C) D { return D{} }
-							}
-							user, ok := users.Lookup(data.Sender)
-							if !ok {
-								// We don't know about this user, what to do?
-								log.Printf("unknown user: %v", data.Sender)
-								return func(C) D { return D{} }
-							}
-							switch user.Theme {
-							case model.ThemeHotdog:
-								np = &hotdog
-							case model.ThemePlatoCookie:
-								np = &cookie
-							}
-							if usePlato {
-								msg := plato.NewRow(th.Theme, state, &ui.MessageMenu, plato.RowConfig{
-									Sender:  data.Sender,
-									Content: data.Content,
-									Avatar:  data.Avatar,
-									SentAt:  data.SentAt,
-									Local:   user.Name == local.Name,
-								})
-								if np != nil {
-									msg.MessageStyle = msg.WithNinePatch(th.Theme, *np)
-									if cl, ok := np.Image.At(np.Bounds().Dx()/2, np.Bounds().Dy()/2).(color.NRGBA); ok {
-										msg.TextColor(th.Contrast(matchat.Luminance(cl)))
-									}
-								} else {
-									msg.TextColor(th.Contrast(matchat.Luminance(msg.BubbleStyle.Color)))
-								}
-								w = msg.Layout
-							} else {
-								msg := matchat.NewRow(th.Theme, state, &ui.MessageMenu, matchat.RowConfig{
-									Sender:  data.Sender,
-									Content: data.Content,
-									Avatar:  data.Avatar,
-									SentAt:  data.SentAt,
-									Local:   user.Name == local.Name,
-								})
-								if np != nil {
-									msg.MessageStyle = msg.WithNinePatch(th.Theme, *np)
-								}
-								uc := th.LocalUserColor()
-								if !msg.Local {
-									uc = th.UserColor(msg.Username.Text)
-								}
-								msg.MessageStyle.BubbleStyle.Color = uc.NRGBA
-								for i := range msg.Content.Styles {
-									msg.Content.Styles[i].Color = th.Contrast(uc.Luminance)
-								}
-								w = msg.Layout
-							}
-							return func(gtx C) D {
-								if state.Clicked() {
-									ui.Modal.Show(gtx.Now, func(gtx C) D {
-										return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
-											return widget.Image{
-												Src:      state.Image.Op(),
-												Fit:      widget.ScaleDown,
-												Position: layout.Center,
-											}.Layout(gtx)
-										})
-									})
-								}
-								if state.ContextArea.Active() {
-									// If the right-click context area for this message is activated,
-									// inform the UI that this message is the target of any action
-									// taken within that menu.
-									ui.ContextMenuTarget = &data
-								}
-								return w(gtx)
-							}
-						case model.DateBoundary:
-							return matchat.DateSeparator(th.Theme, data.Date).Layout
-						case model.UnreadBoundary:
-							return matchat.UnreadSeparator(th.Theme).Layout
-						default:
-							return func(gtx C) D { return D{} }
-						}
-					},
+					Presenter: ui.presentChatRow,
 					// NOTE(jfm): awkard coupling between message data and `list.Manager`.
 					Loader:      rt.Load,
 					Synthesizer: synth,
@@ -518,4 +429,97 @@ func rowLessThan(a, b list.Element) bool {
 	aAsInt, _ := strconv.Atoi(aID)
 	bAsInt, _ := strconv.Atoi(bID)
 	return aAsInt < bAsInt
+}
+
+// presentChatRow returns a widget closure that can layout the given chat item.
+// `data` contains managed data for this chat item, `state` contains UI defined
+// interactive state.
+func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget {
+	switch data := data.(type) {
+	case model.Message:
+		var (
+			w  layout.Widget
+			np *ninepatch.NinePatch = nil
+		)
+		state, ok := state.(*chatwidget.Row)
+		if !ok {
+			return func(C) D { return D{} }
+		}
+		user, ok := ui.Users.Lookup(data.Sender)
+		if !ok {
+			// We don't know about this user, what to do?
+			log.Printf("unknown user: %v", data.Sender)
+			return func(C) D { return D{} }
+		}
+		switch user.Theme {
+		case model.ThemeHotdog:
+			np = &hotdog
+		case model.ThemePlatoCookie:
+			np = &cookie
+		}
+		if usePlato {
+			msg := plato.NewRow(th.Theme, state, &ui.MessageMenu, plato.RowConfig{
+				Sender:  data.Sender,
+				Content: data.Content,
+				Avatar:  data.Avatar,
+				SentAt:  data.SentAt,
+				Local:   user.Name == ui.Local.Name,
+			})
+			if np != nil {
+				msg.MessageStyle = msg.WithNinePatch(th.Theme, *np)
+				if cl, ok := np.Image.At(np.Bounds().Dx()/2, np.Bounds().Dy()/2).(color.NRGBA); ok {
+					msg.TextColor(th.Contrast(matchat.Luminance(cl)))
+				}
+			} else {
+				msg.TextColor(th.Contrast(matchat.Luminance(msg.BubbleStyle.Color)))
+			}
+			w = msg.Layout
+		} else {
+			msg := matchat.NewRow(th.Theme, state, &ui.MessageMenu, matchat.RowConfig{
+				Sender:  data.Sender,
+				Content: data.Content,
+				Avatar:  data.Avatar,
+				SentAt:  data.SentAt,
+				Local:   user.Name == ui.Local.Name,
+			})
+			if np != nil {
+				msg.MessageStyle = msg.WithNinePatch(th.Theme, *np)
+			}
+			uc := th.LocalUserColor()
+			if !msg.Local {
+				uc = th.UserColor(msg.Username.Text)
+			}
+			msg.MessageStyle.BubbleStyle.Color = uc.NRGBA
+			for i := range msg.Content.Styles {
+				msg.Content.Styles[i].Color = th.Contrast(uc.Luminance)
+			}
+			w = msg.Layout
+		}
+		return func(gtx C) D {
+			if state.Clicked() {
+				ui.Modal.Show(gtx.Now, func(gtx C) D {
+					return layout.UniformInset(unit.Dp(25)).Layout(gtx, func(gtx C) D {
+						return widget.Image{
+							Src:      state.Image.Op(),
+							Fit:      widget.ScaleDown,
+							Position: layout.Center,
+						}.Layout(gtx)
+					})
+				})
+			}
+			if state.ContextArea.Active() {
+				// If the right-click context area for this message is activated,
+				// inform the UI that this message is the target of any action
+				// taken within that menu.
+				ui.ContextMenuTarget = &data
+			}
+			return w(gtx)
+		}
+	case model.DateBoundary:
+		return matchat.DateSeparator(th.Theme, data.Date).Layout
+	case model.UnreadBoundary:
+		return matchat.UnreadSeparator(th.Theme).Layout
+	default:
+		return func(gtx C) D { return D{} }
+	}
 }
