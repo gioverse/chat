@@ -558,3 +558,120 @@ func TestProcessorCompact(t *testing.T) {
 		})
 	}
 }
+
+// TestSynthesizerListBoundaries ensures that the Synthesizer is given special
+// sentinel values to indicate the absolutes start and absolute end of the
+// managed list.
+//
+// The test uses a synth implementation that inserts elements when it sees the
+// sentinel values.
+// The test then checks for the presence of those inserted elements to verify
+// that the sentinel values were sent correctly.
+func TestSynthesizerListBoundaries(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		input  []Element
+		output []Element
+	}{
+		{
+			name:   "empty: synth never called; expect empty slice",
+			output: []Element{},
+		},
+		{
+			name: "single element: expect both pseudo elements",
+			input: []Element{
+				testElement{serial: "1", synthCount: 1},
+			},
+			output: []Element{
+				Start{},
+				testElement{serial: "1", synthCount: 1},
+				End{},
+			},
+		},
+		{
+			name: "two element: expect both pseudo elements",
+			input: []Element{
+				testElement{serial: "1", synthCount: 1},
+				testElement{serial: "2", synthCount: 1},
+			},
+			output: []Element{
+				Start{},
+				testElement{serial: "1", synthCount: 1},
+				testElement{serial: "2", synthCount: 1},
+				End{},
+			},
+		},
+		{
+			name: "three element: expect both pseudo elements",
+			input: []Element{
+				testElement{serial: "1", synthCount: 1},
+				testElement{serial: "2", synthCount: 1},
+				testElement{serial: "3", synthCount: 1},
+			},
+			output: []Element{
+				Start{},
+				testElement{serial: "1", synthCount: 1},
+				testElement{serial: "2", synthCount: 1},
+				testElement{serial: "3", synthCount: 1},
+				End{},
+			},
+		},
+		{
+			name: "many element: expect both pseudo elements",
+			input: []Element{
+				testElement{serial: "1", synthCount: 1},
+				testElement{serial: "2", synthCount: 1},
+				testElement{serial: "3", synthCount: 1},
+				testElement{serial: "4", synthCount: 1},
+				testElement{serial: "5", synthCount: 1},
+				testElement{serial: "6", synthCount: 1},
+				testElement{serial: "7", synthCount: 1},
+				testElement{serial: "8", synthCount: 1},
+				testElement{serial: "9", synthCount: 1},
+			},
+			output: []Element{
+				Start{},
+				testElement{serial: "1", synthCount: 1},
+				testElement{serial: "2", synthCount: 1},
+				testElement{serial: "3", synthCount: 1},
+				testElement{serial: "4", synthCount: 1},
+				testElement{serial: "5", synthCount: 1},
+				testElement{serial: "6", synthCount: 1},
+				testElement{serial: "7", synthCount: 1},
+				testElement{serial: "8", synthCount: 1},
+				testElement{serial: "9", synthCount: 1},
+				End{},
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			proc := newProcessor(func(previous, current, next Element) []Element {
+				var (
+					atStart bool
+					atEnd   bool
+					out     []Element
+				)
+				if _, ok := previous.(Start); ok {
+					atStart = true
+				}
+				if _, ok := next.(End); ok {
+					atEnd = true
+				}
+				if atStart {
+					out = append(out, previous)
+				}
+				out = append(out, current)
+				if atEnd {
+					out = append(out, next)
+				}
+				return out
+			}, testComparator)
+			proc.Update(tc.input, nil, nil)
+			got := proc.Synthesize()
+			want := tc.output
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("got != want\n\t got = %#v\n\twant = %#v\n", got, want)
+			}
+		})
+	}
+}

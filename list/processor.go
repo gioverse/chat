@@ -27,6 +27,24 @@ type Element interface {
 	Serial() Serial
 }
 
+// Start is a psuedo Element that indicates the beginning of the list view,
+// that is, the beginning of the elements currently loaded in memory.
+// Type assert inside Synthesizer to check for list boundary.
+type Start struct{}
+
+func (Start) Serial() Serial {
+	return Serial("START")
+}
+
+// End is a psuedo Element that indicates the end of the list view, that is,
+// the end of the elements currently loaded in memory.
+// Type assert inside Synthesizer to check for list boundary.
+type End struct{}
+
+func (End) Serial() Serial {
+	return Serial("END")
+}
+
 // Synthesizer is a function that can insert synthetic elements into
 // a list of elements. The most common use case for this is to insert
 // separators between elements indicating the passage of time or
@@ -289,9 +307,13 @@ func (r *processor) Synthesize() []Element {
 		)
 		if i > 0 {
 			previous = r.Raw[i-1]
+		} else {
+			previous = Start{}
 		}
 		if i < len(r.Raw)-1 {
 			next = r.Raw[i+1]
+		} else {
+			next = End{}
 		}
 		synthesized := r.Synthesizer(previous, elem, next)
 		// Mark that each of these synthesized elements came from the

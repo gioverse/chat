@@ -109,7 +109,7 @@ func present(e list.Element, state interface{}) layout.Widget {
 }
 
 // synthesizer transforms elements, though no transformation is necessary for this use-case.
-func synthesizer(previous, current list.Element) []list.Element {
+func synthesizer(previous, current, next list.Element) []list.Element {
 	return []list.Element{current}
 }
 
