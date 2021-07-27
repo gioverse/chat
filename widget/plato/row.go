@@ -169,7 +169,7 @@ func (c RowStyle) layoutBubble(gtx C) D {
 // layoutAvatar lays out the user avatar image.
 func (c RowStyle) layoutAvatar(gtx C) D {
 	return layout.Inset{
-		Top:    unit.Dp(12),
+		Top:    unit.Dp(8),
 		Bottom: unit.Dp(6),
 		Left:   unit.Dp(6),
 		Right:  unit.Dp(6),

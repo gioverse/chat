@@ -143,7 +143,11 @@ func (m MessageStyle) Layout(gtx C) D {
 		})
 	}
 	macro := op.Record(gtx.Ops)
-	dims := m.ContentPadding.Layout(gtx, func(gtx C) D {
+	dims := layout.Inset{
+		Top:   m.ContentPadding.Top,
+		Left:  m.ContentPadding.Left,
+		Right: m.ContentPadding.Right,
+	}.Layout(gtx, func(gtx C) D {
 		return m.Content.Layout(gtx)
 	})
 	call := macro.Stop()
@@ -167,7 +171,10 @@ func (m MessageStyle) Layout(gtx C) D {
 							width = dims.Size.X
 						}
 						gtx.Constraints.Max.X = width
-						return m.ContentPadding.Layout(gtx, func(gtx C) D {
+						return layout.Inset{
+							Bottom: m.ContentPadding.Right,
+							Right:  m.ContentPadding.Bottom,
+						}.Layout(gtx, func(gtx C) D {
 							return layout.Flex{
 								Axis:      layout.Horizontal,
 								Alignment: layout.Middle,

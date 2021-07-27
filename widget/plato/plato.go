@@ -22,7 +22,7 @@ var (
 	DefaultMaxImageHeight  = unit.Dp(400)
 	DefaultMaxMessageWidth = unit.Dp(600)
 	DefaultMinMessageWidth = unit.Dp(80)
-	DefaultAvatarSize      = unit.Dp(32)
+	DefaultAvatarSize      = unit.Dp(28)
 	LocalMessageColor      = color.NRGBA{R: 63, G: 133, B: 232, A: 255}
 	NonLocalMessageColor   = color.NRGBA{R: 50, G: 50, B: 50, A: 255}
 )
