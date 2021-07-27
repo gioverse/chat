@@ -104,6 +104,7 @@ func NewRow(
 				}
 				return NonLocalMessageColor
 			}(),
+			Compact: msg.SentAt == (time.Time{}),
 		}),
 	}
 	ms.UserInfoStyle.Local = msg.Local

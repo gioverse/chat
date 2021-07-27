@@ -46,6 +46,8 @@ type MessageStyle struct {
 	// Clickable indicates whether the message content should be able to receive
 	// click events.
 	Clickable bool
+	// Compact mode avoids laying out timestamp and read-receipt.
+	Compact bool
 }
 
 // MessageConfig describes aspects of a chat message.
@@ -59,6 +61,8 @@ type MessageConfig struct {
 	// Color of the message bubble.
 	// Defaults to LocalMessageColor.
 	Color color.NRGBA
+	// Compact mode avoids laying out timestamp and read-receipt.
+	Compact bool
 }
 
 // Message constructs a MessageStyle with sensible defaults.
@@ -90,7 +94,8 @@ func Message(th *material.Theme, interact *chatwidget.Message, msg MessageConfig
 			l.Color = component.WithAlpha(l.Color, 200)
 			return l
 		}(),
-		Receipt:   TickIcon,
+		Receipt: TickIcon,
+		Compact: msg.Compact,
 	}
 }
 
@@ -129,6 +134,13 @@ func (m MessageStyle) Layout(gtx C) D {
 	surface := m.BubbleStyle.Layout
 	if m.NinePatch != nil {
 		surface = m.NinePatch.Layout
+	}
+	if m.Compact {
+		return surface(gtx, func(gtx C) D {
+			return m.ContentPadding.Layout(gtx, func(gtx C) D {
+				return m.Content.Layout(gtx)
+			})
+		})
 	}
 	macro := op.Record(gtx.Ops)
 	dims := m.ContentPadding.Layout(gtx, func(gtx C) D {
