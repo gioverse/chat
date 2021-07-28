@@ -44,7 +44,7 @@ func (m *Messager) Generate() model.Message {
 		serial = m.old.Increment()
 		at     = time.Now().Add(time.Hour * time.Duration(serial) * -1)
 	)
-	return m.msg(user.Name, lorem.Paragraph(1, 5), inflection-serial, at)
+	return m.msg(user.Name, "", inflection-serial, at)
 }
 
 // msg generates a message with sensible defaults.
@@ -56,10 +56,18 @@ func (m *Messager) msg(sender, content string, serial int, at time.Time) model.M
 	return model.Message{
 		SerialID: fmt.Sprintf("%05d", serial),
 		Sender:   user.Name,
-		Content:  content,
-		SentAt:   at,
-		Avatar:   user.Avatar,
+		Content: func() string {
+			if content == "" {
+				return lorem.Paragraph(1, 5)
+			}
+			return content
+		}(),
+		SentAt: at,
+		Avatar: user.Avatar,
 		Image: func() image.Image {
+			if content != "" {
+				return nil
+			}
 			if rand.Float32() < 0.7 {
 				return nil
 			}
