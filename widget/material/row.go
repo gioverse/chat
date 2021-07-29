@@ -16,8 +16,7 @@ import (
 // RowStyle configures the presentation of a chat message within
 // a vertical list of chat messages.
 type RowStyle struct {
-	OuterMargin chatlayout.VerticalMarginStyle
-	chatlayout.GutterStyle
+	chatlayout.Row
 	// Local indicates that the message was sent by the local user,
 	// and should be right-aligned.
 	Local bool
@@ -31,8 +30,6 @@ type RowStyle struct {
 	// StatusMessage defines a warning message to be displayed beneath the
 	// chat message.
 	StatusMessage material.LabelStyle
-	// ContentMargin configures space around the chat bubble.
-	ContentMargin chatlayout.VerticalMarginStyle
 	// UserInfoStyle configures how the sender's information is displayed.
 	UserInfoStyle
 	// MessageStyle configures how the text and its background are presented.
@@ -64,18 +61,24 @@ func NewRow(th *material.Theme, interact *chatwidget.Row, menu *component.MenuSt
 		menu = &component.MenuState{}
 	}
 	ms := RowStyle{
-		OuterMargin:   chatlayout.VerticalMargin(),
-		GutterStyle:   chatlayout.Gutter(),
+		Row: chatlayout.Row{
+			Margin:    chatlayout.VerticalMargin(),
+			Padding:   chatlayout.VerticalMargin(),
+			Gutter:    chatlayout.Gutter(),
+			Direction: layout.W,
+		},
 		Time:          material.Body2(th, msg.SentAt.Local().Format("15:04")),
 		Local:         msg.Local,
 		IconSize:      unit.Dp(32),
-		ContentMargin: chatlayout.VerticalMargin(),
 		UserInfoStyle: UserInfo(th, &interact.UserInfo, msg.Sender, msg.Avatar),
 		Interaction:   interact,
 		Menu:          component.Menu(th, menu),
 		MessageStyle:  Message(th, &interact.Message, msg.Content, msg.Image),
 	}
 	ms.UserInfoStyle.Local = msg.Local
+	if msg.Local {
+		ms.Row.Direction = layout.E
+	}
 	if msg.Status != "" {
 		ms.StatusMessage = material.Body2(th, msg.Status)
 		ms.StatusMessage.Color = DefaultDangerColor
@@ -87,45 +90,18 @@ func NewRow(th *material.Theme, interact *chatwidget.Row, menu *component.MenuSt
 
 // Layout the message.
 func (c RowStyle) Layout(gtx C) D {
-	return c.OuterMargin.Layout(gtx, func(gtx C) D {
-		messageAlignment := layout.W
-		if c.Local {
-			messageAlignment = layout.E
-		}
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(func(gtx C) D {
-				return c.GutterStyle.Layout(gtx,
-					nil,
-					func(gtx C) D {
-						return messageAlignment.Layout(gtx, c.UserInfoStyle.Layout)
-					},
-					nil,
-				)
-			}),
-			layout.Rigid(func(gtx C) D {
-				return c.GutterStyle.Layout(gtx,
-					nil,
-					func(gtx C) D {
-						return messageAlignment.Layout(gtx, c.layoutBubble)
-					},
-					c.layoutTimeOrIcon,
-				)
-			}),
-			layout.Rigid(func(gtx C) D {
-				if c.StatusMessage.Text == "" {
-					return D{}
-				}
-				return layout.E.Layout(gtx, c.StatusMessage.Layout)
-			}),
-		)
-	})
+	return c.Row.Layout(gtx,
+		chatlayout.ContentRow(c.UserInfoStyle.Layout),
+		chatlayout.FullRow(nil, c.layoutBubble, c.layoutTimeOrIcon),
+		chatlayout.UnifiedRow(c.layoutStatusMessage),
+	)
 }
 
 // layoutBubble lays out the chat bubble.
 func (c RowStyle) layoutBubble(gtx C) D {
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx C) D {
-			return c.ContentMargin.Layout(gtx, c.MessageStyle.Layout)
+			return c.MessageStyle.Layout(gtx)
 		}),
 		layout.Expanded(func(gtx C) D {
 			return c.Interaction.ContextArea.Layout(gtx, func(gtx C) D {
@@ -149,4 +125,12 @@ func (c RowStyle) layoutTimeOrIcon(gtx C) D {
 		gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
 		return c.StatusIcon.Layout(gtx)
 	})
+}
+
+// layoutStatusMessage lays out status message text, if any.
+func (c RowStyle) layoutStatusMessage(gtx C) D {
+	if c.StatusMessage.Text == "" {
+		return D{}
+	}
+	return layout.E.Layout(gtx, c.StatusMessage.Layout)
 }
