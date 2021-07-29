@@ -21,8 +21,7 @@ import (
 // In particular, RowStyle is repsonsible for gutters and anchoring of
 // messages.
 type RowStyle struct {
-	OuterMargin chatlayout.VerticalMarginStyle
-	chatlayout.GutterStyle
+	chatlayout.Row
 	// Local indicates that the message was sent by the local user,
 	// and should be right-aligned.
 	Local bool
@@ -31,8 +30,6 @@ type RowStyle struct {
 	// StatusMessage defines a warning message to be displayed beneath the
 	// chat message.
 	StatusMessage material.LabelStyle
-	// ContentMargin configures space around the chat bubble.
-	ContentMargin chatlayout.VerticalMarginStyle
 	// UserInfoStyle configures how the sender's information is displayed.
 	UserInfoStyle
 	// Avatar image for the user.
@@ -71,15 +68,18 @@ func NewRow(
 	}
 	interact.Avatar.Cache(msg.Avatar)
 	ms := RowStyle{
-		OuterMargin: chatlayout.VerticalMargin(),
-		GutterStyle: chatlayout.GutterStyle{
-			LeftWidth:  unit.Dp(unit.Dp(12).V + DefaultAvatarSize.V),
-			RightWidth: unit.Dp(unit.Dp(12).V + DefaultAvatarSize.V),
-			Alignment:  layout.Start,
+		Row: chatlayout.Row{
+			Margin:  chatlayout.VerticalMargin(),
+			Padding: chatlayout.VerticalMargin(),
+			Gutter: chatlayout.GutterStyle{
+				LeftWidth:  unit.Dp(unit.Dp(12).V + DefaultAvatarSize.V),
+				RightWidth: unit.Dp(unit.Dp(12).V + DefaultAvatarSize.V),
+				Alignment:  layout.Start,
+			},
+			Direction: layout.W,
 		},
 		Time:          material.Body2(th, msg.SentAt.Local().Format("15:04")),
 		Local:         msg.Local,
-		ContentMargin: chatlayout.VerticalMargin(),
 		UserInfoStyle: UserInfo(th, msg.Sender),
 		Avatar: chatmaterial.Image{
 			Image: widget.Image{
@@ -108,54 +108,39 @@ func NewRow(
 		}),
 	}
 	ms.UserInfoStyle.Local = msg.Local
+	if msg.Local {
+		ms.Row.Direction = layout.E
+	}
 	return ms
 }
 
 // Layout the message.
 func (c RowStyle) Layout(gtx C) D {
-	return c.OuterMargin.Layout(gtx, func(gtx C) D {
-		alignment := layout.W
-		if c.Local {
-			alignment = layout.E
-		}
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-			layout.Rigid(func(gtx C) D {
-				return c.GutterStyle.Layout(gtx,
-					nil,
-					func(gtx C) D {
-						return alignment.Layout(gtx, c.UserInfoStyle.Layout)
-					},
-					nil,
-				)
-			}),
-			layout.Rigid(func(gtx C) D {
-				return c.GutterStyle.Layout(gtx,
-					func(gtx C) D {
-						if !c.Local {
-							return c.layoutAvatar(gtx)
-						}
-						return D{}
-					},
-					func(gtx C) D {
-						return alignment.Layout(gtx, c.layoutBubble)
-					},
-					func(gtx C) D {
-						if c.Local {
-							return c.layoutAvatar(gtx)
-						}
-						return D{}
-					},
-				)
-			}),
-		)
-	})
+	return c.Row.Layout(gtx,
+		chatlayout.ContentRow(c.UserInfoStyle.Layout),
+		chatlayout.FullRow(
+			func(gtx C) D {
+				if c.Local {
+					return D{}
+				}
+				return c.layoutAvatar(gtx)
+			},
+			c.layoutBubble,
+			func(gtx C) D {
+				if !c.Local {
+					return D{}
+				}
+				return c.layoutAvatar(gtx)
+			},
+		),
+	)
 }
 
 // layoutBubble lays out the chat bubble.
 func (c RowStyle) layoutBubble(gtx C) D {
 	return layout.Stack{}.Layout(gtx,
 		layout.Stacked(func(gtx C) D {
-			return c.ContentMargin.Layout(gtx, c.MessageStyle.Layout)
+			return c.MessageStyle.Layout(gtx)
 		}),
 		layout.Expanded(func(gtx C) D {
 			return c.Interaction.ContextArea.Layout(gtx, func(gtx C) D {
