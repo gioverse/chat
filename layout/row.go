@@ -58,6 +58,15 @@ func UnifiedRow(w layout.Widget) RowChild {
 
 // Layout the Row with any number of internal rows.
 func (r Row) Layout(gtx C, w ...RowChild) D {
+	var (
+		// array is a stack allocated array to avoid heap allocation if number
+		// of RowChild is small.
+		// Otherwise, slice append will allocate as needed.
+		// 16 is a magic number subject to change upon further analysis.
+		array [16]layout.FlexChild
+		// slice based on the stack allocated array.
+		slice = array[0:0]
+	)
 	content := func(ii int) layout.Widget {
 		return func(gtx C) D {
 			if w[ii].Content == nil {
@@ -66,10 +75,9 @@ func (r Row) Layout(gtx C, w ...RowChild) D {
 			return w[ii].Content(gtx)
 		}
 	}
-	var fl = make([]layout.FlexChild, len(w))
 	for ii := range w {
 		ii := ii
-		fl[ii] = layout.Rigid(func(gtx C) D {
+		slice = append(slice, layout.Rigid(func(gtx C) D {
 			return r.InternalMargin.Layout(gtx, func(gtx C) D {
 				if w[ii].Unified {
 					return content(ii)(gtx)
@@ -82,9 +90,9 @@ func (r Row) Layout(gtx C, w ...RowChild) D {
 					w[ii].Right,
 				)
 			})
-		})
+		}))
 	}
 	return r.Margin.Layout(gtx, func(gtx C) D {
-		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, fl...)
+		return layout.Flex{Axis: layout.Vertical}.Layout(gtx, slice...)
 	})
 }
