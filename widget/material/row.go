@@ -62,10 +62,10 @@ func NewRow(th *material.Theme, interact *chatwidget.Row, menu *component.MenuSt
 	}
 	ms := RowStyle{
 		Row: chatlayout.Row{
-			Margin:    chatlayout.VerticalMargin(),
-			Padding:   chatlayout.VerticalMargin(),
-			Gutter:    chatlayout.Gutter(),
-			Direction: layout.W,
+			Margin:         chatlayout.VerticalMargin(),
+			InternalMargin: chatlayout.VerticalMargin(),
+			Gutter:         chatlayout.Gutter(),
+			Direction:      layout.W,
 		},
 		Time:          material.Body2(th, msg.SentAt.Local().Format("15:04")),
 		Local:         msg.Local,

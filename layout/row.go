@@ -15,8 +15,9 @@ type (
 type Row struct {
 	// Margin between rows.
 	Margin VerticalMarginStyle
-	// Padding around the central widget.
-	Padding VerticalMarginStyle
+	// InternalMargin between internal rows.
+	// Leave unset if you want to control spacing between RowChild individually.
+	InternalMargin VerticalMarginStyle
 	// Gutter handles the left-right gutters of the row that provides padding and
 	// can contain other widgets.
 	Gutter GutterStyle

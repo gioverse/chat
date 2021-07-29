@@ -69,8 +69,8 @@ func NewRow(
 	interact.Avatar.Cache(msg.Avatar)
 	ms := RowStyle{
 		Row: chatlayout.Row{
-			Margin:  chatlayout.VerticalMargin(),
-			Padding: chatlayout.VerticalMargin(),
+			Margin:         chatlayout.VerticalMargin(),
+			InternalMargin: chatlayout.VerticalMargin(),
 			Gutter: chatlayout.GutterStyle{
 				LeftWidth:  unit.Dp(unit.Dp(12).V + DefaultAvatarSize.V),
 				RightWidth: unit.Dp(unit.Dp(12).V + DefaultAvatarSize.V),
