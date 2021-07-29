@@ -32,6 +32,7 @@ type RowChild struct {
 	Left    layout.Widget
 	Content layout.Widget
 	Right   layout.Widget
+	Unified bool
 }
 
 // FullRow returns a RowChild that lays out content with optional gutter widgets
@@ -49,29 +50,34 @@ func ContentRow(w layout.Widget) RowChild {
 	return RowChild{Content: w}
 }
 
+// UnifiedRow ignores gutters, taking up all available space.
+func UnifiedRow(w layout.Widget) RowChild {
+	return RowChild{Content: w, Unified: true}
+}
+
 // Layout the Row with any number of internal rows.
-func (r *Row) Layout(gtx C, w ...RowChild) D {
-	if r.Margin == (VerticalMarginStyle{}) {
-		r.Margin = VerticalMargin()
-	}
-	if r.Padding == (VerticalMarginStyle{}) {
-		r.Padding = VerticalMargin()
+func (r Row) Layout(gtx C, w ...RowChild) D {
+	content := func(ii int) layout.Widget {
+		return func(gtx C) D {
+			if w[ii].Content == nil {
+				return D{}
+			}
+			return r.Padding.Layout(gtx, func(gtx C) D {
+				return w[ii].Content(gtx)
+			})
+		}
 	}
 	var fl = make([]layout.FlexChild, len(w))
 	for ii := range w {
 		ii := ii
 		fl[ii] = layout.Rigid(func(gtx C) D {
+			if w[ii].Unified {
+				return content(ii)(gtx)
+			}
 			return r.Gutter.Layout(gtx,
 				w[ii].Left,
 				func(gtx C) D {
-					return r.Direction.Layout(gtx, func(gtx C) D {
-						return r.Padding.Layout(gtx, func(gtx C) D {
-							if w[ii].Content == nil {
-								return D{}
-							}
-							return w[ii].Content(gtx)
-						})
-					})
+					return r.Direction.Layout(gtx, content(ii))
 				},
 				w[ii].Right,
 			)
