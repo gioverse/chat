@@ -74,31 +74,23 @@ type UI struct {
 	ContextMenuTarget *model.Message
 }
 
+// loadNinePatch from the embedded resources package.
+func loadNinePatch(path string) ninepatch.NinePatch {
+	imgf, err := res.Resources.Open(path)
+	if err != nil {
+		panic(fmt.Errorf("opening image: %w", err))
+	}
+	defer imgf.Close()
+	img, err := png.Decode(imgf)
+	if err != nil {
+		panic(fmt.Errorf("decoding png: %w", err))
+	}
+	return ninepatch.DecodeNinePatch(img)
+}
+
 var (
-	cookie = func() ninepatch.NinePatch {
-		imgf, err := res.Resources.Open("9-Patch/iap_platocookie_asset_2.png")
-		if err != nil {
-			panic(fmt.Errorf("opening image: %w", err))
-		}
-		defer imgf.Close()
-		img, err := png.Decode(imgf)
-		if err != nil {
-			panic(fmt.Errorf("decoding png: %w", err))
-		}
-		return ninepatch.DecodeNinePatch(img)
-	}()
-	hotdog = func() ninepatch.NinePatch {
-		imgf, err := res.Resources.Open("9-Patch/iap_hotdog_asset.png")
-		if err != nil {
-			panic(fmt.Errorf("opening image: %w", err))
-		}
-		defer imgf.Close()
-		img, err := png.Decode(imgf)
-		if err != nil {
-			panic(fmt.Errorf("decoding png: %w", err))
-		}
-		return ninepatch.DecodeNinePatch(img)
-	}()
+	cookie = loadNinePatch("9-Patch/iap_platocookie_asset_2.png")
+	hotdog = loadNinePatch("9-Patch/iap_hotdog_asset.png")
 )
 
 // NewUI constructs a UI and populates it with dummy data.
