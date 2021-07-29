@@ -105,17 +105,17 @@ func NewUI(w *app.Window) *UI {
 		},
 	}
 
-	users := GenUsers(10, 30)
-	local := users.Random()
+	ui.Users = GenUsers(10, 30)
+	ui.Local = ui.Users.Random()
 
 	// Messager can generate messages asynchronously based on the given user
 	// data.
 	messager := Messager{
-		Users: users,
+		Users: ui.Users,
 	}
 
 	for ii := rand.Intn(10) + 5; ii > 0; ii-- {
-		rt := NewExampleData(local, &messager, 100)
+		rt := NewExampleData(ui.Local, &messager, 100)
 		rt.SimulateLatency = latency
 		ui.Rooms.List = append(ui.Rooms.List, Room{
 			Room: model.Room{
