@@ -63,25 +63,25 @@ func (r Row) Layout(gtx C, w ...RowChild) D {
 			if w[ii].Content == nil {
 				return D{}
 			}
-			return r.Padding.Layout(gtx, func(gtx C) D {
-				return w[ii].Content(gtx)
-			})
+			return w[ii].Content(gtx)
 		}
 	}
 	var fl = make([]layout.FlexChild, len(w))
 	for ii := range w {
 		ii := ii
 		fl[ii] = layout.Rigid(func(gtx C) D {
-			if w[ii].Unified {
-				return content(ii)(gtx)
-			}
-			return r.Gutter.Layout(gtx,
-				w[ii].Left,
-				func(gtx C) D {
-					return r.Direction.Layout(gtx, content(ii))
-				},
-				w[ii].Right,
-			)
+			return r.InternalMargin.Layout(gtx, func(gtx C) D {
+				if w[ii].Unified {
+					return content(ii)(gtx)
+				}
+				return r.Gutter.Layout(gtx,
+					w[ii].Left,
+					func(gtx C) D {
+						return r.Direction.Layout(gtx, content(ii))
+					},
+					w[ii].Right,
+				)
+			})
 		})
 	}
 	return r.Margin.Layout(gtx, func(gtx C) D {
