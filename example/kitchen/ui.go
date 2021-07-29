@@ -349,7 +349,16 @@ func (ui *UI) layoutEditor(gtx C) D {
 	return chatlayout.Rounded(unit.Dp(8)).Layout(gtx, func(gtx C) D {
 		return chatlayout.Background(th.Palette.Surface).Layout(gtx, func(gtx C) D {
 			return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx C) D {
-				return material.Editor(th.Theme, &ui.Rooms.Active().Editor, "Send a message").Layout(gtx)
+				editor := &ui.Rooms.Active().Editor
+				for _, e := range editor.Events() {
+					switch e.(type) {
+					case widget.SubmitEvent:
+						ui.Rooms.Active().SendMessage()
+					}
+				}
+				editor.Submit = true
+				editor.SingleLine = true
+				return material.Editor(th.Theme, editor, "Send a message").Layout(gtx)
 			})
 		})
 	})
