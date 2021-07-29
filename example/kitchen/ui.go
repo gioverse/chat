@@ -500,6 +500,7 @@ func (ui *UI) row(usePlato bool, data model.Message, state *chatwidget.Row) layo
 		Content: data.Content,
 		Avatar:  data.Avatar,
 		SentAt:  data.SentAt,
+		Image:   data.Image,
 		Local:   user.Name == ui.Local.Name,
 	})
 	if np != nil {
