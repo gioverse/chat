@@ -23,6 +23,7 @@ This repo contains many packages with different goals:
 - `example/kitchen`: An example of using all of this parts of this module together to build a chat interface.
 - `example/ninepatch`: An example of the ninepatch decoder.
 - `example/unconfigured`: A demonstration of the default behavior of the `list.Manager` if no custom hooks are provided to it.
+- `profile`: Simple profiling for Gio programs.  
 
 ## Usage
 
