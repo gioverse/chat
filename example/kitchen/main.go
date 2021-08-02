@@ -72,7 +72,6 @@ func main() {
 	go func() {
 		profiler := profile.Opt(profileOpt).NewProfiler()
 		profiler.Start()
-		defer profiler.Stop()
 		// Event loop executes indefinitely, until the app is signalled to quit.
 		// Integrate external services here.
 		for event := range w.Events() {
