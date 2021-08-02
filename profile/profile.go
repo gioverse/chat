@@ -11,6 +11,7 @@ import (
 
 // Profiler unifies the profiling api between Gio profiler and pkg/profile.
 type Profiler struct {
+	Type     Opt
 	Starter  func(p *profile.Profile)
 	Stopper  func()
 	Recorder func(gtx layout.Context)
@@ -18,8 +19,10 @@ type Profiler struct {
 
 // Start profiling.
 func (pfn *Profiler) Start() {
-	if pfn.Starter != nil {
+	if pfn.Starter != nil && pfn.Type != Gio {
 		pfn.Stopper = profile.Start(pfn.Starter).Stop
+	} else if pfn.Type == Gio {
+		pfn.Starter(nil)
 	}
 }
 
@@ -55,25 +58,26 @@ const (
 func (p Opt) NewProfiler() Profiler {
 	switch p {
 	case "", None:
-		return Profiler{}
+		return Profiler{Type: p}
 	case CPU:
-		return Profiler{Starter: profile.CPUProfile}
+		return Profiler{Type: p, Starter: profile.CPUProfile}
 	case Memory:
-		return Profiler{Starter: profile.MemProfile}
+		return Profiler{Type: p, Starter: profile.MemProfile}
 	case Block:
-		return Profiler{Starter: profile.BlockProfile}
+		return Profiler{Type: p, Starter: profile.BlockProfile}
 	case Goroutine:
-		return Profiler{Starter: profile.GoroutineProfile}
+		return Profiler{Type: p, Starter: profile.GoroutineProfile}
 	case Mutex:
-		return Profiler{Starter: profile.MutexProfile}
+		return Profiler{Type: p, Starter: profile.MutexProfile}
 	case Trace:
-		return Profiler{Starter: profile.TraceProfile}
+		return Profiler{Type: p, Starter: profile.TraceProfile}
 	case Gio:
 		var (
 			recorder *profiling.CSVTimingRecorder
 			err      error
 		)
 		return Profiler{
+			Type: p,
 			Starter: func(*profile.Profile) {
 				recorder, err = profiling.NewRecorder(nil)
 				if err != nil {
