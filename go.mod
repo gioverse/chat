@@ -7,6 +7,7 @@ require (
 	gioui.org/x v0.0.0-20210714204148-b4d794ff02d5
 	github.com/drhodes/golorem v0.0.0-20160418191928-ecccc744c2d9
 	github.com/lucasb-eyer/go-colorful v1.2.0
+	github.com/pkg/profile v1.6.0
 	golang.org/x/exp v0.0.0-20210707152300-16493b25073a
 	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d // indirect
 	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
