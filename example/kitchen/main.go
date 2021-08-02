@@ -17,6 +17,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/unit"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
+	"git.sr.ht/~gioverse/chat/profile"
 )
 
 var (
@@ -26,6 +27,8 @@ var (
 	usePlato bool
 	// latency specifies whether to simulate latency.
 	latency bool
+	// profileOpt specifies what to profile.
+	profileOpt string
 )
 
 // th is the active theme object.
@@ -37,6 +40,7 @@ var (
 func init() {
 	rand.Seed(time.Now().UnixNano())
 	flag.StringVar(&theme, "theme", "light", "theme to use {light,dark}")
+	flag.StringVar(&profileOpt, "profile", "none", "create the provided kind of profile. Use one of [none, cpu, mem, block, goroutine, mutex, trace, gio]")
 	flag.BoolVar(&usePlato, "plato", false, "use Plato Team Inc themed widgets")
 	flag.BoolVar(&latency, "latency", true, "whether to simulate network latency")
 	flag.Parse()
@@ -65,20 +69,25 @@ func main() {
 		// Instantiate our UI state.
 		ui = NewUI(w)
 	)
-
 	go func() {
+		profiler := profile.Opt(profileOpt).NewProfiler()
+		profiler.Start()
+		defer profiler.Stop()
 		// Event loop executes indefinitely, until the app is signalled to quit.
 		// Integrate external services here.
 		for event := range w.Events() {
 			switch event := event.(type) {
 			case system.DestroyEvent:
+				profiler.Stop()
 				if err := event.Err; err != nil {
 					fmt.Printf("error: premature window close: %v\n", err)
 					os.Exit(1)
 				}
 				os.Exit(0)
 			case system.FrameEvent:
-				ui.Layout(layout.NewContext(&ops, event))
+				gtx := layout.NewContext(&ops, event)
+				profiler.Record(gtx)
+				ui.Layout(gtx)
 				event.Frame(&ops)
 			}
 		}
