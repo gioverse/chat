@@ -122,3 +122,43 @@ const (
 	ThemePlatoCookie
 	ThemeHotdog
 )
+
+// Rooms structure manages a collection of rooms.
+type Rooms struct {
+	list  []Room
+	index map[string]*Room
+	once  sync.Once
+}
+
+// Add room to collection.
+func (r *Rooms) Add(room Room) {
+	r.once.Do(func() {
+		r.index = map[string]*Room{}
+	})
+	r.list = append(r.list, room)
+	r.index[room.Name] = &r.list[len(r.list)-1]
+}
+
+// List returns an ordered list of room data.
+func (r *Rooms) List() (list []*Room) {
+	list = make([]*Room, len(r.list))
+	for ii := range r.list {
+		list[ii] = &r.list[ii]
+	}
+	return list
+}
+
+// Lookup room by name.
+func (r *Rooms) Lookup(name string) (*Room, bool) {
+	v, ok := r.index[name]
+	return v, ok
+}
+
+// Random returns a randomly selected room from the collection.
+// If there are no rooms, nil is returned.
+func (r *Rooms) Random() *Room {
+	if len(r.list) == 0 {
+		return nil
+	}
+	return &r.list[rand.Intn(len(r.list)-1)]
+}
