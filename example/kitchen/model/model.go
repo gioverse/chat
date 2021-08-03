@@ -58,6 +58,18 @@ type Room struct {
 	Name string
 	// Latest message in the room, if any.
 	Latest *Message
+	// Composing is a set of users in this room currently composing a message.
+	Composing sync.Map
+}
+
+// SetComposing sets the composing status of a user for this room.
+func (r *Room) SetComposing(user string, isComposing bool) {
+	if isComposing {
+		r.Composing.Store(user, struct{}{})
+	}
+	if !isComposing {
+		r.Composing.Delete(user)
+	}
 }
 
 // User is a unique identity that can send messages and participate in rooms.

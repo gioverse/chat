@@ -1,6 +1,9 @@
 package main
 
 import (
+	"math/rand"
+	"sync"
+
 	"gioui.org/widget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
@@ -12,6 +15,7 @@ type Rooms struct {
 	active  int
 	changed bool
 	List    []Room
+	sync.Mutex
 }
 
 // Room is a unique conversation context.
@@ -72,16 +76,30 @@ func (r *Room) DeleteRow(serial list.Serial) {
 }
 
 // Active returns the active room, empty if not rooms are available.
-func (r Rooms) Active() *Room {
+func (r *Rooms) Active() *Room {
+	r.Lock()
+	defer r.Unlock()
 	if len(r.List) == 0 {
 		return &Room{}
 	}
 	return &r.List[r.active]
 }
 
+// Latest returns a copy of the latest message for the room.
+func (r *Room) Latest() model.Message {
+	r.lock.Lock()
+	defer r.lock.Unlock()
+	if r.Room.Latest == nil {
+		return model.Message{}
+	}
+	return *r.Room.Latest
+}
+
 // Select the room at the given index.
 // Index is bounded by [0, len(rooms)).
 func (r *Rooms) Select(index int) {
+	r.Lock()
+	defer r.Unlock()
 	if index < 0 {
 		index = 0
 	}
@@ -96,6 +114,29 @@ func (r *Rooms) Select(index int) {
 
 // Changed if the active room has changed since last call.
 func (r *Rooms) Changed() bool {
+	r.Lock()
+	defer r.Unlock()
 	defer func() { r.changed = false }()
 	return r.changed
+}
+
+// Index returns a pointer to a Room at the given index.
+// Index is bounded by [0, len(rooms)).
+func (r *Rooms) Index(index int) *Room {
+	r.Lock()
+	defer r.Unlock()
+	if index < 0 {
+		index = 0
+	}
+	if index > len(r.List) {
+		index = len(r.List) - 1
+	}
+	return &r.List[index]
+}
+
+// Index returns a pointer to a random Room in the list.
+func (r *Rooms) Random() *Room {
+	r.Lock()
+	defer r.Unlock()
+	return &r.List[rand.Intn(len(r.List)-1)]
 }

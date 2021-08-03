@@ -3,6 +3,7 @@ package apptheme
 import (
 	"image"
 	"image/color"
+	"time"
 
 	"gioui.org/layout"
 	"gioui.org/unit"
@@ -10,7 +11,6 @@ import (
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget"
-	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 	chatlayout "git.sr.ht/~gioverse/chat/layout"
 	matchat "git.sr.ht/~gioverse/chat/widget/material"
 )
@@ -26,21 +26,27 @@ type RoomStyle struct {
 	Overlay   color.NRGBA
 }
 
+// RoomConfig configures room item display.
+type RoomConfig struct {
+	// Name of the room as raw text.
+	Name string
+	// Image of the room.
+	Image image.Image
+	// Content of the latest message as raw text.
+	Content string
+	// SentAt timestamp of the latest message.
+	SentAt time.Time
+}
+
 // Room creates a style type that can lay out the data for a room.
-func Room(th *material.Theme, interact *appwidget.Room, room *model.Room) RoomStyle {
+func Room(th *material.Theme, interact *appwidget.Room, room *RoomConfig) RoomStyle {
 	interact.Image.Cache(room.Image)
-	var (
-		latest model.Message
-	)
-	if l := room.Latest; l != nil {
-		latest = *l
-	}
 	return RoomStyle{
 		Room: interact,
 		// TODO(jfm): name could use bold text.
 		Name:      material.Label(th, unit.Sp(14), room.Name),
-		Summary:   material.Label(th, unit.Sp(12), latest.Content),
-		TimeStamp: material.Label(th, unit.Sp(12), latest.SentAt.Local().Format("15:04")),
+		Summary:   material.Label(th, unit.Sp(12), room.Content),
+		TimeStamp: material.Label(th, unit.Sp(12), room.SentAt.Local().Format("15:04")),
 		Image: matchat.Image{
 			Image: widget.Image{
 				Src: interact.Image.Op(),

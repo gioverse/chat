@@ -337,8 +337,14 @@ func (ui *UI) layoutRoomList(gtx C) D {
 			ui.RoomList.Axis = layout.Vertical
 			gtx.Constraints.Min = gtx.Constraints.Max
 			return material.List(th.Theme, &ui.RoomList).Layout(gtx, len(ui.Rooms.List), func(gtx C, ii int) D {
-				r := &ui.Rooms.List[ii]
-				return apptheme.Room(th.Theme, &r.Interact, &r.Room).Layout(gtx)
+				r := ui.Rooms.Index(ii)
+				latest := r.Latest()
+				return apptheme.Room(th.Theme, &r.Interact, &apptheme.RoomConfig{
+					Name:    r.Room.Name,
+					Image:   r.Room.Image,
+					Content: latest.Content,
+					SentAt:  latest.SentAt,
+				}).Layout(gtx)
 			})
 		}),
 	)
@@ -353,7 +359,7 @@ func (ui *UI) layoutEditor(gtx C) D {
 				for _, e := range editor.Events() {
 					switch e.(type) {
 					case widget.SubmitEvent:
-						ui.Rooms.Active().SendMessage()
+						ui.Rooms.Active().SendLocal()
 					}
 				}
 				editor.Submit = true
