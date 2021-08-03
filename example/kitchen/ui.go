@@ -5,6 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
+	"math/rand"
 	"strconv"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"gioui.org/widget"
 	"gioui.org/widget/material"
 	"gioui.org/x/component"
+	lorem "github.com/drhodes/golorem"
 
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
 	"git.sr.ht/~gioverse/chat/example/kitchen/gen"
@@ -151,6 +153,30 @@ func NewUI(w *app.Window) *UI {
 		})
 	}
 
+	// spin up a bunch of async actors to send messages to rooms.
+	for _, u := range users.List() {
+		u := u
+		if u.Name == local.Name {
+			continue
+		}
+		go func() {
+			for {
+				var (
+					respond = time.Second * time.Duration(rand.Intn(58)+2)
+					compose = time.Second * time.Duration(rand.Intn(30)+2)
+					room    = ui.Rooms.Random()
+				)
+				func() {
+					time.Sleep(respond)
+					room.SetComposing(u.Name, true)
+					time.Sleep(compose)
+					room.SetComposing(u.Name, false)
+					room.Send(u.Name, lorem.Paragraph(1, 4))
+				}()
+			}
+		}()
+	}
+
 	ui.Rooms.Select(0)
 	for ii := range ui.Rooms.List {
 		ui.Rooms.List[ii].List.ScrollToEnd = true
@@ -246,7 +272,7 @@ func (ui *UI) layoutChat(gtx C) D {
 		layout.Rigid(func(gtx C) D {
 			return chatlayout.Background(th.Palette.BgSecondary).Layout(gtx, func(gtx C) D {
 				if ui.AddBtn.Clicked() {
-					ui.Rooms.Active().SendMessage()
+					ui.Rooms.Active().SendLocal()
 				}
 				if ui.DeleteBtn.Clicked() {
 					serial := ui.ContextMenuTarget.Serial()
