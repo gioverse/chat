@@ -62,13 +62,16 @@ func (r *Room) Send(user, content string) {
 
 // SendLocal attempts to send the contents of the edit buffer as a
 // to the model.
-func (r *Room) SendLocal() {
-	defer r.Editor.SetText("")
-	r.Lock()
-	row := r.Messages.Send(r.Messages.Local.Name, r.Editor.Text())
-	r.Room.Latest = &row
-	r.Unlock()
-	go r.ListState.Modify([]list.Element{row}, nil, nil)
+// All of the work of this method is dispatched in a new goroutine
+// so that it can safely be called from layout code without blocking.
+func (r *Room) SendLocal(msg string) {
+	go func() {
+		r.Lock()
+		row := r.Messages.Send(r.Messages.Local.Name, msg)
+		r.Room.Latest = &row
+		r.Unlock()
+		r.ListState.Modify([]list.Element{row}, nil, nil)
+	}()
 }
 
 // NewRow generates a new row in the Room's RowTracker and inserts it

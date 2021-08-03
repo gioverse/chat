@@ -272,7 +272,9 @@ func (ui *UI) layoutChat(gtx C) D {
 		layout.Rigid(func(gtx C) D {
 			return chatlayout.Background(th.Palette.BgSecondary).Layout(gtx, func(gtx C) D {
 				if ui.AddBtn.Clicked() {
-					ui.Rooms.Active().SendLocal()
+					active := ui.Rooms.Active()
+					active.SendLocal(active.Editor.Text())
+					active.Editor.SetText("")
 				}
 				if ui.DeleteBtn.Clicked() {
 					serial := ui.ContextMenuTarget.Serial()
@@ -378,11 +380,13 @@ func (ui *UI) layoutEditor(gtx C) D {
 	return chatlayout.Rounded(unit.Dp(8)).Layout(gtx, func(gtx C) D {
 		return chatlayout.Background(th.Palette.Surface).Layout(gtx, func(gtx C) D {
 			return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx C) D {
-				editor := &ui.Rooms.Active().Editor
+				active := ui.Rooms.Active()
+				editor := &active.Editor
 				for _, e := range editor.Events() {
 					switch e.(type) {
 					case widget.SubmitEvent:
-						ui.Rooms.Active().SendLocal()
+						active.SendLocal(editor.Text())
+						editor.SetText("")
 					}
 				}
 				editor.Submit = true
