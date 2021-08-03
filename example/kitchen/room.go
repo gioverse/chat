@@ -24,7 +24,7 @@ type Rooms struct {
 // rooms.
 type Room struct {
 	// Room model defines the backend data describing a room.
-	model.Room
+	*model.Room
 	// Interact defines the interactive state for a room widget.
 	Interact appwidget.Room
 	// Messages implements what would be a backend data model.

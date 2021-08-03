@@ -5,9 +5,7 @@ import (
 	"image"
 	"image/color"
 	"image/png"
-	"math/rand"
 	"strconv"
-	"strings"
 	"time"
 
 	"gioui.org/app"
@@ -19,6 +17,7 @@ import (
 	"gioui.org/x/component"
 
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
+	"git.sr.ht/~gioverse/chat/example/kitchen/gen"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 	chatlayout "git.sr.ht/~gioverse/chat/layout"
 	"git.sr.ht/~gioverse/chat/list"
@@ -27,8 +26,6 @@ import (
 	chatwidget "git.sr.ht/~gioverse/chat/widget"
 	matchat "git.sr.ht/~gioverse/chat/widget/material"
 	"git.sr.ht/~gioverse/chat/widget/plato"
-
-	lorem "github.com/drhodes/golorem"
 )
 
 var (
@@ -105,29 +102,29 @@ func NewUI(w *app.Window) *UI {
 		},
 	}
 
-	ui.Users = GenUsers(10, 30)
-	ui.Local = ui.Users.Random()
-
-	// Messager can generate messages asynchronously based on the given user
-	// data.
-	messager := Messager{
-		Users: ui.Users,
+	g := &gen.Generator{
+		FetchImage: func(sz image.Point) image.Image {
+			img, _ := randomImage(sz)
+			return img
+		},
 	}
 
-	for ii := rand.Intn(10) + 5; ii > 0; ii-- {
-		rt := NewExampleData(ui.Local, &messager, 100)
+	// Generate most of the model data.
+	// Message generation occurs async inside the NewExampleData func.
+	var (
+		rooms = g.GenRooms(3, 10)
+		users = g.GenUsers(10, 30)
+		local = users.Random()
+	)
+
+	ui.Users = users
+	ui.Local = local
+
+	for _, r := range rooms.List() {
+		rt := NewExampleData(users, local, g, 100)
 		rt.SimulateLatency = latency
 		ui.Rooms.List = append(ui.Rooms.List, Room{
-			Room: model.Room{
-				Name: strings.Trim(lorem.Sentence(1, 5), "."),
-				Image: func() image.Image {
-					img, err := randomImage(image.Pt(64, 64))
-					if err != nil {
-						panic(err)
-					}
-					return img
-				}(),
-			},
+			Room:     r,
 			Messages: rt,
 			ListState: list.NewManager(25,
 				list.Hooks{
@@ -521,13 +518,9 @@ func (ui *UI) row(usePlato bool, data model.Message, state *chatwidget.Row) layo
 	if np != nil {
 		msg.MessageStyle = msg.WithNinePatch(th.Theme, *np)
 	}
-	uc := th.LocalUserColor()
-	if !msg.Local {
-		uc = th.UserColor(msg.Username.Text)
-	}
-	msg.MessageStyle.BubbleStyle.Color = uc.NRGBA
+	msg.MessageStyle.BubbleStyle.Color = user.Color
 	for i := range msg.Content.Styles {
-		msg.Content.Styles[i].Color = th.Contrast(uc.Luminance)
+		msg.Content.Styles[i].Color = th.Contrast(matchat.Luminance(user.Color))
 	}
 	return msg.Layout
 }

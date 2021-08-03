@@ -7,8 +7,10 @@ import (
 	"sync"
 	"time"
 
+	"git.sr.ht/~gioverse/chat/example/kitchen/gen"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
 	"git.sr.ht/~gioverse/chat/list"
+	lorem "github.com/drhodes/golorem"
 )
 
 // RowTracker is a stand-in for an application's data access logic.
@@ -22,22 +24,24 @@ type RowTracker struct {
 	sync.Mutex
 	Rows          []list.Element
 	SerialToIndex map[list.Serial]int
+	Users         *model.Users
 	Local         *model.User
-	messager      *Messager
+	Generator     *gen.Generator
 }
 
 // NewExampleData constructs a RowTracker populated with the provided
 // quantity of messages.
-func NewExampleData(local *model.User, m *Messager, size int) *RowTracker {
+func NewExampleData(users *model.Users, local *model.User, g *gen.Generator, size int) *RowTracker {
 	rt := &RowTracker{
 		SerialToIndex: make(map[list.Serial]int),
-		messager:      m,
+		Generator:     g,
 		Local:         local,
+		Users:         users,
 	}
 	go func() {
 		time.Sleep(time.Millisecond * 1)
 		for i := 0; i < size; i++ {
-			rt.Add(m.Generate())
+			rt.Add(g.GenHistoricMessage(rt.Users.Random()))
 		}
 	}()
 	return rt
@@ -45,8 +49,12 @@ func NewExampleData(local *model.User, m *Messager, size int) *RowTracker {
 
 // SendMessage adds the message to the data model.
 // This is analogous to interacting with the backend api.
-func (rt *RowTracker) Send(content string) model.Message {
-	msg := rt.messager.Send(rt.Local.Name, content)
+func (rt *RowTracker) Send(user, content string) model.Message {
+	u, ok := rt.Users.Lookup(user)
+	if !ok {
+		return model.Message{}
+	}
+	msg := rt.Generator.GenNewMessage(u, content)
 	rt.Add(msg)
 	return msg
 }
@@ -83,7 +91,7 @@ func (r *RowTracker) Index(ii int) list.Element {
 
 // NewRow generates a new row.
 func (r *RowTracker) NewRow() list.Element {
-	el := r.messager.Generate()
+	el := r.Generator.GenNewMessage(r.Users.Random(), lorem.Paragraph(1, 4))
 	r.Add(el)
 	return el
 }
