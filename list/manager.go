@@ -8,6 +8,18 @@ import (
 
 // Manager presents heterogenous Element data. Each element could represent
 // any element of an interface with a list.
+//
+// State is updated with two strategies, push and pull:
+//
+// Pull updates occur when the list has scrolled to the end of it's current data
+// and needs to ask for more. In this case, the Loader hook will be invoked
+// concurrently to get the data, if any.
+//
+// Push updates occur when the data source changes outside of the list. The
+// application can push those changes into the list with a call to `Modify`.
+//
+// Any changes that fall outside the bounds of the data will be ignored and
+// expected to be Loaded appropriately when scrolled into view.
 type Manager struct {
 	// Prefetch specifies a minimum threshold at which to start prefetching more
 	// data (in either direction), as a percentage in the range [0,1] of the
@@ -58,7 +70,6 @@ func (m *Manager) tryRequest(dir Direction) {
 	}:
 	default:
 	}
-	return
 }
 
 // NewManager constructs a manager. maxSize defines the number of raw elements
@@ -96,9 +107,9 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 // DefaultPrefetch is the default prefetching threshold.
 const DefaultPrefetch = 0.15
 
-// Modify is a thread-safe means of atomically modifying the Manager:
-// inserting elements into, updating elements within, or removing elements
-// from the managed list state.
+// Modify is a thread-safe means of atomically pushing modifications to the Manager:
+// inserting elements into, updating elements within, or removing elements from
+// the managed list state.
 //
 // Elements in the newOrUpdated parameter will be inserted into the managed state,
 // and any pre-existing element with the same serial will be removed.
@@ -107,11 +118,15 @@ const DefaultPrefetch = 0.15
 // Elements with a serial in the remove parameter will be removed from
 // the managed list.
 //
+// Elements that sort outside of the view will be ignored. In that case the
+// loader hook should load it when scrolled into view.
 //
 // This method may block, and should not be called from the goroutine that
 // is performing layout.
 //
-// Use this method to perform several types of modifications atomically.
+// Use this method to push modifications from the data source.
+//
+// For "pull" modifications, see the Loader hook.
 func (m *Manager) Modify(newOrUpdated []Element, updateOnly []Element, remove []Serial) {
 	m.requests <- modificationRequest{
 		NewOrUpdate: newOrUpdated,

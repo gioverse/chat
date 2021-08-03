@@ -63,6 +63,9 @@ type Comparator func(a, b Element) bool
 // invoke the loader in that direction again until the manager loads
 // data from the other end of the list or another manger state update
 // occurs.
+//
+// Loader implements pull modifications. When the manager wants more data it
+// will invoke the Loader hook to get more.
 type Loader func(direction Direction, relativeTo Serial) []Element
 
 // Presenter is a function that can transform the data for an Element
