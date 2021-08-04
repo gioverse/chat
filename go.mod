@@ -3,12 +3,10 @@ module git.sr.ht/~gioverse/chat
 go 1.16
 
 require (
-	gioui.org v0.0.0-20210713144338-b3918ce40fc3
-	gioui.org/x v0.0.0-20210714204148-b4d794ff02d5
+	gioui.org v0.0.0-20210804105805-1efe68c1540b
+	gioui.org/x v0.0.0-20210804152830-6815ab60d717
 	github.com/drhodes/golorem v0.0.0-20160418191928-ecccc744c2d9
 	github.com/lucasb-eyer/go-colorful v1.2.0
 	github.com/pkg/profile v1.6.0
-	golang.org/x/exp v0.0.0-20210707152300-16493b25073a
-	golang.org/x/image v0.0.0-20210628002857-a66eb6448b8d // indirect
-	golang.org/x/sys v0.0.0-20210630005230-0f9fa26af87c // indirect
+	golang.org/x/exp v0.0.0-20210722180016-6781d3edade3
 )

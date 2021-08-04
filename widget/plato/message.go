@@ -48,6 +48,9 @@ type MessageStyle struct {
 	Clickable bool
 	// Compact mode avoids laying out timestamp and read-receipt.
 	Compact bool
+	// TickIconColor is the color of the "read and received" checkmark icon if it
+	// is displayed.
+	TickIconColor color.NRGBA
 }
 
 // MessageConfig describes aspects of a chat message.
@@ -68,8 +71,8 @@ type MessageConfig struct {
 // Message constructs a MessageStyle with sensible defaults.
 func Message(th *material.Theme, interact *chatwidget.Message, msg MessageConfig) MessageStyle {
 	l := material.Body1(th, "")
-	TickIcon.Color = color.NRGBA{G: 200, B: 50, A: 255}
 	return MessageStyle{
+		TickIconColor: color.NRGBA{G: 200, B: 50, A: 255},
 		BubbleStyle: func() chatmaterial.BubbleStyle {
 			b := chatmaterial.Bubble(th)
 			if msg.Color == (color.NRGBA{}) {
@@ -186,7 +189,7 @@ func (m MessageStyle) Layout(gtx C) D {
 									return m.Time.Layout(gtx)
 								}),
 								layout.Rigid(func(gtx C) D {
-									return m.Receipt.Layout(gtx)
+									return m.Receipt.Layout(gtx, m.TickIconColor)
 								}),
 							)
 						})

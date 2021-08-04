@@ -2,6 +2,7 @@ package material
 
 import (
 	"image"
+	"image/color"
 	"time"
 
 	"gioui.org/layout"
@@ -25,6 +26,8 @@ type RowStyle struct {
 	// StatusIcon is an optional icon that will be displayed to the right of
 	// the message instead of its timestamp.
 	StatusIcon *widget.Icon
+	// StatusIconColor is the color of the status icon, if any is set.
+	StatusIconColor color.NRGBA
 	// IconSize defines the size of the StatusIcon (if it is set).
 	IconSize unit.Value
 	// StatusMessage defines a warning message to be displayed beneath the
@@ -83,7 +86,7 @@ func NewRow(th *material.Theme, interact *chatwidget.Row, menu *component.MenuSt
 		ms.StatusMessage = material.Body2(th, msg.Status)
 		ms.StatusMessage.Color = DefaultDangerColor
 		ms.StatusIcon = ErrorIcon
-		ms.StatusIcon.Color = DefaultDangerColor
+		ms.StatusIconColor = DefaultDangerColor
 	}
 	return ms
 }
@@ -123,7 +126,7 @@ func (c RowStyle) layoutTimeOrIcon(gtx C) D {
 		gtx.Constraints.Max.X = sideLength
 		gtx.Constraints.Max.Y = sideLength
 		gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
-		return c.StatusIcon.Layout(gtx)
+		return c.StatusIcon.Layout(gtx, c.StatusIconColor)
 	})
 }
 
