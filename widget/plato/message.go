@@ -1,6 +1,7 @@
 package plato
 
 import (
+	"image"
 	"image/color"
 	"time"
 
@@ -28,6 +29,8 @@ type MessageStyle struct {
 	// will be scaled to fit within this height.
 	MaxImageHeight unit.Value
 	// ContentPadding separates the Content field from the edges of the background.
+	// If using a NinePatch background, this field will be ignored in favor of the
+	// content padding encoded within the ninepatch image.
 	ContentPadding layout.Inset
 	// BubbleStyle configures a chat bubble beneath the message. If NinePatch is
 	// non-nil, this field is ignored.
@@ -128,15 +131,19 @@ func (c *MessageStyle) TextColor(cl color.NRGBA) {
 }
 
 // Layout the message atop its background.
-func (m MessageStyle) Layout(gtx C) D {
+func (m MessageStyle) Layout(gtx C) (d D) {
 	gtx.Constraints.Max.X = int(float32(gtx.Constraints.Max.X) * 0.8)
 	max := gtx.Px(m.MaxMessageWidth)
 	if gtx.Constraints.Max.X > max {
 		gtx.Constraints.Max.X = max
 	}
+	var contentInset layout.Inset = m.ContentPadding
 	surface := m.BubbleStyle.Layout
 	if m.NinePatch != nil {
 		surface = m.NinePatch.Layout
+		// Override ContentPadding if using a ninepatch background, as it has
+		// its own internal padding.
+		contentInset = m.NinePatch.Content
 	}
 	if m.Compact {
 		return surface(gtx, func(gtx C) D {
@@ -146,14 +153,10 @@ func (m MessageStyle) Layout(gtx C) D {
 		})
 	}
 	macro := op.Record(gtx.Ops)
-	dims := layout.Inset{
-		Top:   m.ContentPadding.Top,
-		Left:  m.ContentPadding.Left,
-		Right: m.ContentPadding.Right,
-	}.Layout(gtx, func(gtx C) D {
+	dims := contentInset.Layout(gtx, func(gtx C) D {
 		return m.Content.Layout(gtx)
 	})
-	call := macro.Stop()
+	macro.Stop()
 	return layout.Stack{}.Layout(gtx,
 		layout.Expanded(func(gtx C) D {
 			if !m.Clickable {
@@ -165,15 +168,14 @@ func (m MessageStyle) Layout(gtx C) D {
 			return surface(gtx, func(gtx C) D {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(func(gtx C) D {
-						call.Add(gtx.Ops)
-						return dims
+						return m.Content.Layout(gtx)
 					}),
 					layout.Rigid(func(gtx C) D {
 						width := gtx.Px(m.MinMessageWidth)
 						if dims.Size.X > width {
 							width = dims.Size.X
 						}
-						gtx.Constraints.Max.X = width
+						gtx.Constraints.Max.X = gtx.Constraints.Constrain(image.Pt(width, 0)).X
 						return layout.Inset{
 							Bottom: m.ContentPadding.Right,
 							Right:  m.ContentPadding.Bottom,
