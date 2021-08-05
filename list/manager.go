@@ -254,3 +254,25 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 
 	return len(m.elements)
 }
+
+// ManagedElements returns the slice of elements managed by the manager
+// during the current frame. This MUST be called from the layout goroutine,
+// and callers must not insert, remove, or reorder elements.
+//
+// This method is useful for checking the relative positions of managed
+// elements during layout. Many applications will never need this functionality.
+func (m *Manager) ManagedElements(gtx layout.Context) []Element {
+	return m.elements
+}
+
+// ManagedState returns the map of widget state managed by the manager
+// during the current frame. This MUST be called from the layout goroutine,
+// and callers must not insert or remove elements from the returned map.
+//
+// This method is useful for checking for events on all managed widgets in
+// a single loop ahead of laying each element out, rather than checking
+// each element during layout. Many applications will never need this
+// functionality.
+func (m *Manager) ManagedState(gtx layout.Context) map[Serial]interface{} {
+	return m.elementState
+}
