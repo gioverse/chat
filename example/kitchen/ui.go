@@ -119,7 +119,6 @@ func NewUI(w *app.Window) *UI {
 	}
 
 	// Generate most of the model data.
-	// Message generation occurs async inside the NewExampleData func.
 	var (
 		rooms = g.GenRooms(3, 10)
 		users = g.GenUsers(10, 30)

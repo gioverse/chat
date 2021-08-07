@@ -38,12 +38,9 @@ func NewExampleData(users *model.Users, local *model.User, g *gen.Generator, siz
 		Local:         local,
 		Users:         users,
 	}
-	go func() {
-		time.Sleep(time.Millisecond * 1)
-		for i := 0; i < size; i++ {
-			rt.Add(g.GenHistoricMessage(rt.Users.Random()))
-		}
-	}()
+	for i := 0; i < size; i++ {
+		rt.Add(g.GenHistoricMessage(rt.Users.Random()))
+	}
 	return rt
 }
 
