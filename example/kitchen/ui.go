@@ -18,6 +18,7 @@ import (
 	"gioui.org/x/component"
 	lorem "github.com/drhodes/golorem"
 
+	"git.sr.ht/~gioverse/chat/async"
 	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
 	"git.sr.ht/~gioverse/chat/example/kitchen/gen"
 	"git.sr.ht/~gioverse/chat/example/kitchen/model"
@@ -40,6 +41,10 @@ var (
 
 // UI manages the state for the entire application's UI.
 type UI struct {
+	// Loader loads resources asynchronously.
+	// Deallocates stale resources.
+	// Stale is defined as "not being scheduled frequently".
+	async.Loader
 	// Rooms is the root of the data, containing messages chunked by
 	// room.
 	// It also contains interact state, rather than maintaining two
@@ -190,6 +195,10 @@ func NewUI(w *app.Window) *UI {
 
 // Layout the application UI.
 func (ui *UI) Layout(gtx C) D {
+	return ui.Loader.Frame(gtx, ui.layout)
+}
+
+func (ui *UI) layout(gtx C) D {
 	small := gtx.Constraints.Max.X < gtx.Px(Breakpoint)
 	for ii := range ui.Rooms.List {
 		r := &ui.Rooms.List[ii]

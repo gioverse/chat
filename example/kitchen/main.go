@@ -74,20 +74,25 @@ func main() {
 		profiler.Start()
 		// Event loop executes indefinitely, until the app is signalled to quit.
 		// Integrate external services here.
-		for event := range w.Events() {
-			switch event := event.(type) {
-			case system.DestroyEvent:
-				profiler.Stop()
-				if err := event.Err; err != nil {
-					fmt.Printf("error: premature window close: %v\n", err)
-					os.Exit(1)
+		for {
+			select {
+			case <-ui.Loader.Updated():
+				w.Invalidate()
+			case event := <-w.Events():
+				switch event := event.(type) {
+				case system.DestroyEvent:
+					profiler.Stop()
+					if err := event.Err; err != nil {
+						fmt.Printf("error: premature window close: %v\n", err)
+						os.Exit(1)
+					}
+					os.Exit(0)
+				case system.FrameEvent:
+					gtx := layout.NewContext(&ops, event)
+					profiler.Record(gtx)
+					ui.Layout(gtx)
+					event.Frame(&ops)
 				}
-				os.Exit(0)
-			case system.FrameEvent:
-				gtx := layout.NewContext(&ops, event)
-				profiler.Record(gtx)
-				ui.Layout(gtx)
-				event.Frame(&ops)
 			}
 		}
 	}()
