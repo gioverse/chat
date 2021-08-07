@@ -177,16 +177,20 @@ func (l *Loader) run(ctx context.Context) {
 	loader.mu.Lock()
 	defer loader.mu.Unlock()
 
+	firstIteration := true
 	for {
-		// Wait to be woken up by a change. Three conditions which provoke this:
-		// 1. a new frame layout
-		// 2. scheduling a _new_ resource
-		// 3. context cancellation
-		// Each iteration synchronizes access to the map and queue.
-		loader.refresh.Wait()
-		if ctx.Err() != nil {
-			return
+		if !firstIteration {
+			// Wait to be woken up by a change. Three conditions which provoke this:
+			// 1. a new frame layout
+			// 2. scheduling a _new_ resource
+			// 3. context cancellation
+			// Each iteration synchronizes access to the map and queue.
+			loader.refresh.Wait()
+			if ctx.Err() != nil {
+				return
+			}
 		}
+		firstIteration = false
 		// TODO: this might end up blocking layout because l.finished gets
 		// atomically mutated by layout at the end of every frame.
 		loader.purge(atomic.LoadInt64(&l.finished), l.MaxLoaded)
