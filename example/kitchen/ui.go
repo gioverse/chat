@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"image"
 	"image/color"
 	"image/png"
+	"log"
 	"math/rand"
 	"strconv"
 	"time"
@@ -417,19 +419,6 @@ func (ui *UI) layoutModal(gtx C) D {
 	return component.Modal(&t, &ui.Modal).Layout(gtx)
 }
 
-// FromModel converts a domain-specific model of a chat message into
-// the general-purpose MessageConfig.
-func FromModel(m model.Message) matchat.RowConfig {
-	return matchat.RowConfig{
-		Sender:  m.Sender,
-		Avatar:  m.Avatar,
-		Content: m.Content,
-		SentAt:  m.SentAt,
-		Image:   m.Image,
-		Status:  m.Status,
-	}
-}
-
 // synth inserts date separators and unread separators
 // between chat rows as a list.Synthesizer.
 func synth(previous, row, next list.Element) []list.Element {
@@ -528,11 +517,29 @@ func (ui *UI) row(usePlato bool, data model.Message, state *chatwidget.Row) layo
 		}
 		return nil
 	}()
+	var (
+		avatar image.Image
+		body   image.Image
+	)
+	if data.Avatar != "" {
+		avatar = avatarPlaceholder
+		if img := loadImage(string(data.Serial())+"-avatar", data.Avatar, &ui.Loader); img != nil {
+			state.Avatar.Reload()
+			avatar = img
+		}
+	}
+	if data.Image != "" {
+		body = imageMessagePlaceholder
+		if img := loadImage(string(data.Serial())+"-body", data.Image, &ui.Loader); img != nil {
+			state.Image.Reload()
+			body = img
+		}
+	}
 	if usePlato {
 		msg := plato.NewRow(th.Theme, state, &ui.MessageMenu, plato.RowConfig{
 			Sender:  data.Sender,
 			Content: data.Content,
-			Avatar:  data.Avatar,
+			Avatar:  avatar,
 			SentAt:  data.SentAt,
 			Local:   user.Name == ui.Local.Name,
 		})
@@ -549,9 +556,9 @@ func (ui *UI) row(usePlato bool, data model.Message, state *chatwidget.Row) layo
 	msg := matchat.NewRow(th.Theme, state, &ui.MessageMenu, matchat.RowConfig{
 		Sender:  data.Sender,
 		Content: data.Content,
-		Avatar:  data.Avatar,
 		SentAt:  data.SentAt,
-		Image:   data.Image,
+		Avatar:  avatar,
+		Image:   body,
 		Local:   user.Name == ui.Local.Name,
 	})
 	if np != nil {
@@ -562,4 +569,44 @@ func (ui *UI) row(usePlato bool, data model.Message, state *chatwidget.Row) layo
 		msg.Content.Styles[i].Color = th.Contrast(matchat.Luminance(user.Color))
 	}
 	return msg.Layout
+}
+
+var (
+	// placeholderColor to use for placeholder images.
+	placeholderColor = color.NRGBA{R: 50, G: 50, B: 50, A: 255}
+	// avatarPlaceholder used when avatar image has not been loaded yet.
+	avatarPlaceholder *image.NRGBA = placeholder(image.Pt(64, 64), placeholderColor)
+	// imageMessagePlaceholder used when message image has not been loaded yet.
+	imageMessagePlaceholder *image.NRGBA = placeholder(image.Pt(320, 320), placeholderColor)
+)
+
+// placeholder helper generates a rectangle image of the given size for the
+// given color.
+func placeholder(sz image.Point, c color.NRGBA) (ph *image.NRGBA) {
+	ph = image.NewNRGBA(image.Rectangle{Max: sz})
+	for xx := ph.Bounds().Min.X; xx < ph.Bounds().Max.X; xx++ {
+		for yy := ph.Bounds().Min.Y; yy < ph.Bounds().Max.Y; yy++ {
+			ph.SetNRGBA(xx, yy, c)
+		}
+	}
+	return ph
+}
+
+// loadImage helper schedules an image to be downloaded and returns it if ready.
+func loadImage(id, u string, l *async.Loader) image.Image {
+	r := l.Schedule(id, func(_ context.Context) interface{} {
+		img, err := fetch(id, u)
+		if err != nil {
+			log.Printf("loading image: %v", err)
+		}
+		return img
+	})
+	switch r.State {
+	case async.Queued, async.Loading:
+	case async.Loaded:
+		if img, ok := r.Value.(image.Image); ok {
+			return img
+		}
+	}
+	return nil
 }

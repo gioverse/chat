@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	_ "image/jpeg"
+	_ "image/png"
 	"io"
 	"io/fs"
 	"io/ioutil"
@@ -127,4 +129,46 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// fetch image for the given id.
+// Image is initially downloaded from the provided url and stored on disk.
+func fetch(id, u string) (image.Image, error) {
+	path := filepath.Join(os.TempDir(), "chat", "resources", id)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return nil, fmt.Errorf("preparing resource directory: %w", err)
+	}
+	if _, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) {
+		if err := func() error {
+			f, err := os.Create(path)
+			if err != nil {
+				return fmt.Errorf("creating resource file: %w", err)
+			}
+			defer f.Close()
+			r, err := http.Get(u)
+			if err != nil {
+				return fmt.Errorf("GET: %w", err)
+			}
+			defer r.Body.Close()
+			if r.StatusCode != http.StatusOK {
+				return fmt.Errorf("GET: %s", r.Status)
+			}
+			if _, err := io.Copy(f, r.Body); err != nil {
+				return fmt.Errorf("downloading resource to disk: %w", err)
+			}
+			return nil
+		}(); err != nil {
+			return nil, err
+		}
+	}
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, fmt.Errorf("opening resource file: %w", err)
+	}
+	defer f.Close()
+	img, _, err := image.Decode(f)
+	if err != nil {
+		return nil, fmt.Errorf("decoding image: %w", err)
+	}
+	return img, nil
 }

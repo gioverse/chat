@@ -48,7 +48,9 @@ func (g *Generator) GenHistoricMessage(user *model.User) model.Message {
 		serial = g.old.Increment()
 		at     = time.Now().Add(time.Hour * time.Duration(serial) * -1)
 	)
-	return GenMessage(user, lorem.Paragraph(1, 5), inflection-serial, at, g.FetchImage)
+	// If we generate an empty string, the message will render as an image
+	// instead of an empty message.
+	return GenMessage(user, lorem.Paragraph(0, 5), inflection-serial, at, g.FetchImage)
 }
 
 // GenNewMessage generates a new message ready to be sent to the data model.
@@ -70,12 +72,12 @@ func GenMessage(
 		Content:  content,
 		SentAt:   at,
 		Avatar:   user.Avatar,
-		Image: func() image.Image {
+		Image: func() string {
 			if fetchImage == nil {
-				return nil
+				return ""
 			}
-			if rand.Float32() < 0.7 {
-				return nil
+			if content != "" {
+				return ""
 			}
 			sizes := []image.Point{
 				image.Pt(1792, 828),
@@ -83,7 +85,8 @@ func GenMessage(
 				image.Pt(600, 600),
 				image.Pt(300, 300),
 			}
-			return fetchImage(sizes[rand.Intn(len(sizes))])
+			sz := sizes[rand.Intn(len(sizes))]
+			return fmt.Sprintf("https://source.unsplash.com/random/%dx%d?nature", sz.X, sz.Y)
 		}(),
 		Read: func() bool {
 			return serial < inflection
@@ -114,12 +117,7 @@ func GenUsers(min, max int, fetchImage func(image.Point) image.Image) *model.Use
 				}
 				return model.ThemeEmpty
 			}(),
-			Avatar: func() image.Image {
-				if fetchImage != nil {
-					return fetchImage(image.Pt(64, 64))
-				}
-				return nil
-			}(),
+			Avatar: fmt.Sprintf("https://source.unsplash.com/random/%dx%d?nature", 64, 64),
 			Color: func() color.NRGBA {
 				return ToNRGBA(colorful.FastHappyColor().Clamped())
 			}(),

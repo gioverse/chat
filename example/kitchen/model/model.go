@@ -18,8 +18,8 @@ type Message struct {
 	SerialID                string
 	Sender, Content, Status string
 	SentAt                  time.Time
-	Image                   image.Image
-	Avatar                  image.Image
+	Image                   string
+	Avatar                  string
 	Read                    bool
 }
 
@@ -76,8 +76,8 @@ func (r *Room) SetComposing(user string, isComposing bool) {
 type User struct {
 	// Name of user.
 	Name string
-	// Avatar is the image of the user.
-	Avatar image.Image
+	// Avatar is url to the image of the user.
+	Avatar string
 	// Theme specifies the name of a 9patch theme to use for messages from this
 	// user. If theme is specified it will be the preferred message surface.
 	// Empty string indicates no theme.
