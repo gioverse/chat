@@ -84,7 +84,7 @@ func (l *Loader) Updated() <-chan struct{} {
 
 // Frame wraps a widget and tracks frame updates.
 //
-// Typically you should wrap you entire UI so that each frame is counted.
+// Typically you should wrap your entire UI so that each frame is counted.
 // However, it is sufficient to wrap only the widget that expects to use the
 // loader during it's layout.
 //
@@ -191,8 +191,6 @@ func (l *Loader) run(ctx context.Context) {
 			}
 		}
 		firstIteration = false
-		// TODO: this might end up blocking layout because l.finished gets
-		// atomically mutated by layout at the end of every frame.
 		loader.purge(atomic.LoadInt64(&l.finished), l.MaxLoaded)
 		for r := loader.next(); r != nil; r = loader.next() {
 			if l.isOld(r) {
@@ -266,7 +264,7 @@ func (l *loader) purge(activeFrame int64, max int) {
 			break
 		}
 		if isOld := atomic.LoadInt64(&r.frame) < activeFrame; isOld {
-			delete(l.lookup, r.tag)
+			l.remove(r)
 		}
 	}
 }
