@@ -39,6 +39,10 @@ const (
 // Track frames with Frame method to detect stale data.
 // Respond to updates in event loop by selecting on Updated channel.
 type Loader struct {
+	// Scheduler provides scheduling behaviour. Defaults to a sized worker pool.
+	// The caller can provide a scheduler that implements the best strategy for
+	// the their usecase.
+	Scheduler Scheduler
 	// MaxLoaded specifies the maximum number of resources to load before
 	// de-allocating old resources.
 	MaxLoaded int
@@ -56,6 +60,105 @@ type Loader struct {
 	init sync.Once
 	// loader contains the queue and lookup map.
 	loader
+}
+
+// Scheduler schedules work according to some strategy.
+// Implementations can implement the best way to distribute work for a given
+// application.
+//
+// TODO(jfm): context cancellation.
+type Scheduler interface {
+	// Schedule a piece of work. This method is allowed to block.
+	Schedule(func())
+}
+
+// FixedWorkerPool implements a simple fixed-size worker pool that lets go
+// runtime schedule work atop some number of goroutines.
+//
+// This pool will minimize goroutine latency at the cost of maintaining the
+// configured number of goroutines throughout the lifetime of the pool.
+type FixedWorkerPool struct {
+	// Workers specifies the number of concurrent workers in this pool.
+	Workers int
+	// queue of work. Unbuffered so it will block if worker pull is at capacity.
+	queue chan func()
+	// once time initialization.
+	sync.Once
+}
+
+// Schedule work to be executed by the available workers. This is a blocking
+// call if all workers are busy.
+func (p *FixedWorkerPool) Schedule(work func()) {
+	p.Once.Do(func() {
+		p.queue = make(chan func())
+		if p.Workers <= 0 {
+			p.Workers = runtime.NumCPU()
+		}
+		for ii := 0; ii < p.Workers; ii++ {
+			go func() {
+				for w := range p.queue {
+					if w != nil {
+						w()
+					}
+				}
+			}()
+		}
+	})
+	p.queue <- work
+}
+
+// DynamicWorkerPool implements a simple dynamic-sized worker pool that spins up
+// a new worker per unit of work, until the maximum number of workers has been
+// reached.
+//
+// This pool will minimize idle memory as goroutines will die off once complete,
+// but will incur the latency cost, such that it is, of spinning up goroutines
+// on-the-fly.
+//
+// Additionally, ordering of work is inconsistent with highly dynamic layouts.
+type DynamicWorkerPool struct {
+	// Workers specifies the maximum allowed number of concurrent workers in
+	// this pool. Defaults to NumCPU.
+	Workers int64
+	// count is a semaphore queue that limits the number of workers at any
+	// given time. The size of the buffer for the channel provides the limit.
+	count chan struct{}
+	// queue of work. Unbuffered so it will block if worker pool is at capacity.
+	queue chan func()
+	// once time initialization.
+	sync.Once
+}
+
+// Schedule work to be executed by the available workers. This is a blocking
+// call if all workers are busy.
+//
+// Workers are limited by a buffer of semaphores.
+// Each worker holds a semaphore for the duration of it's life and returns it
+// before exiting.
+func (p *DynamicWorkerPool) Schedule(work func()) {
+	p.Once.Do(func() {
+		if p.Workers <= 0 {
+			p.Workers = int64(runtime.NumCPU())
+		}
+		p.queue = make(chan func())
+		p.count = make(chan struct{}, p.Workers)
+		for ii := 0; ii < int(p.Workers); ii++ {
+			p.count <- struct{}{}
+		}
+		go func() {
+			for w := range p.queue {
+				w := w
+				if w != nil {
+					sem := <-p.count
+					go func() {
+						w()
+						p.count <- sem
+					}()
+				}
+			}
+		}()
+	})
+	p.queue <- work
 }
 
 // loader wraps up state that needs to be synchronized together.
@@ -116,6 +219,12 @@ func (l *Loader) Schedule(tag Tag, load LoadFunc) Resource {
 		l.updated = make(chan struct{}, 1)
 		l.loader.lookup = make(map[Tag]*resource)
 		l.loader.refresh.L = &l.loader.mu
+		if l.Scheduler == nil {
+			// 128 is a magic number of maximum workers we will allow.
+			// This would translate to "max number of network requests", if all
+			// work were to be network-bound.
+			l.Scheduler = &FixedWorkerPool{Workers: 128}
+		}
 		// TODO(jfm): expose context in the public api so that loads can be
 		// cancelled by it.
 		// Egon's example ran this at the top of the event loop. By placing it
@@ -161,17 +270,6 @@ func (l *Loader) run(ctx context.Context) {
 		l.refresh.Signal()
 	}()
 
-	var work = make(chan *resource)
-	for ii := 0; ii < runtime.NumCPU(); ii++ {
-		go func() {
-			for r := range work {
-				r.Load(ctx, func(_ State) {
-					l.update()
-				})
-			}
-		}()
-	}
-
 	loader := &l.loader
 
 	loader.mu.Lock()
@@ -193,12 +291,18 @@ func (l *Loader) run(ctx context.Context) {
 		firstIteration = false
 		loader.purge(atomic.LoadInt64(&l.finished), l.MaxLoaded)
 		for r := loader.next(); r != nil; r = loader.next() {
+			r := r
 			if l.isOld(r) {
 				loader.remove(r)
 				continue
 			}
 			loader.mu.Unlock()
-			work <- r
+			l.update()
+			l.Scheduler.Schedule(func() {
+				r.Load(ctx, func(_ State) {
+					l.update()
+				})
+			})
 			loader.mu.Lock()
 		}
 	}
