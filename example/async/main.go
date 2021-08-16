@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strconv"
 
 	"gioui.org/app"
@@ -37,6 +38,12 @@ import (
 
 var (
 	th = material.NewTheme(gofont.Collection())
+	// strategy specifies which worker pool implementation to use: dynamic or
+	// fixed.
+	strategy string
+	// workers specifies the maximum number of allowed workers in the worker
+	// pool.
+	workers int
 	// noIO specifies to avoid downloading images or touching the disk.
 	// Reduces blocking IO to let any blocking UI bubble up in the block profile.
 	noIO bool
@@ -52,11 +59,14 @@ var (
 )
 
 func init() {
+	flag.StringVar(&strategy, "strategy", "fixed", "worker pool strategy [fixed, dynamic]")
+	flag.IntVar(&workers, "workers", runtime.NumCPU(), "maximum allowed workers in the worker pool")
 	flag.BoolVar(&cache, "cache", true, "cache images to disk")
 	flag.BoolVar(&purge, "purge", false, "purge the cache (deletes all entries)")
 	flag.BoolVar(&noIO, "no-io", false, "run the loader without any IO")
 	flag.StringVar(&profileOpt, "profile", "none", "create the provided kind of profile. Use one of [none, cpu, mem, block, goroutine, mutex, trace, gio]")
 	flag.Parse()
+	fmt.Printf("using %s worker pool with %d workers\n", strategy, workers)
 	if purge {
 		if err := os.RemoveAll(cacheDir); err != nil {
 			log.Fatalf("purging cache: %v\n", err)
@@ -65,7 +75,20 @@ func init() {
 }
 
 func main() {
-	ui := NewUI()
+	// Confgure the type of worker pool we want to use.
+	// This will change how async work is executed.
+	var sch async.Scheduler
+	if strategy == "dynamic" {
+		sch = &async.DynamicWorkerPool{
+			Workers: int64(workers),
+		}
+	}
+	if strategy == "fixed" {
+		sch = &async.FixedWorkerPool{
+			Workers: workers,
+		}
+	}
+	ui := NewUI(sch)
 	go func() {
 		w := app.NewWindow(
 			app.Title("Loader"),
@@ -90,11 +113,14 @@ type UI struct {
 }
 
 // NewUI allocates a UI with some number of reels.
-func NewUI() UI {
+func NewUI(s async.Scheduler) UI {
 	return UI{
 		// MaxLoaded of '0' indicates to only keep state that is currently in
 		// view.
-		Loader: async.Loader{MaxLoaded: 0},
+		Loader: async.Loader{
+			MaxLoaded: 0,
+			Scheduler: s,
+		},
 	}
 }
 
@@ -300,15 +326,17 @@ func fetch(id, u string) (image.Image, error) {
 		if info, err := os.Stat(path); errors.Is(err, fs.ErrNotExist) || info.Size() == 0 {
 			if info != nil && info.Size() == 0 {
 				if err := os.Remove(path); err != nil {
-					return nil, fmt.Errorf("removing corrupt image file: %w", err)
+					return nil, fmt.Errorf("removing corrupt image file for %q: %w", id, err)
 				}
 			}
-			if err := func() error {
-				f, err := os.Create(path)
-				if err != nil {
-					return fmt.Errorf("creating resource file: %w", err)
-				}
-				defer f.Close()
+			if err := func() (err error) {
+				defer func() {
+					if err != nil {
+						if e := os.Remove(path); e != nil {
+							err = e
+						}
+					}
+				}()
 				r, err := http.Get(u)
 				if err != nil {
 					return fmt.Errorf("GET: %w", err)
@@ -317,6 +345,11 @@ func fetch(id, u string) (image.Image, error) {
 				if r.StatusCode != http.StatusOK {
 					return fmt.Errorf("GET: %s", r.Status)
 				}
+				f, err := os.Create(path)
+				if err != nil {
+					return fmt.Errorf("creating resource file: %w", err)
+				}
+				defer f.Close()
 				if _, err := io.Copy(f, r.Body); err != nil {
 					return fmt.Errorf("downloading resource to disk: %w", err)
 				}
