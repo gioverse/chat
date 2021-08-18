@@ -39,8 +39,8 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 	go func() {
 		defer close(updateChan)
 		var (
-			viewport        layout.Position
-			ignoreDirection Direction
+			viewport layout.Position
+			ignore   Direction
 		)
 		for {
 			var (
@@ -73,27 +73,27 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 						if len(processor.Raw) == 0 {
 							return true
 						}
-						beginning := processor.Comparator(elem, processor.Raw[0])
-						end := processor.Comparator(processor.Raw[len(processor.Raw)-1], elem)
+						sortsBefore := processor.Comparator(elem, processor.Raw[0])
+						sortsAfter := processor.Comparator(processor.Raw[len(processor.Raw)-1], elem)
 						// If this element sorts before the beginning of the list or after
 						// the end of the list, it should not be inserted unless we are at
 						// the appropriate end of the list.
 						switch {
-						case beginning && ignoreDirection == Before:
+						case sortsBefore && ignore == Before:
 							return true
-						case end && ignoreDirection == After:
+						case sortsAfter && ignore == After:
 							return true
-						case beginning || end:
+						case sortsBefore || sortsAfter:
 							return false
 						}
 						return true
 					})
-					ignoreDirection = noDirection
+					ignore = noDirection
 				case loadRequest:
 					if !more {
 						return
 					}
-					if req.Direction == ignoreDirection {
+					if req.Direction == ignore {
 						continue
 					}
 					viewport = req.viewport
@@ -111,9 +111,9 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 					// Track whether all new elements in a given direction have been
 					// exhausted.
 					if len(newElems) == 0 {
-						ignoreDirection = req.Direction
+						ignore = req.Direction
 					} else {
-						ignoreDirection = noDirection
+						ignore = noDirection
 					}
 				}
 			}
