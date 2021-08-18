@@ -2,6 +2,7 @@ package list
 
 import (
 	"fmt"
+	"math"
 
 	"gioui.org/layout"
 )
@@ -192,6 +193,20 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 	}
 	// If the end of the list is visible, try to load history afterwards.
 	if indexf > 1.0-m.Prefetch && len(m.elements) > 0 {
+		m.tryRequest(After)
+	}
+	// If there are too few elements such that the prefetch zone is never entered,
+	// try to load history afterwards.
+	//
+	// For example, if prefetch is 0.15, indexf needs to be > 0.75 to trigger a
+	// load. If there are only 2 elements present, indexf will not exceed 0.50,
+	// which means the load request gets ignored despite the end of the list
+	// being visible.
+	//
+	// The minium number of elements required to overcome this check is equal to
+	// the granularity of the prefetch. Thus with a prefetch of 0.15, the list
+	// needs to contain at least 7 elements to ignore this load request.
+	if fewElements := len(m.elements) < int(math.Ceil(float64(1.0/m.Prefetch))); fewElements {
 		m.tryRequest(After)
 	}
 	// Lay out the element for the current index.

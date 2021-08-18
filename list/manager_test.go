@@ -326,6 +326,27 @@ func TestManagerPrefetch(t *testing.T) {
 			index:    1,
 			expect:   &loadRequest{Direction: Before},
 		},
+		{
+			name:     "too few elements: load after",
+			prefetch: 0.15,
+			elements: 2,
+			index:    1, // indexf 0.5
+			expect:   &loadRequest{Direction: After},
+		},
+		{
+			name:     "too few elements: load after",
+			prefetch: 0.15,
+			elements: 6,
+			index:    3, // indexf 0.6
+			expect:   &loadRequest{Direction: After},
+		},
+		{
+			name:     "just enough elements: no load",
+			prefetch: 0.15,
+			elements: 7,
+			index:    3, // indexf 0.6
+			expect:   nil,
+		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			var (
