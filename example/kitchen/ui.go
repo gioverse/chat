@@ -131,10 +131,11 @@ func NewUI(w *app.Window) *UI {
 	for _, r := range rooms.List() {
 		rt := NewExampleData(users, local, g, 100)
 		rt.SimulateLatency = latency
+		rt.MaxLoads = loadSize
 		ui.Rooms.List = append(ui.Rooms.List, Room{
 			Room:     r,
 			Messages: rt,
-			ListState: list.NewManager(25,
+			ListState: list.NewManager(bufferSize,
 				list.Hooks{
 					// Define an allocator function that can instaniate the appropriate
 					// state type for each kind of row data in our list.

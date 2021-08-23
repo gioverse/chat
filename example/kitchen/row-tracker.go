@@ -18,15 +18,18 @@ import (
 // It simulates network latency during the load operations for
 // realism.
 type RowTracker struct {
-	// SimulateLatency specifies whether to sleep for some random duration to
-	// simulate blocking on a network call.
-	SimulateLatency bool
+	// SimulateLatency is the maximum latency in milliseconds to
+	// simulate on loads.
+	SimulateLatency int
 	sync.Mutex
 	Rows          []list.Element
 	SerialToIndex map[list.Serial]int
 	Users         *model.Users
 	Local         *model.User
 	Generator     *gen.Generator
+	// MaxLoads specifies the number of elements a given load in either
+	// direction can return.
+	MaxLoads int
 }
 
 // NewExampleData constructs a RowTracker populated with the provided
@@ -97,8 +100,8 @@ func (r *RowTracker) NewRow() list.Element {
 // sleeps for a random number of milliseconds and then returns
 // some messages.
 func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded []list.Element) {
-	if r.SimulateLatency {
-		duration := time.Millisecond * time.Duration(rand.Intn(1000))
+	if r.SimulateLatency > 0 {
+		duration := time.Millisecond * time.Duration(rand.Intn(r.SimulateLatency))
 		log.Println("sleeping", duration)
 		time.Sleep(duration)
 	}
@@ -114,13 +117,13 @@ func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded []
 		// If loading relative to nothing, likely the chat interface is empty.
 		// We should load the most recent messages first in this case, regardless
 		// of the direction parameter.
-		return r.Rows[numRows-min(10, numRows):]
+		return r.Rows[numRows-min(r.MaxLoads, numRows):]
 	}
 	idx := r.SerialToIndex[relativeTo]
 	if dir == list.After {
-		return r.Rows[idx+1 : min(numRows, idx+11)]
+		return r.Rows[idx+1 : min(numRows, idx+r.MaxLoads)]
 	}
-	return r.Rows[maximum(0, idx-11):idx]
+	return r.Rows[maximum(0, idx-r.MaxLoads):idx]
 }
 
 // Delete removes the element with the provided serial from storage.

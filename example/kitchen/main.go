@@ -25,10 +25,15 @@ var (
 	theme string
 	// usePlato to use plato themed widgets.
 	usePlato bool
-	// latency specifies whether to simulate latency.
-	latency bool
+	// latency specifies maximum latency (in millis) to simulate
+	latency int
 	// profileOpt specifies what to profile.
 	profileOpt string
+	// loadSize specifies maximum number of items to load at a time.
+	loadSize int
+	// bufferSize specifies how many elements to hold in memory before
+	// compacting the list.
+	bufferSize int
 )
 
 // th is the active theme object.
@@ -42,7 +47,10 @@ func init() {
 	flag.StringVar(&theme, "theme", "light", "theme to use {light,dark}")
 	flag.StringVar(&profileOpt, "profile", "none", "create the provided kind of profile. Use one of [none, cpu, mem, block, goroutine, mutex, trace, gio]")
 	flag.BoolVar(&usePlato, "plato", false, "use Plato Team Inc themed widgets")
-	flag.BoolVar(&latency, "latency", true, "whether to simulate network latency")
+	flag.IntVar(&latency, "latency", 1000, "maximum latency (in millis) to simulate")
+	flag.IntVar(&loadSize, "load-size", 30, "number of items to load at a time")
+	flag.IntVar(&bufferSize, "buffer-size", 30, "number of elements to hold in memory before compacting")
+
 	flag.Parse()
 	switch theme {
 	case "light":
