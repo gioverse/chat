@@ -168,7 +168,10 @@ func (m MessageStyle) Layout(gtx C) (d D) {
 			return surface(gtx, func(gtx C) D {
 				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
 					layout.Rigid(func(gtx C) D {
-						return m.Content.Layout(gtx)
+						return layout.Inset{
+							Top:  m.ContentPadding.Top,
+							Left: m.ContentPadding.Left,
+						}.Layout(gtx, m.Content.Layout)
 					}),
 					layout.Rigid(func(gtx C) D {
 						width := gtx.Px(m.MinMessageWidth)
