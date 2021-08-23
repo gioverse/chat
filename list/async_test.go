@@ -165,7 +165,7 @@ func TestAsyncProcess(t *testing.T) {
 			name: "fetch content before (should compact the end)",
 			input: loadRequest{
 				viewport: layout.Position{
-					First: 0,
+					First: 1,
 					Count: 2,
 				},
 				Direction: Before,
@@ -192,7 +192,7 @@ func TestAsyncProcess(t *testing.T) {
 			name: "fetch content before (should compact the end a little more)",
 			input: loadRequest{
 				viewport: layout.Position{
-					First: 0,
+					First: 1,
 					Count: 2,
 				},
 				Direction: Before,
@@ -220,7 +220,7 @@ func TestAsyncProcess(t *testing.T) {
 			input: loadRequest{
 				viewport: layout.Position{
 					First: 0,
-					Count: 6,
+					Count: 1,
 				},
 				Direction: Before,
 			},
