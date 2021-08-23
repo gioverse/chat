@@ -35,7 +35,8 @@ func (s Synthesis) ViewportToSerials(viewport layout.Position) (Serial, Serial) 
 	startSrcIdx := s.ToSourceIndicies[viewport.First]
 	startSerial := SerialAtOrBefore(s.Source, startSrcIdx)
 	lastIndex := len(s.ToSourceIndicies) - 1
-	endSrcIdx := s.ToSourceIndicies[min(viewport.First+viewport.Count, lastIndex)]
+	vpLastIndex := max(0, viewport.First+viewport.Count-1)
+	endSrcIdx := s.ToSourceIndicies[min(vpLastIndex, lastIndex)]
 	endSerial := SerialAtOrAfter(s.Source, endSrcIdx)
 	return startSerial, endSerial
 }
