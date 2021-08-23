@@ -69,7 +69,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 						The loader hook will serve the new elements to us at their appropriate
 						position, so we should rely upon it to do so.
 					*/
-					sliceFilter(&newElems, func(elem Element) bool {
+					SliceFilter(&newElems, func(elem Element) bool {
 						if len(processor.Raw) == 0 {
 							return true
 						}

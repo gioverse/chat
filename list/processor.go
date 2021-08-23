@@ -216,18 +216,24 @@ func newProcessor(synth Synthesizer, compare Comparator) *processor {
 	}
 }
 
-// sliceRemove takes the given index of a slice and swaps it with the final
+// SliceRemove takes the given index of a slice and swaps it with the final
 // index in the slice, then shortens the slice by one element. This hides
 // the element at index from the slice, though it does not erase its data.
-func sliceRemove(s *[]Element, index int) {
+func SliceRemove(s *[]Element, index int) {
+	if s == nil || len(*s) < 1 || index >= len(*s) {
+		return
+	}
 	lastIndex := len(*s) - 1
 	(*s)[index], (*s)[lastIndex] = (*s)[lastIndex], (*s)[index]
 	*s = (*s)[:lastIndex]
 }
 
-// sliceFilter removes elements for which the predicate returns false
+// SliceFilter removes elements for which the predicate returns false
 // from the slice.
-func sliceFilter(s *[]Element, predicate func(elem Element) bool) {
+func SliceFilter(s *[]Element, predicate func(elem Element) bool) {
+	if predicate == nil {
+		return
+	}
 	// Avoids using a range loop because we modify the slice as we iterate.
 	for i := 0; i < len(*s); i++ {
 		elem := (*s)[i]
@@ -235,10 +241,48 @@ func sliceFilter(s *[]Element, predicate func(elem Element) bool) {
 			continue
 		}
 		// Remove this element from the new slice.
-		sliceRemove(s, i)
+		SliceRemove(s, i)
 		// Check the element at this index again next iteration.
 		i--
 	}
+}
+
+// MakeIndexValid forces the given index to be in bounds for given slice.
+func MakeIndexValid(slice []Element, index int) int {
+	if index > len(slice) {
+		index = len(slice) - 1
+	} else if index < 0 {
+		index = 0
+	}
+	return index
+}
+
+// SerialAtOrBefore returns the serial of the element at the given index
+// if it is not NoSerial. If it is NoSerial, this method iterates backwards
+// towards the beginning of the list, searching for the nearest element with
+// a serial. If no serial is found before the beginning of the list, NoSerial
+// is returned.
+func SerialAtOrBefore(list []Element, index int) Serial {
+	for i := MakeIndexValid(list, index); i >= 0; i-- {
+		if s := list[index].Serial(); s != NoSerial {
+			return s
+		}
+	}
+	return NoSerial
+}
+
+// SerialAtOrAfter returns the serial of the element at the given index
+// if it is not NoSerial. If it is NoSerial, this method iterates forwards
+// towards the end of the list, searching for the nearest element with
+// a serial. If no serial is found before the end of the list, NoSerial
+// is returned.
+func SerialAtOrAfter(list []Element, index int) Serial {
+	for i := MakeIndexValid(list, index); i < len(list); i++ {
+		if s := list[index].Serial(); s != NoSerial {
+			return s
+		}
+	}
+	return NoSerial
 }
 
 // Update updates the internal Raw element slice with new elements.
@@ -251,7 +295,7 @@ func (r *processor) Update(newElems []Element, updateOnly []Element, removed []S
 		serialToRaw[elem.Serial()] = i
 	}
 	// Search newElems for elements that already exist within the Raw slice.
-	sliceFilter(&newElems, func(elem Element) bool {
+	SliceFilter(&newElems, func(elem Element) bool {
 		rawIndex, exists := serialToRaw[elem.Serial()]
 		if exists {
 			// Update the stored existing element.
@@ -284,7 +328,7 @@ func (r *processor) Update(newElems []Element, updateOnly []Element, removed []S
 	// middle of the list as part of the swap.
 	sort.Sort(sort.Reverse(sort.IntSlice(targetIndicies)))
 	for _, target := range targetIndicies {
-		sliceRemove(&r.Raw, target)
+		SliceRemove(&r.Raw, target)
 	}
 
 	r.Raw = append(r.Raw, newElems...)
