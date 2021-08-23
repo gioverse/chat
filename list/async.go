@@ -33,7 +33,8 @@ func (s *stateUpdate) populateWith(elems []Element) {
 // on each loadRequest. Close the loadRequest channel to terminate
 // processing.
 func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpdate) {
-	processor := newProcessor(hooks.Synthesizer, hooks.Comparator)
+	compact := NewCompact(maxSize, hooks.Comparator)
+	var synthesis Synthesis
 	reqChan := make(chan interface{})
 	updateChan := make(chan stateUpdate, 1)
 	go func() {
@@ -51,6 +52,9 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 			)
 			select {
 			case req, more := <-reqChan:
+				if !more {
+					return
+				}
 				switch req := req.(type) {
 				case modificationRequest:
 					newElems = req.NewOrUpdate
@@ -59,22 +63,15 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 					su.PreserveListEnd = true
 
 					/*
-						In order to preserve the invariant that the Raw list contains a
-						contiguous slice of elements, we need to remove any elements
-						from the update that sort to the beginning or end of the Raw list
-						unless we are at the beginning or end of the underlying data.
-						This is because we cannot tell how far away new elements are from the
-						beginning or end of the list, and therefore how many elements
-						might exist between them and the current boundaries of the list.
-						The loader hook will serve the new elements to us at their appropriate
-						position, so we should rely upon it to do so.
+						Remove any elements that sort outside the boundaries of the
+						current list.
 					*/
 					SliceFilter(&newElems, func(elem Element) bool {
-						if len(processor.Raw) == 0 {
+						if len(synthesis.Source) == 0 {
 							return true
 						}
-						sortsBefore := processor.Comparator(elem, processor.Raw[0])
-						sortsAfter := processor.Comparator(processor.Raw[len(processor.Raw)-1], elem)
+						sortsBefore := compact.Comparator(elem, synthesis.Source[0])
+						sortsAfter := compact.Comparator(synthesis.Source[len(synthesis.Source)-1], elem)
 						// If this element sorts before the beginning of the list or after
 						// the end of the list, it should not be inserted unless we are at
 						// the appropriate end of the list.
@@ -85,29 +82,27 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 							return true
 						case sortsBefore || sortsAfter:
 							return false
+						default:
+							return true
 						}
-						return true
 					})
 					ignore = noDirection
 				case loadRequest:
-					if !more {
-						return
-					}
+					viewport = req.viewport
 					if req.Direction == ignore {
 						continue
 					}
-					viewport = req.viewport
 
 					// Find the serial of the element at either end of the list.
 					var loadSerial Serial
 					switch req.Direction {
 					case Before:
-						loadSerial = processor.SerialForProcessedIndex(0)
+						loadSerial = synthesis.SerialAt(0)
 					case After:
-						loadSerial = processor.SerialForProcessedIndex(len(processor.ProcessedToRaw) - 1)
+						loadSerial = synthesis.SerialAt(len(synthesis.Source) - 1)
 					}
 					// Load new elements.
-					newElems = hooks.Loader(req.Direction, loadSerial)
+					newElems = append(newElems, hooks.Loader(req.Direction, loadSerial)...)
 					// Track whether all new elements in a given direction have been
 					// exhausted.
 					if len(newElems) == 0 {
@@ -117,18 +112,18 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 					}
 				}
 			}
-			// Process any new elements.
-			processor.Update(newElems, updateOnly, rmSerials)
-			su.populateWith(processor.Synthesize())
+			// Define the elements within the viewport before any modification
+			// to the underlying slice of elements.
+			vpStart, vpEnd := synthesis.ViewportToSerials(viewport)
+			// Apply state updates.
+			compact.Apply(newElems, updateOnly, rmSerials)
+			// Fetch new contents and list of compacted content.
+			contents, compacted := compact.Compact(vpStart, vpEnd)
+			su.CompactedSerials = compacted
+			// Synthesize elements based on new contents.
+			synthesis = Synthesize(contents, hooks.Synthesizer)
+			su.populateWith(synthesis.Elements)
 
-			// Always try to compact after a state update.
-			if len(processor.Raw) > maxSize {
-				su.CompactedSerials = processor.Compact(maxSize, viewport)
-				// Reprocess elements if we compacted any.
-				if len(su.CompactedSerials) > 0 {
-					su.populateWith(processor.Synthesize())
-				}
-			}
 			updateChan <- su
 			hooks.Invalidator()
 		}

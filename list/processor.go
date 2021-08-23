@@ -333,7 +333,7 @@ func (r *processor) Update(newElems []Element, updateOnly []Element, removed []S
 
 	r.Raw = append(r.Raw, newElems...)
 	// Re-sort elements.
-	sort.Slice(r.Raw, func(i, j int) bool {
+	sort.SliceStable(r.Raw, func(i, j int) bool {
 		return r.Comparator(r.Raw[i], r.Raw[j])
 	})
 }
