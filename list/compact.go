@@ -79,9 +79,10 @@ func (c *Compact) Apply(insertOrUpdate []Element, updateOnly []Element, remove [
 // Compact returns a compacted slice of the elements managed by the Compact.
 // The resulting elements are garanteed to be sorted using the
 // Compact's Comparator and there will usually be no more than c.Size elements.
-// The Compact will keep all elements between the two provided
-// serials, which can force the length of the result list to exceed the configured
-// maximum size. Callers should take care in how they choose those serials.
+// The exception is when c.Size is smaller than 3 times the distance between
+// keepStart and keepEnd. In that case, Compact will attempt to return a slice
+// containing the region described by [keepStart,keepEnd] with the same number
+// of elements on either side.
 func (c *Compact) Compact(keepStart, keepEnd Serial) (contents []Element, compacted []Serial) {
 	if len(c.elements) < 1 {
 		return nil, nil
@@ -95,7 +96,9 @@ func (c *Compact) Compact(keepStart, keepEnd Serial) (contents []Element, compac
 	if !ok || keepEnd == NoSerial {
 		keepEndIdx = len(c.elements) - 1
 	}
-	additional := c.Size - (1 + keepEndIdx - keepStartIdx)
+	visible := (1 + keepEndIdx - keepStartIdx)
+	size := max(c.Size, 3*visible)
+	additional := size - visible
 	if additional > 0 {
 		// cut the additional size in half, ensuring that no element is
 		// lost to integer truncation.
