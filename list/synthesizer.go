@@ -1,6 +1,8 @@
 package list
 
-import "gioui.org/layout"
+import (
+	"gioui.org/layout"
+)
 
 // Synthesis holds the results of transforming a slice of Elements
 // with a Synthesizer hook.
@@ -31,6 +33,9 @@ func (s Synthesis) SerialAt(index int) Serial {
 func (s Synthesis) ViewportToSerials(viewport layout.Position) (Serial, Serial) {
 	if len(s.ToSourceIndicies) < 1 {
 		return NoSerial, NoSerial
+	}
+	if viewport.First >= len(s.ToSourceIndicies) {
+		viewport.First = len(s.ToSourceIndicies) - 1
 	}
 	startSrcIdx := s.ToSourceIndicies[viewport.First]
 	startSerial := SerialAtOrBefore(s.Source, startSrcIdx)
