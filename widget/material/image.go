@@ -1,6 +1,8 @@
 package material
 
 import (
+	"image"
+
 	"gioui.org/f32"
 	"gioui.org/layout"
 	"gioui.org/op"
@@ -23,10 +25,10 @@ type Image struct {
 // Layout the image.
 func (img Image) Layout(gtx layout.Context) layout.Dimensions {
 	if img.Width.V > 0 {
-		gtx.Constraints.Max.X = gtx.Px(img.Width)
+		gtx.Constraints.Max.X = gtx.Constraints.Constrain(image.Pt(gtx.Px(img.Width), 0)).X
 	}
 	if img.Height.V > 0 {
-		gtx.Constraints.Max.Y = gtx.Px(img.Height)
+		gtx.Constraints.Max.Y = gtx.Constraints.Constrain(image.Pt(0, gtx.Px(img.Height))).Y
 	}
 	defer op.Save(gtx.Ops).Load()
 	macro := op.Record(gtx.Ops)

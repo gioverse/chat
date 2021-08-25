@@ -128,9 +128,11 @@ func Message(th *material.Theme, interact *chatwidget.Message, content string, i
 		}),
 		ContentPadding: layout.UniformInset(unit.Dp(8)),
 		Image: Image{
+			Width:  unit.Dp(400),
+			Height: unit.Dp(400),
 			Image: widget.Image{
 				Src:      interact.Image.Op(),
-				Fit:      widget.ScaleDown,
+				Fit:      widget.Cover,
 				Position: layout.Center,
 			},
 			Radii: unit.Dp(8),
