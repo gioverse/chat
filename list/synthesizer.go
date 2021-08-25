@@ -45,6 +45,8 @@ func (s Synthesis) ViewportToSerials(viewport layout.Position) (Serial, Serial) 
 	}
 	if viewport.First >= len(s.ToSourceIndicies) {
 		viewport.First = len(s.ToSourceIndicies) - 1
+	} else if viewport.First < 0 {
+		viewport.First = 0
 	}
 	startSrcIdx := s.ToSourceIndicies[viewport.First]
 	startSerial := SerialAtOrBefore(s.Source, startSrcIdx)

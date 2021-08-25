@@ -1,6 +1,8 @@
 package list
 
-import "fmt"
+import (
+	"fmt"
+)
 
 // stateUpdate contains a new slice of element data and a mapping from all of
 // the element serials to their respective indicies. This data structure is designed
@@ -28,11 +30,12 @@ type viewport struct {
 // New elements are processed and compacted according to maxSize
 // on each loadRequest. Close the loadRequest channel to terminate
 // processing.
-func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpdate) {
+func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, <-chan stateUpdate) {
 	compact := NewCompact(maxSize, hooks.Comparator)
 	var synthesis Synthesis
 	reqChan := make(chan interface{})
 	updateChan := make(chan stateUpdate, 1)
+	viewports := make(chan viewport, 1)
 	go func() {
 		defer close(updateChan)
 		var (
@@ -110,6 +113,13 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 			}
 			// Apply state updates.
 			compact.Apply(newElems, updateOnly, rmSerials)
+
+			// Update the viewport if there is a new one available.
+			select {
+			case viewport = <-viewports:
+			default:
+			}
+
 			// Fetch new contents and list of compacted content.
 			contents, compacted := compact.Compact(viewport.Start, viewport.End)
 			su.CompactedSerials = compacted
@@ -121,5 +131,5 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 			hooks.Invalidator()
 		}
 	}()
-	return reqChan, updateChan
+	return reqChan, viewports, updateChan
 }

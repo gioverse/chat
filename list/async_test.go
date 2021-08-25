@@ -31,7 +31,7 @@ func TestAsyncProcess(t *testing.T) {
 		},
 	}
 	size := 6
-	reqs, updates := asyncProcess(size, hooks)
+	reqs, _, updates := asyncProcess(size, hooks)
 
 	type testcase struct {
 		// description of what this test case is checking

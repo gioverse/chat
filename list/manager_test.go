@@ -333,6 +333,7 @@ func TestManagerPrefetch(t *testing.T) {
 				list         layout.List
 				requests     = make(chan interface{}, 1)
 				stateUpdates = make(chan stateUpdate, 1)
+				viewports    = make(chan viewport, 1)
 			)
 
 			// Manually allocate list manager.
@@ -344,15 +345,18 @@ func TestManagerPrefetch(t *testing.T) {
 				requests:     requests,
 				stateUpdates: stateUpdates,
 				elementState: make(map[Serial]interface{}),
-				elements: func() (elements []Element) {
-					elements = make([]Element, tc.elements)
+				elements: func() Synthesis {
+					elements := make([]Element, tc.elements)
 					for ii := 0; ii < tc.elements; ii++ {
 						elements[ii] = &actuallyStatefulElement{
 							serial: strconv.Itoa(ii),
 						}
 					}
-					return elements
+					return Synthesize(elements, func(_, x, _ Element) []Element {
+						return []Element{x}
+					})
 				}(),
+				viewports: viewports,
 			}
 
 			// Set the index position to render the list at.

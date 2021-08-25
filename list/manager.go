@@ -32,8 +32,9 @@ type Manager struct {
 	// Defaults to '0.15' (15%), clamped to '1.0' (100%).
 	Prefetch float32
 
-	// elements is the list of data to present.
-	elements []Element
+	// elements is the list of data to present and some useful metadata
+	// mappings for it.
+	elements Synthesis
 
 	// viewport holds the most recently laid out range of elements.
 	viewport
@@ -58,6 +59,13 @@ type Manager struct {
 	// stateUpdates is a buffered channel that receives changes in the managed
 	// elements from the state management goroutine.
 	stateUpdates <-chan stateUpdate
+
+	// viewports provides a channel that the manager can use to inform the
+	// asynchronous processing goroutine of changes in the viewport. This
+	// channel will be buffered, and new values should replace old values
+	// (read old values out and discard them before sending new ones).
+	viewports    chan viewport
+	lastPosition layout.Position
 }
 
 // tryRequest will send the loadRequest if and only if the background processing
@@ -70,6 +78,26 @@ func (m *Manager) tryRequest(dir Direction) {
 		viewport:  m.viewport,
 	}:
 	default:
+	}
+}
+
+// updateViewport notifies the asynchronous processing backend of a change
+// in the viewport. If the viewport has not changed since the last frame,
+// it will do nothing.
+func (m *Manager) updateViewport(pos layout.Position) {
+	if pos.First == m.lastPosition.First && pos.Count == m.lastPosition.Count {
+		return
+	}
+	m.lastPosition = pos
+	m.viewport.Start, m.viewport.End = m.elements.ViewportToSerials(pos)
+	// Try to send the viewport until we succeed. This should only ever
+	// iterate a maximum of twice.
+	for {
+		select {
+		case <-m.viewports:
+		case m.viewports <- m.viewport:
+			return
+		}
 	}
 }
 
@@ -100,7 +128,7 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 		elementState: make(map[Serial]interface{}),
 	}
 
-	rm.requests, rm.stateUpdates = asyncProcess(maxSize, hooks)
+	rm.requests, rm.viewports, rm.stateUpdates = asyncProcess(maxSize, hooks)
 
 	return rm
 }
@@ -186,13 +214,13 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 	}
 	// indexf is the precentage of the total list of elements that
 	// the index represents.
-	indexf := float32(index) / float32(max(len(m.elements), 1))
+	indexf := float32(index) / float32(max(len(m.elements.Elements), 1))
 	// If the beginning of the list is visible, try to load prior history.
-	if indexf < m.Prefetch && len(m.elements) > 0 {
+	if indexf < m.Prefetch && len(m.elements.Elements) > 0 {
 		m.tryRequest(Before)
 	}
 	// If the end of the list is visible, try to load history afterwards.
-	if indexf > 1.0-m.Prefetch && len(m.elements) > 0 {
+	if indexf > 1.0-m.Prefetch && len(m.elements.Elements) > 0 {
 		m.tryRequest(After)
 	}
 	// If there are too few elements such that the prefetch zone is never entered,
@@ -206,11 +234,11 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 	// The minium number of elements required to overcome this check is equal to
 	// the granularity of the prefetch. Thus with a prefetch of 0.15, the list
 	// needs to contain at least 7 elements to ignore this load request.
-	if fewElements := len(m.elements) < int(math.Ceil(float64(1.0/m.Prefetch))); fewElements {
+	if fewElements := len(m.elements.Elements) < int(math.Ceil(float64(1.0/m.Prefetch))); fewElements {
 		m.tryRequest(After)
 	}
 	// Lay out the element for the current index.
-	data := m.elements[index]
+	data := m.elements.Elements[index]
 	id := data.Serial()
 	state, ok := m.elementState[id]
 	if !ok && id != NoSerial {
@@ -229,9 +257,14 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 	// Update the state of the manager in response to any loads.
 	select {
 	case su := <-m.stateUpdates:
-		if len(m.elements) > 0 {
-			listStart := min(list.Position.First, len(m.elements)-1)
-			startSerial := m.elements[listStart].Serial()
+		if len(m.elements.Elements) > 0 {
+			// Resolve the current element at the start of the viewport within
+			// the old element list.
+			listStart := min(list.Position.First, len(m.elements.Elements)-1)
+			startSerial := m.elements.Elements[listStart].Serial()
+
+			// Find that start element within the new element list and set the
+			// list position to match it if possible.
 			newStartIndex, ok := su.SerialToIndex[startSerial]
 			if !ok {
 				// The element that was previously at the top of the viewport
@@ -241,7 +274,7 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 				// If this fails to find a matching element, just set the
 				// viewport to start on the first element.
 				for ii := listStart - 1; (startSerial == NoSerial || !ok) && ii >= 0; ii-- {
-					startSerial = m.elements[ii].Serial()
+					startSerial = m.elements.Elements[ii].Serial()
 					newStartIndex, ok = su.SerialToIndex[startSerial]
 				}
 			}
@@ -252,7 +285,7 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 				list.Position.BeforeEnd = true
 			}
 		}
-		m.elements = su.Elements
+		m.elements = su.Synthesis
 		// Delete the persistent widget state for any compacted element.
 		for _, serial := range su.CompactedSerials {
 			delete(m.elementState, serial)
@@ -262,12 +295,14 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 		m.viewport.Start, m.viewport.End = su.ViewportToSerials(list.Position)
 	default:
 	}
-	if len(m.elements) == 0 {
+	if len(m.elements.Elements) == 0 {
 		// Push an initial request to populate the first few messages.
 		m.tryRequest(After)
 	}
 
-	return len(m.elements)
+	m.updateViewport(list.Position)
+
+	return len(m.elements.Elements)
 }
 
 // ManagedElements returns the slice of elements managed by the manager
@@ -277,7 +312,7 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 // This method is useful for checking the relative positions of managed
 // elements during layout. Many applications will never need this functionality.
 func (m *Manager) ManagedElements(gtx layout.Context) []Element {
-	return m.elements
+	return m.elements.Elements
 }
 
 // ManagedState returns the map of widget state managed by the manager
