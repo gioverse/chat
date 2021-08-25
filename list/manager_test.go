@@ -20,34 +20,10 @@ func (a actuallyStatefulElement) Serial() Serial {
 	return Serial(a.serial)
 }
 
-func TestStateUpdate(t *testing.T) {
-	elems := []Element{
-		actuallyStatefulElement{serial: "a"},
-		actuallyStatefulElement{serial: "b"},
-		actuallyStatefulElement{serial: ""},
-		actuallyStatefulElement{serial: ""},
-		actuallyStatefulElement{serial: "c"},
-		actuallyStatefulElement{serial: "d"},
-	}
-
+func mkStateUpdate(elements []Element, synth Synthesizer) stateUpdate {
 	var su stateUpdate
-	su.populateWith(elems)
-
-	for i := range su.Elements {
-		if elems[i].Serial() != su.Elements[i].Serial() {
-			t.Errorf("expected state update at index %d to match input", i)
-		}
-	}
-
-	for s, i := range su.SerialToIndex {
-		if elems[i].Serial() != s {
-			t.Errorf("state update mapping for serial %s is wrong", s)
-		}
-	}
-
-	if _, ok := su.SerialToIndex[NoSerial]; ok {
-		t.Errorf("state update should not map the lack of a serial to an index")
-	}
+	su.Synthesis = Synthesize(elements, synth)
+	return su
 }
 
 func TestManager(t *testing.T) {
@@ -65,6 +41,8 @@ func TestManager(t *testing.T) {
 
 	allocationCounter := 0
 	presenterCounter := 0
+
+	synth := func(a, b, c Element) []Element { return []Element{b} }
 
 	m := NewManager(6, Hooks{
 		Allocator: func(e Element) interface{} {
@@ -93,7 +71,7 @@ func TestManager(t *testing.T) {
 		},
 		Invalidator: func() {},
 		Comparator:  func(a, b Element) bool { return true },
-		Synthesizer: func(a, b, c Element) []Element { return nil },
+		Synthesizer: synth,
 	})
 	// Shut down the existing background processing for this manager.
 	close(m.requests)
@@ -124,9 +102,7 @@ func TestManager(t *testing.T) {
 			update: func() stateUpdate {
 				// Send an update to provide a few elements to work with.
 				persistentElements = testElements[0:3]
-				var su stateUpdate
-				su.populateWith(persistentElements)
-				return su
+				return mkStateUpdate(persistentElements, synth)
 			}(),
 			expectedAllocations:   3,
 			expectedPresentations: 3,
@@ -150,9 +126,7 @@ func TestManager(t *testing.T) {
 						synthCount: 1,
 						serial:     string(NoSerial),
 					})
-				var su stateUpdate
-				su.populateWith(persistentElements)
-				return su
+				return mkStateUpdate(persistentElements, synth)
 			}(),
 			expectedAllocations:   0,
 			expectedPresentations: 5,
@@ -170,9 +144,7 @@ func TestManager(t *testing.T) {
 				persistentElements = append(persistentElements, actuallyStatefulElement{
 					serial: "serial",
 				})
-				var su stateUpdate
-				su.populateWith(persistentElements)
-				return su
+				return mkStateUpdate(persistentElements, synth)
 			}(),
 			expectedAllocations:   1,
 			expectedPresentations: 6,
@@ -188,8 +160,7 @@ func TestManager(t *testing.T) {
 			update: func() stateUpdate {
 				// Send an update to provide a few elements to work with.
 				persistentElements = persistentElements[:len(persistentElements)-1]
-				var su stateUpdate
-				su.populateWith(persistentElements)
+				su := mkStateUpdate(persistentElements, synth)
 				su.CompactedSerials = []Serial{"serial"}
 				return su
 			}(),
@@ -434,6 +405,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 		Size: image.Pt(10, 10),
 	})
 	var list layout.List
+	synth := func(a, b, c Element) []Element { return []Element{b} }
 
 	m := NewManager(6, Hooks{
 		Allocator: func(e Element) interface{} { return nil },
@@ -446,7 +418,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 		Loader:      func(dir Direction, relativeTo Serial) []Element { return nil },
 		Invalidator: func() {},
 		Comparator:  func(a, b Element) bool { return true },
-		Synthesizer: func(a, b, c Element) []Element { return nil },
+		Synthesizer: synth,
 	})
 	// Shut down the existing background processing for this manager.
 	close(m.requests)
@@ -471,10 +443,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 			sendUpdate: true,
 			update: func() stateUpdate {
 				// Send an update to provide a few elements to work with.
-				persistentElements = dupSlice(testElements)
-				var su stateUpdate
-				su.populateWith(persistentElements)
-				return su
+				return mkStateUpdate(dupSlice(testElements), synth)
 			}(),
 			startFirstIndex: 0,
 			endFirstIndex:   0,
@@ -484,9 +453,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 			sendUpdate: true,
 			update: func() stateUpdate {
 				persistentElements = dupSlice(append(testElements[0:2], testElements[3:]...))
-				var su stateUpdate
-				su.populateWith(persistentElements)
-				return su
+				return mkStateUpdate(persistentElements, synth)
 			}(),
 			startFirstIndex: 2,
 			endFirstIndex:   1,
@@ -514,9 +481,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 						synthCount: 1,
 					},
 				})
-				var su stateUpdate
-				su.populateWith(persistentElements)
-				return su
+				return mkStateUpdate(persistentElements, synth)
 			}(),
 			startFirstIndex: 0,
 			endFirstIndex:   0,
@@ -543,9 +508,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 						synthCount: 1,
 					},
 				})
-				var su stateUpdate
-				su.populateWith(persistentElements)
-				return su
+				return mkStateUpdate(persistentElements, synth)
 			}(),
 			startFirstIndex: 2,
 			endFirstIndex:   0,

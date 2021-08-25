@@ -182,7 +182,7 @@ func (d Direction) String() string {
 // loadRequest represents a request to load more elements on one end of the list.
 type loadRequest struct {
 	Direction Direction
-	viewport  layout.Position
+	viewport
 }
 
 // modificationRequest represents a request to insert or update some elements

@@ -1,6 +1,8 @@
 package list
 
 import (
+	"fmt"
+
 	"gioui.org/layout"
 )
 
@@ -9,6 +11,9 @@ import (
 type Synthesis struct {
 	// Elements holds the resulting elements.
 	Elements []Element
+	// SerialToIndex maps the serial of an element to the index it
+	// occupies within the Elements slice.
+	SerialToIndex map[Serial]int
 	// ToSourceIndicies maps each index in Elements to the index of
 	// the element that generated it when given to the Synthesizer.
 	// It is always true that Elements[i] was synthesized from
@@ -16,6 +21,10 @@ type Synthesis struct {
 	ToSourceIndicies []int
 	// The source elements.
 	Source []Element
+}
+
+func (s Synthesis) String() string {
+	return fmt.Sprintf("{Elements: %v}", s.Elements)
 }
 
 // SerialAt returns the serial at the given index within the Source slice,
@@ -74,6 +83,12 @@ func Synthesize(elements []Element, synth Synthesizer) Synthesis {
 			s.ToSourceIndicies = append(s.ToSourceIndicies, i)
 		}
 		s.Elements = append(s.Elements, synthesized...)
+	}
+	s.SerialToIndex = make(map[Serial]int)
+	for i, e := range s.Elements {
+		if e.Serial() != NoSerial {
+			s.SerialToIndex[e.Serial()] = i
+		}
 	}
 	return s
 }

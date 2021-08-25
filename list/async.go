@@ -1,14 +1,13 @@
 package list
 
-import "gioui.org/layout"
+import "fmt"
 
 // stateUpdate contains a new slice of element data and a mapping from all of
 // the element serials to their respective indicies. This data structure is designed
 // to allow the UI code to quickly find and update any offsets and locations
 // within the new data.
 type stateUpdate struct {
-	Elements      []Element
-	SerialToIndex map[Serial]int
+	Synthesis
 	// CompactedSerials is a slice of Serials that were compacted within this update.
 	CompactedSerials []Serial
 	// PreserveListEnd indicates whether or not the list.Position.BeforeEnd field
@@ -16,16 +15,13 @@ type stateUpdate struct {
 	PreserveListEnd bool
 }
 
-// populateWith sets s.Elements to the provided slice of elements
-// and populates the SerialToIndex map.
-func (s *stateUpdate) populateWith(elems []Element) {
-	s.Elements = elems
-	s.SerialToIndex = make(map[Serial]int)
-	for index, elem := range s.Elements {
-		if elem.Serial() != NoSerial {
-			s.SerialToIndex[elem.Serial()] = index
-		}
-	}
+func (s stateUpdate) String() string {
+	return fmt.Sprintf("Synthesis: %v, Compacted: %v, Preserve: %v", s.Synthesis, s.CompactedSerials, s.PreserveListEnd)
+}
+
+// viewport represents a range of elements visible within a list.
+type viewport struct {
+	Start, End Serial
 }
 
 // asyncProcess runs a list.processor concurrently.
@@ -40,7 +36,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 	go func() {
 		defer close(updateChan)
 		var (
-			viewport layout.Position
+			viewport viewport
 			ignore   Direction
 		)
 		for {
@@ -112,17 +108,14 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, <-chan stateUpd
 					}
 				}
 			}
-			// Define the elements within the viewport before any modification
-			// to the underlying slice of elements.
-			vpStart, vpEnd := synthesis.ViewportToSerials(viewport)
 			// Apply state updates.
 			compact.Apply(newElems, updateOnly, rmSerials)
 			// Fetch new contents and list of compacted content.
-			contents, compacted := compact.Compact(vpStart, vpEnd)
+			contents, compacted := compact.Compact(viewport.Start, viewport.End)
 			su.CompactedSerials = compacted
 			// Synthesize elements based on new contents.
 			synthesis = Synthesize(contents, hooks.Synthesizer)
-			su.populateWith(synthesis.Elements)
+			su.Synthesis = synthesis
 
 			updateChan <- su
 			hooks.Invalidator()

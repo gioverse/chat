@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
-
-	"gioui.org/layout"
 )
 
 // define a set of elements that can be used across tests.
@@ -56,49 +54,51 @@ func TestAsyncProcess(t *testing.T) {
 		{
 			name: "initial load of data",
 			input: loadRequest{
-				viewport: layout.Position{
-					First: 0,
-					Count: 0,
+				viewport: viewport{
+					Start: "",
+					End:   "",
 				},
 				Direction: Before,
 			},
 			load: testElements[7:],
 			expected: stateUpdate{
-				Elements: testElements[7:],
-				SerialToIndex: map[Serial]int{
-					testElements[7].Serial(): 0,
-					testElements[8].Serial(): 1,
-					testElements[9].Serial(): 2,
+				Synthesis: Synthesis{
+					Elements: testElements[7:],
+					SerialToIndex: map[Serial]int{
+						testElements[7].Serial(): 0,
+						testElements[8].Serial(): 1,
+						testElements[9].Serial(): 2,
+					},
 				},
-				CompactedSerials: nil,
 			},
 		},
 		{
 			name: "fetch content after (cannot succeed)",
 			input: loadRequest{
-				viewport: layout.Position{
-					First: 0,
-					Count: 3,
+				viewport: viewport{
+					Start: "000",
+					End:   "003",
 				},
 				Direction: After,
 			},
 			load: nil,
 			expected: stateUpdate{
-				Elements: testElements[7:],
-				SerialToIndex: map[Serial]int{
-					testElements[7].Serial(): 0,
-					testElements[8].Serial(): 1,
-					testElements[9].Serial(): 2,
+				Synthesis: Synthesis{
+					Elements: testElements[7:],
+					SerialToIndex: map[Serial]int{
+						testElements[7].Serial(): 0,
+						testElements[8].Serial(): 1,
+						testElements[9].Serial(): 2,
+					},
 				},
-				CompactedSerials: nil,
 			},
 		},
 		{
 			name: "fetch content after again (should not attempt load)",
 			input: loadRequest{
-				viewport: layout.Position{
-					First: 0,
-					Count: 3,
+				viewport: viewport{
+					Start: "000",
+					End:   "003",
 				},
 				Direction: After,
 			},
@@ -113,46 +113,48 @@ func TestAsyncProcess(t *testing.T) {
 		{
 			name: "fetch content before",
 			input: loadRequest{
-				viewport: layout.Position{
-					First: 0,
-					Count: 3,
+				viewport: viewport{
+					Start: "000",
+					End:   "003",
 				},
 				Direction: Before,
 			},
 			load: testElements[4:7],
 			expected: stateUpdate{
-				Elements: testElements[4:],
-				SerialToIndex: map[Serial]int{
-					testElements[4].Serial(): 0,
-					testElements[5].Serial(): 1,
-					testElements[6].Serial(): 2,
-					testElements[7].Serial(): 3,
-					testElements[8].Serial(): 4,
-					testElements[9].Serial(): 5,
+				Synthesis: Synthesis{
+					Elements: testElements[4:],
+					SerialToIndex: map[Serial]int{
+						testElements[4].Serial(): 0,
+						testElements[5].Serial(): 1,
+						testElements[6].Serial(): 2,
+						testElements[7].Serial(): 3,
+						testElements[8].Serial(): 4,
+						testElements[9].Serial(): 5,
+					},
 				},
-				CompactedSerials: nil,
 			},
 		},
 		{
 			name: "fetch content after (cannot succeed, but should try anyway now that a different load succeeded)",
 			input: loadRequest{
-				viewport: layout.Position{
-					First: 0,
-					Count: 6,
+				viewport: viewport{
+					Start: "000",
+					End:   "006",
 				},
 				Direction: After,
 			},
 			expected: stateUpdate{
-				Elements: testElements[4:],
-				SerialToIndex: map[Serial]int{
-					testElements[4].Serial(): 0,
-					testElements[5].Serial(): 1,
-					testElements[6].Serial(): 2,
-					testElements[7].Serial(): 3,
-					testElements[8].Serial(): 4,
-					testElements[9].Serial(): 5,
+				Synthesis: Synthesis{
+					Elements: testElements[4:],
+					SerialToIndex: map[Serial]int{
+						testElements[4].Serial(): 0,
+						testElements[5].Serial(): 1,
+						testElements[6].Serial(): 2,
+						testElements[7].Serial(): 3,
+						testElements[8].Serial(): 4,
+						testElements[9].Serial(): 5,
+					},
 				},
-				CompactedSerials: nil,
 			},
 			extraChecks: func() error {
 				if !loadInvoked {
@@ -164,22 +166,24 @@ func TestAsyncProcess(t *testing.T) {
 		{
 			name: "fetch content before (should compact the end)",
 			input: loadRequest{
-				viewport: layout.Position{
-					First: 1,
-					Count: 2,
+				viewport: viewport{
+					Start: "005",
+					End:   "006",
 				},
 				Direction: Before,
 			},
 			load: testElements[1:4],
 			expected: stateUpdate{
-				Elements: testElements[3:9],
-				SerialToIndex: map[Serial]int{
-					testElements[3].Serial(): 0,
-					testElements[4].Serial(): 1,
-					testElements[5].Serial(): 2,
-					testElements[6].Serial(): 3,
-					testElements[7].Serial(): 4,
-					testElements[8].Serial(): 5,
+				Synthesis: Synthesis{
+					Elements: testElements[3:9],
+					SerialToIndex: map[Serial]int{
+						testElements[3].Serial(): 0,
+						testElements[4].Serial(): 1,
+						testElements[5].Serial(): 2,
+						testElements[6].Serial(): 3,
+						testElements[7].Serial(): 4,
+						testElements[8].Serial(): 5,
+					},
 				},
 				CompactedSerials: []Serial{
 					testElements[1].Serial(),
@@ -191,22 +195,24 @@ func TestAsyncProcess(t *testing.T) {
 		{
 			name: "fetch content before (should compact the end a little more)",
 			input: loadRequest{
-				viewport: layout.Position{
-					First: 1,
-					Count: 2,
+				viewport: viewport{
+					Start: "004",
+					End:   "005",
 				},
 				Direction: Before,
 			},
 			load: testElements[:3],
 			expected: stateUpdate{
-				Elements: testElements[2:8],
-				SerialToIndex: map[Serial]int{
-					testElements[2].Serial(): 0,
-					testElements[3].Serial(): 1,
-					testElements[4].Serial(): 2,
-					testElements[5].Serial(): 3,
-					testElements[6].Serial(): 4,
-					testElements[7].Serial(): 5,
+				Synthesis: Synthesis{
+					Elements: testElements[2:8],
+					SerialToIndex: map[Serial]int{
+						testElements[2].Serial(): 0,
+						testElements[3].Serial(): 1,
+						testElements[4].Serial(): 2,
+						testElements[5].Serial(): 3,
+						testElements[6].Serial(): 4,
+						testElements[7].Serial(): 5,
+					},
 				},
 				CompactedSerials: []Serial{
 					testElements[0].Serial(),
@@ -218,31 +224,33 @@ func TestAsyncProcess(t *testing.T) {
 		{
 			name: "fetch content before (no more content)",
 			input: loadRequest{
-				viewport: layout.Position{
-					First: 0,
-					Count: 1,
+				viewport: viewport{
+					Start: "002",
+					End:   "003",
 				},
 				Direction: Before,
 			},
 			load: nil,
 			expected: stateUpdate{
-				Elements: testElements[2:8],
-				SerialToIndex: map[Serial]int{
-					testElements[2].Serial(): 0,
-					testElements[3].Serial(): 1,
-					testElements[4].Serial(): 2,
-					testElements[5].Serial(): 3,
-					testElements[6].Serial(): 4,
-					testElements[7].Serial(): 5,
+				Synthesis: Synthesis{
+					Elements: testElements[2:8],
+					SerialToIndex: map[Serial]int{
+						testElements[2].Serial(): 0,
+						testElements[3].Serial(): 1,
+						testElements[4].Serial(): 2,
+						testElements[5].Serial(): 3,
+						testElements[6].Serial(): 4,
+						testElements[7].Serial(): 5,
+					},
 				},
 			},
 		},
 		{
 			name: "fetch content before (should not attempt load)",
 			input: loadRequest{
-				viewport: layout.Position{
-					First: 0,
-					Count: 6,
+				viewport: viewport{
+					Start: "000",
+					End:   "006",
 				},
 				Direction: Before,
 			},

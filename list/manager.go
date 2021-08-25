@@ -35,8 +35,8 @@ type Manager struct {
 	// elements is the list of data to present.
 	elements []Element
 
-	// viewportCache holds the last known viewport position of the managed list.
-	viewportCache layout.Position
+	// viewport holds the most recently laid out range of elements.
+	viewport
 
 	// presenter is a function that can transform a single Element into
 	// a presentable widget.
@@ -67,7 +67,7 @@ func (m *Manager) tryRequest(dir Direction) {
 	select {
 	case m.requests <- loadRequest{
 		Direction: dir,
-		viewport:  m.viewportCache,
+		viewport:  m.viewport,
 	}:
 	default:
 	}
@@ -257,15 +257,15 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 		for _, serial := range su.CompactedSerials {
 			delete(m.elementState, serial)
 		}
+
+		// Capture the current viewport in terms of the range of visible elements.
+		m.viewport.Start, m.viewport.End = su.ViewportToSerials(list.Position)
 	default:
 	}
 	if len(m.elements) == 0 {
 		// Push an initial request to populate the first few messages.
 		m.tryRequest(After)
 	}
-
-	// Update the cached copy of the list position to the latest value.
-	m.viewportCache = list.Position
 
 	return len(m.elements)
 }
