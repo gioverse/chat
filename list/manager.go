@@ -39,6 +39,10 @@ type Manager struct {
 	// viewport holds the most recently laid out range of elements.
 	viewport
 
+	// ignoring is the directions that a load request should not be issued
+	// because there is no new data in that direction.
+	ignoring Direction
+
 	// presenter is a function that can transform a single Element into
 	// a presentable widget.
 	presenter Presenter
@@ -72,6 +76,9 @@ type Manager struct {
 // goroutine is immediately able to start working on it. Otherwise it will
 // discard the request.
 func (m *Manager) tryRequest(dir Direction) {
+	if m.ignoring.Contains(dir) {
+		return
+	}
 	select {
 	case m.requests <- loadRequest{
 		Direction: dir,

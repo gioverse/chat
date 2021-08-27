@@ -157,12 +157,48 @@ func max(a, b int) int {
 // Direction indicates the direction of a load request with respect to the list.
 type Direction uint8
 
+// Add combines the receiving direction with the parameter.
+func (d *Direction) Add(other Direction) {
+	switch *d {
+	case noDirection:
+		*d = other
+	case After:
+		if other == Before {
+			*d = both
+		}
+	case Before:
+		if other == After {
+			*d = both
+		}
+	}
+}
+
+// Contains returns whether the receiver direction logically includes the
+// provided direction.
+func (d Direction) Contains(other Direction) bool {
+	switch d {
+	case noDirection:
+		return false
+	case both:
+		return true
+	case After:
+		return other == After
+	case Before:
+		return other == Before
+	default:
+		return false
+	}
+}
+
 const (
 	noDirection Direction = iota
 	// Before loads serial values earlier than a reference value.
 	Before
 	// After loads serial values after a reference value.
 	After
+	// both indicates that both directions are ignored relative to a
+	// reference value.
+	both
 )
 
 // String converts a direction into a printable representation.
@@ -174,6 +210,8 @@ func (d Direction) String() string {
 		return "Before"
 	case After:
 		return "After"
+	case both:
+		return "both"
 	default:
 		return "unknown direction"
 	}

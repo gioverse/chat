@@ -15,6 +15,9 @@ type stateUpdate struct {
 	// PreserveListEnd indicates whether or not the list.Position.BeforeEnd field
 	// should be reset when applying this state update.
 	PreserveListEnd bool
+	// Ignore reports which directions (if any) the async backend currently
+	// believes to have no new content.
+	Ignore Direction
 }
 
 func (s stateUpdate) String() string {
@@ -105,7 +108,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, 
 					// Track whether all new elements in a given direction have been
 					// exhausted.
 					if len(newElems) == 0 {
-						ignore = req.Direction
+						ignore.Add(req.Direction)
 					} else {
 						ignore = noDirection
 					}
@@ -126,6 +129,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, 
 			// Synthesize elements based on new contents.
 			synthesis = Synthesize(contents, hooks.Synthesizer)
 			su.Synthesis = synthesis
+			su.Ignore = ignore
 
 			updateChan <- su
 			hooks.Invalidator()
