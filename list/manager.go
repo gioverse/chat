@@ -43,6 +43,11 @@ type Manager struct {
 	// because there is no new data in that direction.
 	ignoring Direction
 
+	// lastRequest tracks the direction of the most recent load request. This
+	// is useful to allow the direction of load requests to alternate when both
+	// directions are eligible to load.
+	lastRequest Direction
+
 	// presenter is a function that can transform a single Element into
 	// a presentable widget.
 	presenter Presenter
@@ -79,6 +84,7 @@ func (m *Manager) tryRequest(dir Direction) {
 	if m.ignoring.Contains(dir) {
 		return
 	}
+	m.lastRequest = dir
 	select {
 	case m.requests <- loadRequest{
 		Direction: dir,
@@ -219,16 +225,19 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 	if m.Prefetch > 1.0 {
 		m.Prefetch = 1.0
 	}
+	var (
+		canRequestBefore, canRequestAfter bool
+	)
 	// indexf is the precentage of the total list of elements that
 	// the index represents.
 	indexf := float32(index) / float32(max(len(m.elements.Elements), 1))
 	// If the beginning of the list is visible, try to load prior history.
 	if indexf < m.Prefetch && len(m.elements.Elements) > 0 {
-		m.tryRequest(Before)
+		canRequestBefore = true
 	}
 	// If the end of the list is visible, try to load history afterwards.
 	if indexf > 1.0-m.Prefetch && len(m.elements.Elements) > 0 {
-		m.tryRequest(After)
+		canRequestAfter = true
 	}
 	// If there are too few elements such that the prefetch zone is never entered,
 	// try to load history afterwards.
@@ -242,6 +251,16 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 	// the granularity of the prefetch. Thus with a prefetch of 0.15, the list
 	// needs to contain at least 7 elements to ignore this load request.
 	if fewElements := len(m.elements.Elements) < int(math.Ceil(float64(1.0/m.Prefetch))); fewElements {
+		canRequestAfter = true
+	}
+	switch {
+	case canRequestAfter && canRequestBefore && m.lastRequest == After:
+		m.tryRequest(Before)
+	case canRequestAfter && canRequestBefore && m.lastRequest == Before:
+		m.tryRequest(After)
+	case canRequestBefore:
+		m.tryRequest(Before)
+	case canRequestAfter:
 		m.tryRequest(After)
 	}
 	// Lay out the element for the current index.
