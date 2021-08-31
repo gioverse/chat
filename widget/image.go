@@ -13,8 +13,8 @@ type CachedImage struct {
 }
 
 // Reload tells the CachedImage to repopulate the cache.
-func (ci *CachedImage) Reload() {
-	ci.ch = true
+func (img *CachedImage) Reload() {
+	img.ch = true
 }
 
 // Cache the image if it is not already.
@@ -37,7 +37,7 @@ func (img CachedImage) Op() paint.ImageOp {
 
 // changed reports whether the underlying image has changed and therefore
 // should be cached again.
-func (ci *CachedImage) changed() bool {
-	defer func() { ci.ch = false }()
-	return ci.ch
+func (img *CachedImage) changed() bool {
+	defer func() { img.ch = false }()
+	return img.ch
 }
