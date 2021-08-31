@@ -20,13 +20,14 @@ func (ci *CachedImage) Reload() {
 // Cache the image if it is not already.
 // First call will compute the image operation, subsequent calls will noop.
 // When reloaded, cache will re-populated on next invocation.
-func (img *CachedImage) Cache(src image.Image) {
+func (img *CachedImage) Cache(src image.Image) *CachedImage {
 	if img == nil || src == nil {
-		return
+		return img
 	}
 	if img.op == (paint.ImageOp{}) || img.changed() {
 		img.op = paint.NewImageOp(src)
 	}
+	return img
 }
 
 // Op returns the concrete image operation.
