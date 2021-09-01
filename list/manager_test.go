@@ -2,6 +2,7 @@ package list
 
 import (
 	"image"
+	"runtime"
 	"strconv"
 	"testing"
 	"time"
@@ -564,4 +565,62 @@ var testHooks = Hooks{
 	Invalidator: func() {},
 	Comparator:  func(a, b Element) bool { return true },
 	Synthesizer: func(a, b, c Element) []Element { return nil },
+}
+
+// TestManagerGC ensures that the Manager cleans up its async goroutine
+// when it is garbage collected.
+func TestManagerGC(t *testing.T) {
+	targetGoroutine := "git.sr.ht/~gioverse/chat/list.asyncProcess.func1"
+
+	if goroutineRunning(targetGoroutine) {
+		t.Skip("Another list manager is executing concurrently, cannot test cleanup.")
+	}
+
+	mgr := NewManager(10, DefaultHooks(nil, nil))
+	_ = mgr // Pretend to use the variable so that it isn't "unused"
+	timeout := time.NewTicker(time.Second)
+
+	for !goroutineRunning(targetGoroutine) {
+		select {
+		case <-timeout.C:
+			t.Fatalf("timed out waiting for async goroutine to launch")
+			return
+		default:
+		}
+		time.Sleep(time.Millisecond)
+	}
+	mgr = nil
+	// Garbage collect twice, once to run the finalizer and once to
+	// actually destroy the manager.
+	runtime.GC()
+	runtime.GC()
+	if goroutineRunning(targetGoroutine) {
+		t.Errorf("Destroying a list manager did not clean up background goroutine.")
+	}
+}
+
+// goroutineRunning returns whether a goroutine is currently executing
+// within the provided function name. It only checks the first 100
+// goroutines, and it does not differentiate between a goroutine
+// currently executing the target function and a goroutine that
+// is in a deeper function with the target higher in the call
+// stack.
+func goroutineRunning(name string) bool {
+	var grs [100]runtime.StackRecord
+	n, _ := runtime.GoroutineProfile(grs[:])
+	active := grs[:n]
+	for _, gr := range active {
+		frames := runtime.CallersFrames(gr.Stack())
+	frameLoop:
+		for {
+			frame, more := frames.Next()
+			if frame.Func.Name() == name {
+				return true
+			}
+			if !more {
+				break frameLoop
+			}
+		}
+	}
+	return false
 }
