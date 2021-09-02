@@ -290,6 +290,9 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 // the state of the ListManager and List prior to layout. This method should
 // be called to provide a layout.List with the length of the underlying list,
 // and the layout.List should be passed in as a parameter.
+// If the provided layout.List has its ScrollToEnd field set to true, the
+// Manager will attempt to respect that when handling content inserted
+// asynchronously with Modify() (and similar methods).
 func (m *Manager) UpdatedLen(list *layout.List) int {
 	// Update the state of the manager in response to any loads.
 	select {
@@ -315,11 +318,22 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 					newStartIndex, ok = su.SerialToIndex[startSerial]
 				}
 			}
+			// Check whether the final list element is visible before modifying
+			// the list's position.
+			lastElementVisible := list.Position.First+list.Position.Count == len(m.elements.Elements)
+
+			// Update the list position to match the new set of elements.
 			list.Position.First = newStartIndex
+
 			if !su.PreserveListEnd {
 				// Ensure that the list considers the possibility that new content
 				// has changed the end of the list.
 				list.Position.BeforeEnd = true
+			} else if lastElementVisible && list.ScrollToEnd {
+				// If we are attempting to preserve the end of the list, and the
+				// end is currently on the final element, jump to the new final
+				// element.
+				list.Position.BeforeEnd = false
 			}
 		}
 		m.elements = su.Synthesis
