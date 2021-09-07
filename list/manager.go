@@ -297,6 +297,7 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 	// Update the state of the manager in response to any loads.
 	select {
 	case su := <-m.stateUpdates:
+		m.ignoring = su.Ignore
 		if len(m.elements.Elements) > 0 {
 			// Resolve the current element at the start of the viewport within
 			// the old element list.
