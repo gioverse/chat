@@ -12,16 +12,13 @@ type stateUpdate struct {
 	Synthesis
 	// CompactedSerials is a slice of Serials that were compacted within this update.
 	CompactedSerials []Serial
-	// PreserveListEnd indicates whether or not the list.Position.BeforeEnd field
-	// should be reset when applying this state update.
-	PreserveListEnd bool
 	// Ignore reports which directions (if any) the async backend currently
 	// believes to have no new content.
 	Ignore Direction
 }
 
 func (s stateUpdate) String() string {
-	return fmt.Sprintf("Synthesis: %v, Compacted: %v, Preserve: %v", s.Synthesis, s.CompactedSerials, s.PreserveListEnd)
+	return fmt.Sprintf("Synthesis: %v, Compacted: %v, Ignore: %v", s.Synthesis, s.CompactedSerials, s.Ignore)
 }
 
 // viewport represents a range of elements visible within a list.
@@ -62,7 +59,6 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, 
 					newElems = req.NewOrUpdate
 					rmSerials = req.Remove
 					updateOnly = req.UpdateOnly
-					su.PreserveListEnd = true
 
 					/*
 						Remove any elements that sort outside the boundaries of the

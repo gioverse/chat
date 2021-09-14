@@ -33,6 +33,18 @@ type Manager struct {
 	// Defaults to '0.15' (15%), clamped to '1.0' (100%).
 	Prefetch float32
 
+	// Stickiness specifies direction(s) in which the list is "sticky". If the list
+	// reaches the end of loaded content in a sticky direction, it will latch onto
+	// the end of the list and remain there when new content loads at that end of
+	// the list. The user can scroll away from the end of the list, which will
+	// break the latch on that end of the list until they scroll back to the end.
+	//
+	// The default of NoDirection will cause no ends to be sticky. Setting
+	// This field to "Before" will make the beginning of the list sticky. Setting this
+	// field to "After" will make the end of the list sticky. Setting it to "Both"
+	// will make both ends sticky.
+	Stickiness Direction
+
 	// elements is the list of data to present and some useful metadata
 	// mappings for it.
 	elements Synthesis
@@ -236,9 +248,7 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 	if m.Prefetch > 1.0 {
 		m.Prefetch = 1.0
 	}
-	var (
-		canRequestBefore, canRequestAfter bool
-	)
+	var canRequestBefore, canRequestAfter bool
 	// indexf is the precentage of the total list of elements that
 	// the index represents.
 	indexf := float32(index) / float32(max(len(m.elements.Elements), 1))
@@ -321,20 +331,30 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 			}
 			// Check whether the final list element is visible before modifying
 			// the list's position.
+			firstElementVisible := list.Position.First == 0
 			lastElementVisible := list.Position.First+list.Position.Count == len(m.elements.Elements)
+			stickToEnd := lastElementVisible && m.Stickiness.Contains(After) && m.ignoring.Contains(After)
+			stickToBeginning := firstElementVisible && m.Stickiness.Contains(Before) && m.ignoring.Contains(Before)
 
-			// Update the list position to match the new set of elements.
-			list.Position.First = newStartIndex
+			if !stickToBeginning {
+				// Update the list position to match the new set of elements.
+				list.Position.First = newStartIndex
+			} else {
+				list.Position.First = 0
+				list.Position.Offset = 0
+			}
 
-			if !su.PreserveListEnd {
+			if !stickToEnd {
 				// Ensure that the list considers the possibility that new content
 				// has changed the end of the list.
 				list.Position.BeforeEnd = true
-			} else if lastElementVisible && list.ScrollToEnd {
+			} else {
 				// If we are attempting to preserve the end of the list, and the
 				// end is currently on the final element, jump to the new final
 				// element.
+				list.ScrollToEnd = true
 				list.Position.BeforeEnd = false
+				list.Position.OffsetLast = 0
 			}
 		}
 		m.elements = su.Synthesis
