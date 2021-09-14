@@ -4,6 +4,28 @@ import (
 	"fmt"
 )
 
+type updateType uint8
+
+const (
+	// pull indicates the results from a load request. The update pulled
+	// data from the data store.
+	pull updateType = iota
+	// push indicates the results from an asynchronous insertion of
+	// data. The application pushed data to the list.
+	push
+)
+
+func (u updateType) String() string {
+	switch u {
+	case pull:
+		return "pull"
+	case push:
+		return "push"
+	default:
+		return "unknown"
+	}
+}
+
 // stateUpdate contains a new slice of element data and a mapping from all of
 // the element serials to their respective indicies. This data structure is designed
 // to allow the UI code to quickly find and update any offsets and locations
@@ -15,6 +37,7 @@ type stateUpdate struct {
 	// Ignore reports which directions (if any) the async backend currently
 	// believes to have no new content.
 	Ignore Direction
+	Type   updateType
 }
 
 func (s stateUpdate) String() string {
@@ -56,6 +79,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, 
 				}
 				switch req := req.(type) {
 				case modificationRequest:
+					su.Type = push
 					newElems = req.NewOrUpdate
 					rmSerials = req.Remove
 					updateOnly = req.UpdateOnly
@@ -86,6 +110,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, 
 					})
 					ignore = NoDirection
 				case loadRequest:
+					su.Type = pull
 					viewport = req.viewport
 					if ignore.Contains(req.Direction) {
 						continue
