@@ -54,7 +54,7 @@ func (i imageElement) Serial() list.Serial {
 }
 
 // loader creates new elements in a given direction by pulling a new image from unsplash.com.
-func loader(dir list.Direction, relativeTo list.Serial) []list.Element {
+func loader(dir list.Direction, relativeTo list.Serial) ([]list.Element, bool) {
 	var newSerial int
 	if relativeTo == list.NoSerial {
 		newSerial = 0
@@ -70,20 +70,20 @@ func loader(dir list.Direction, relativeTo list.Serial) []list.Element {
 	r, err := http.Get(fmt.Sprintf("https://source.unsplash.com/random/%dx%d?nature", defaultSize, defaultSize))
 	if err != nil {
 		log.Printf("fetching image data: %v", err)
-		return nil
+		return nil, true
 	}
 	defer r.Body.Close()
 	img, _, err := image.Decode(r.Body)
 	if err != nil {
 		log.Printf("decoding image: %v", err)
-		return nil
+		return nil, true
 	}
 	return []list.Element{
 		imageElement{
 			serial: fmt.Sprintf("%d", newSerial),
 			img:    img,
 		},
-	}
+	}, true
 }
 
 // comparator returns whether a sorts before b.
