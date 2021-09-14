@@ -4,7 +4,11 @@ Package debug provides tools for debugging Gio layout code.
 package debug
 
 import (
+	"bytes"
+	"encoding/json"
 	"image/color"
+	"io"
+	"os"
 
 	"gioui.org/layout"
 	"gioui.org/unit"
@@ -22,4 +26,11 @@ func Outline(gtx C, w func(gtx C) D) D {
 		Color: color.NRGBA{A: 255},
 		Width: unit.Dp(1),
 	}.Layout(gtx, w)
+}
+
+// Dump logs the input as formatting JSON on stderr.
+func Dump(v interface{}) {
+	b, _ := json.MarshalIndent(v, "", "  ")
+	b = append(b, []byte("\n")...)
+	io.Copy(os.Stderr, bytes.NewBuffer(b))
 }
