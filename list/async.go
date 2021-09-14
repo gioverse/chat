@@ -88,7 +88,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, 
 							return true
 						}
 					})
-					ignore = noDirection
+					ignore = NoDirection
 				case loadRequest:
 					viewport = req.viewport
 					if ignore.Contains(req.Direction) {
@@ -110,7 +110,7 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, 
 					if len(newElems) == 0 {
 						ignore.Add(req.Direction)
 					} else {
-						ignore = noDirection
+						ignore = NoDirection
 					}
 				}
 			}
