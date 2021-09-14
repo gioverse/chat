@@ -125,10 +125,11 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, 
 						loadSerial = synthesis.SerialAt(len(synthesis.Source) - 1)
 					}
 					// Load new elements.
-					newElems = append(newElems, hooks.Loader(req.Direction, loadSerial)...)
+					var more bool
+					newElems, more = hooks.Loader(req.Direction, loadSerial)
 					// Track whether all new elements in a given direction have been
 					// exhausted.
-					if len(newElems) == 0 {
+					if len(newElems) == 0 || !more {
 						ignore.Add(req.Direction)
 					} else {
 						ignore = NoDirection

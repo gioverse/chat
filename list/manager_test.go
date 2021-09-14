@@ -67,8 +67,8 @@ func TestManager(t *testing.T) {
 				Height: unit.Dp(5),
 			}.Layout
 		},
-		Loader: func(dir Direction, relativeTo Serial) []Element {
-			return nil
+		Loader: func(dir Direction, relativeTo Serial) ([]Element, bool) {
+			return nil, false
 		},
 		Invalidator: func() {},
 		Comparator:  func(a, b Element) bool { return true },
@@ -381,7 +381,6 @@ func TestManagerPrefetch(t *testing.T) {
 				}
 			default:
 			}
-
 		})
 	}
 }
@@ -420,7 +419,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 				Height: unit.Dp(5),
 			}.Layout
 		},
-		Loader:      func(dir Direction, relativeTo Serial) []Element { return nil },
+		Loader:      func(dir Direction, relativeTo Serial) ([]Element, bool) { return nil, false },
 		Invalidator: func() {},
 		Comparator:  func(a, b Element) bool { return true },
 		Synthesizer: synth,
@@ -559,8 +558,8 @@ var testHooks = Hooks{
 			Height: unit.Dp(5),
 		}.Layout
 	},
-	Loader: func(dir Direction, relativeTo Serial) []Element {
-		return nil
+	Loader: func(dir Direction, relativeTo Serial) ([]Element, bool) {
+		return nil, false
 	},
 	Invalidator: func() {},
 	Comparator:  func(a, b Element) bool { return true },

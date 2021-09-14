@@ -333,8 +333,8 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 			// the list's position.
 			firstElementVisible := list.Position.First == 0
 			lastElementVisible := list.Position.First+list.Position.Count == len(m.elements.Elements)
-			stickToEnd := lastElementVisible && m.Stickiness.Contains(After) && m.ignoring.Contains(After)
-			stickToBeginning := firstElementVisible && m.Stickiness.Contains(Before) && m.ignoring.Contains(Before)
+			stickToEnd := lastElementVisible && m.Stickiness.Contains(After) && (m.ignoring.Contains(After) || su.Type == push)
+			stickToBeginning := firstElementVisible && m.Stickiness.Contains(Before) && (m.ignoring.Contains(Before) || su.Type == push)
 
 			if !stickToBeginning {
 				// Update the list position to match the new set of elements.

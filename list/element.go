@@ -58,14 +58,15 @@ type Synthesizer func(previous, current, next Element) []Element
 type Comparator func(a, b Element) bool
 
 // Loader is a function that can fulfill load requests. If it returns
-// a response with no elements in a given direction, the manager will not
+// a response with no elements in a given direction or false as its
+// second return value, the manager will not
 // invoke the loader in that direction again until the manager loads
 // data from the other end of the list or another manger state update
 // occurs.
 //
 // Loader implements pull modifications. When the manager wants more data it
 // will invoke the Loader hook to get more.
-type Loader func(direction Direction, relativeTo Serial) []Element
+type Loader func(direction Direction, relativeTo Serial) (elems []Element, more bool)
 
 // Presenter is a function that can transform the data for an Element
 // into a widget to be laid out in the user interface. It must not return
@@ -121,11 +122,11 @@ func DefaultHooks(w *app.Window, th *material.Theme) Hooks {
 		Comparator: func(a, b Element) bool {
 			return string(a.Serial()) < string(b.Serial())
 		},
-		Loader: func(dir Direction, relativeTo Serial) []Element {
+		Loader: func(dir Direction, relativeTo Serial) ([]Element, bool) {
 			if relativeTo == NoSerial {
-				return newDefaultElements()
+				return newDefaultElements(), false
 			}
-			return nil
+			return nil, false
 		},
 		Presenter: func(elem Element, state interface{}) layout.Widget {
 			return material.H4(th, "Implement list.Hooks to change me.").Layout

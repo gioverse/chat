@@ -20,14 +20,15 @@ var testElements = func() []Element {
 
 func TestAsyncProcess(t *testing.T) {
 	var nextLoad []Element
+	var more bool
 	var loadInvoked bool
 	hooks := Hooks{
 		Invalidator: func() {},
 		Comparator:  testComparator,
 		Synthesizer: testSynthesizer,
-		Loader: func(dir Direction, rt Serial) []Element {
+		Loader: func(dir Direction, rt Serial) ([]Element, bool) {
 			loadInvoked = true
-			return nextLoad
+			return nextLoad, more
 		},
 	}
 	size := 6
@@ -40,6 +41,9 @@ func TestAsyncProcess(t *testing.T) {
 		input loadRequest
 		// the data that will be returned by the data request (if the loader is executed)
 		load []Element
+		// whether the async logic should expect additional content in the direction of
+		// the load.
+		loadMore bool
 		// should the testcase block waiting for an update on the update channel
 		skipUpdate bool
 		// the update to expect on the update channel
@@ -60,7 +64,8 @@ func TestAsyncProcess(t *testing.T) {
 				},
 				Direction: Before,
 			},
-			load: testElements[7:],
+			load:     testElements[7:],
+			loadMore: true,
 			expected: stateUpdate{
 				Synthesis: Synthesis{
 					Elements: testElements[7:],
@@ -119,7 +124,8 @@ func TestAsyncProcess(t *testing.T) {
 				},
 				Direction: Before,
 			},
-			load: testElements[4:7],
+			load:     testElements[4:7],
+			loadMore: true,
 			expected: stateUpdate{
 				Synthesis: Synthesis{
 					Elements: testElements[4:],
@@ -172,7 +178,8 @@ func TestAsyncProcess(t *testing.T) {
 				},
 				Direction: Before,
 			},
-			load: testElements[1:4],
+			load:     testElements[1:4],
+			loadMore: true,
 			expected: stateUpdate{
 				Synthesis: Synthesis{
 					Elements: testElements[3:9],
@@ -201,7 +208,8 @@ func TestAsyncProcess(t *testing.T) {
 				},
 				Direction: Before,
 			},
-			load: testElements[:3],
+			load:     testElements[:3],
+			loadMore: true,
 			expected: stateUpdate{
 				Synthesis: Synthesis{
 					Elements: testElements[2:8],
@@ -267,6 +275,7 @@ func TestAsyncProcess(t *testing.T) {
 			// ensure that the next invocation of the loader will load this
 			// testcase's data payload.
 			nextLoad = tc.load
+			more = tc.loadMore
 
 			// request a load
 			reqs <- tc.input
