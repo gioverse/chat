@@ -132,31 +132,33 @@ func NewUI(w *app.Window) *UI {
 		rt := NewExampleData(users, local, g, 100)
 		rt.SimulateLatency = latency
 		rt.MaxLoads = loadSize
-		ui.Rooms.List = append(ui.Rooms.List, Room{
-			Room:     r,
-			Messages: rt,
-			ListState: list.NewManager(bufferSize,
-				list.Hooks{
-					// Define an allocator function that can instaniate the appropriate
-					// state type for each kind of row data in our list.
-					Allocator: func(data list.Element) interface{} {
-						switch data.(type) {
-						case model.Message:
-							return &chatwidget.Row{}
-						default:
-							return nil
-						}
-					},
-					// Define a presenter that can transform each kind of row data
-					// and state into a widget.
-					Presenter: ui.presentChatRow,
-					// NOTE(jfm): awkard coupling between message data and `list.Manager`.
-					Loader:      rt.Load,
-					Synthesizer: synth,
-					Comparator:  rowLessThan,
-					Invalidator: w.Invalidate,
+		lm := list.NewManager(bufferSize,
+			list.Hooks{
+				// Define an allocator function that can instaniate the appropriate
+				// state type for each kind of row data in our list.
+				Allocator: func(data list.Element) interface{} {
+					switch data.(type) {
+					case model.Message:
+						return &chatwidget.Row{}
+					default:
+						return nil
+					}
 				},
-			),
+				// Define a presenter that can transform each kind of row data
+				// and state into a widget.
+				Presenter: ui.presentChatRow,
+				// NOTE(jfm): awkard coupling between message data and `list.Manager`.
+				Loader:      rt.Load,
+				Synthesizer: synth,
+				Comparator:  rowLessThan,
+				Invalidator: w.Invalidate,
+			},
+		)
+		lm.Stickiness = list.After
+		ui.Rooms.List = append(ui.Rooms.List, Room{
+			Room:      r,
+			Messages:  rt,
+			ListState: lm,
 		})
 	}
 

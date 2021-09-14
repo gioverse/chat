@@ -99,7 +99,7 @@ func (r *RowTracker) NewRow() list.Element {
 // Load simulates loading chat history from a database or API. It
 // sleeps for a random number of milliseconds and then returns
 // some messages.
-func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded []list.Element) {
+func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded []list.Element, more bool) {
 	if r.SimulateLatency > 0 {
 		duration := time.Millisecond * time.Duration(rand.Intn(r.SimulateLatency))
 		log.Println("sleeping", duration)
@@ -117,13 +117,15 @@ func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded []
 		// If loading relative to nothing, likely the chat interface is empty.
 		// We should load the most recent messages first in this case, regardless
 		// of the direction parameter.
-		return r.Rows[numRows-min(r.MaxLoads, numRows):]
+		return r.Rows[numRows-min(r.MaxLoads, numRows):], numRows > r.MaxLoads
 	}
 	idx := r.SerialToIndex[relativeTo]
 	if dir == list.After {
-		return r.Rows[idx+1 : min(numRows, idx+r.MaxLoads)]
+		end := min(numRows, idx+r.MaxLoads)
+		return r.Rows[idx+1 : end], end < len(r.Rows)-1
 	}
-	return r.Rows[maximum(0, idx-r.MaxLoads):idx]
+	start := maximum(0, idx-r.MaxLoads)
+	return r.Rows[start:idx], start > 0
 }
 
 // Delete removes the element with the provided serial from storage.
