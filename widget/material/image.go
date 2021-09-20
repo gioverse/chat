@@ -7,6 +7,7 @@ import (
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/op/clip"
+	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
 )
@@ -29,6 +30,9 @@ func (img Image) Layout(gtx layout.Context) layout.Dimensions {
 	}
 	if img.Height.V > 0 {
 		gtx.Constraints.Max.Y = gtx.Constraints.Constrain(image.Pt(0, gtx.Px(img.Height))).Y
+	}
+	if img.Image.Src == (paint.ImageOp{}) {
+		return D{Size: gtx.Constraints.Max}
 	}
 	defer op.Save(gtx.Ops).Load()
 	macro := op.Record(gtx.Ops)
