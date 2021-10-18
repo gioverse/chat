@@ -62,8 +62,9 @@ func (s Synthesis) ViewportToSerials(viewport layout.Position) (Serial, Serial) 
 // of each resulting element to the input element that generated it.
 func Synthesize(elements []Element, synth Synthesizer) Synthesis {
 	var s Synthesis
-	s.Source = elements
-	for i, elem := range elements {
+	s.Source = make([]Element, len(elements))
+	copy(s.Source, elements)
+	for i, elem := range s.Source {
 		var (
 			previous Element
 			next     Element
