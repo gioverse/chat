@@ -223,7 +223,7 @@ func (l *Loader) Schedule(tag Tag, load LoadFunc) Resource {
 			// 128 is a magic number of maximum workers we will allow.
 			// This would translate to "max number of network requests", if all
 			// work were to be network-bound.
-			l.Scheduler = &FixedWorkerPool{Workers: 128}
+			l.Scheduler = &FixedWorkerPool{Workers: runtime.NumCPU()}
 		}
 		// TODO(jfm): expose context in the public api so that loads can be
 		// cancelled by it.
