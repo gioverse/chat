@@ -34,15 +34,14 @@ func (img Image) Layout(gtx layout.Context) layout.Dimensions {
 	if img.Image.Src == (paint.ImageOp{}) {
 		return D{Size: gtx.Constraints.Max}
 	}
-	defer op.Save(gtx.Ops).Load()
 	macro := op.Record(gtx.Ops)
 	dims := img.Image.Layout(gtx)
 	call := macro.Stop()
 	r := float32(gtx.Px(img.Radii))
-	clip.RRect{
+	defer clip.RRect{
 		Rect: f32.Rectangle{Max: layout.FPt(dims.Size)},
 		NE:   r, NW: r, SE: r, SW: r,
-	}.Add(gtx.Ops)
+	}.Push(gtx.Ops).Pop()
 	call.Add(gtx.Ops)
 	return dims
 }

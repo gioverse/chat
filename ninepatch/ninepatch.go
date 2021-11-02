@@ -54,30 +54,28 @@ type Region struct {
 // Layout the patch of the provided ImageOp described by the Region, scaling
 // as needed.
 func (r Region) Layout(gtx C, src paint.ImageOp) D {
-	defer op.Save(gtx.Ops).Load()
-
 	// Set the paint material to our source texture.
 	src.Add(gtx.Ops)
 
 	// If we need to scale the source image to cover the content area, do so:
 	if r.Stretched.Size != r.Source.Size {
-		op.Affine(f32.Affine2D{}.Scale(layout.FPt(r.Stretched.Offset), f32.Point{
+		defer op.Affine(f32.Affine2D{}.Scale(layout.FPt(r.Stretched.Offset), f32.Point{
 			X: float32(r.Stretched.Size.X) / float32(r.Source.Size.X),
 			Y: float32(r.Stretched.Size.Y) / float32(r.Source.Size.Y),
-		})).Add(gtx.Ops)
+		})).Push(gtx.Ops).Pop()
 	}
 
 	// Shift layout to the origin of the region that we are covering, but compensate
 	// for the fact that we're going to be reaching to an arbitrary point in the
 	// source image. This logic aligns the origin of the important region of the
 	// source image with the origin of the region that we're laying out.
-	op.Offset(layout.FPt(r.Stretched.Offset.Sub(r.Source.Offset))).Add(gtx.Ops)
+	defer op.Offset(layout.FPt(r.Stretched.Offset.Sub(r.Source.Offset))).Push(gtx.Ops).Pop()
 
 	// Clip the scaled image to the bounds of the area we need to cover.
-	clip.Rect(image.Rectangle{
+	defer clip.Rect(image.Rectangle{
 		Min: r.Source.Offset,
 		Max: r.Source.Size.Add(r.Source.Offset),
-	}).Add(gtx.Ops)
+	}).Push(gtx.Ops).Pop()
 
 	// Paint the scaled, clipped image.
 	paint.PaintOp{}.Add(gtx.Ops)
