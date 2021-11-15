@@ -41,7 +41,7 @@ type stateUpdate struct {
 }
 
 func (s stateUpdate) String() string {
-	return fmt.Sprintf("Synthesis: %v, Compacted: %v, Ignore: %v", s.Synthesis, s.CompactedSerials, s.Ignore)
+	return fmt.Sprintf("{Synthesis: %v, Compacted: %v, Ignore: %v, Source: %v}", s.Synthesis, s.CompactedSerials, s.Ignore, s.Source)
 }
 
 // viewport represents a range of elements visible within a list.
@@ -158,8 +158,6 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, 
 			select {
 			case updateChan <- []stateUpdate{su}:
 			default:
-				fmt.Printf("update: %+v\n", su.Synthesis.Source)
-
 				// Append latest update to the list.
 				su := su
 				pending := <-updateChan

@@ -315,7 +315,14 @@ func updatesEqual(a, b stateUpdate) bool {
 // TestCanModifyWhenIdle ensures that updates are queued if the reading
 // side is idle (e.g. list manager is not currently being laid out).
 func TestCanModifyWhenIdle(t *testing.T) {
-	requests, viewports, updates := asyncProcess(4, testHooks)
+	hooks := testHooks
+	hooks.Comparator = func(i, j Element) bool {
+		// For the purposes of this test, the sort order doesn't matter,
+		// and we do not want to trigger the logic that filters insertions
+		// at the beginning or end of the list.
+		return false
+	}
+	requests, viewports, updates := asyncProcess(4, hooks)
 
 	viewports <- viewport{
 		Start: "0",
@@ -358,6 +365,7 @@ func TestCanModifyWhenIdle(t *testing.T) {
 
 	// We should recieve update elements 1, 2, 3, 4.
 	total := 0
+	var want []Element
 	for pending := range updates {
 		t.Log(pending)
 		for ii := range pending {
@@ -367,10 +375,10 @@ func TestCanModifyWhenIdle(t *testing.T) {
 				t.Errorf("expected push update, got %v", su.Type)
 			}
 			got := su.Synthesis.Source
-			want := []Element{testElement{
+			want = append(want, testElement{
 				serial:     strconv.Itoa(total),
 				synthCount: 0,
-			}}
+			})
 			if !reflect.DeepEqual(got, want) {
 				t.Errorf("state update: want %+v, got %+v", want, got)
 			}
