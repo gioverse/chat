@@ -53,11 +53,11 @@ type viewport struct {
 // New elements are processed and compacted according to maxSize
 // on each loadRequest. Close the loadRequest channel to terminate
 // processing.
-func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, <-chan stateUpdate) {
+func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, <-chan []stateUpdate) {
 	compact := NewCompact(maxSize, hooks.Comparator)
 	var synthesis Synthesis
 	reqChan := make(chan interface{})
-	updateChan := make(chan stateUpdate, 1)
+	updateChan := make(chan []stateUpdate, 1)
 	viewports := make(chan viewport, 1)
 	go func() {
 		defer close(updateChan)
@@ -153,7 +153,20 @@ func asyncProcess(maxSize int, hooks Hooks) (chan<- interface{}, chan viewport, 
 			su.Synthesis = synthesis
 			su.Ignore = ignore
 
-			updateChan <- su
+			// Try send update. If the widget is not being actively laid out,
+			// we don't want to block.
+			select {
+			case updateChan <- []stateUpdate{su}:
+			default:
+				fmt.Printf("update: %+v\n", su.Synthesis.Source)
+
+				// Append latest update to the list.
+				su := su
+				pending := <-updateChan
+				pending = append(pending, su)
+				updateChan <- pending
+			}
+
 			hooks.Invalidator()
 		}
 	}()

@@ -80,7 +80,7 @@ func TestManager(t *testing.T) {
 	// Replace the background processing channels with channels we can control
 	// from within the test.
 	requests := make(chan interface{}, 1)
-	updates := make(chan stateUpdate, 1)
+	updates := make(chan []stateUpdate, 1)
 	m.requests = requests
 	m.stateUpdates = updates
 
@@ -177,7 +177,7 @@ func TestManager(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Send a state update if configured.
 			if tc.sendUpdate {
-				updates <- tc.update
+				updates <- []stateUpdate{tc.update}
 			}
 
 			// Lay out the managed list.
@@ -333,7 +333,7 @@ func TestManagerPrefetch(t *testing.T) {
 				})
 				list         layout.List
 				requests     = make(chan interface{}, 1)
-				stateUpdates = make(chan stateUpdate, 1)
+				stateUpdates = make(chan []stateUpdate, 1)
 				viewports    = make(chan viewport, 1)
 			)
 
@@ -429,7 +429,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 
 	// Replace the background processing channels with channels we can control
 	// from within the test.
-	updates := make(chan stateUpdate, 1)
+	updates := make(chan []stateUpdate, 1)
 	m.requests = nil
 	m.stateUpdates = updates
 
@@ -521,7 +521,7 @@ func TestManagerViewportOnRemoval(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			// Send a state update if configured.
 			if tc.sendUpdate {
-				updates <- tc.update
+				updates <- []stateUpdate{tc.update}
 			}
 
 			// Lay out the managed list.

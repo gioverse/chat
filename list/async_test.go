@@ -3,7 +3,9 @@ package list
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"testing"
+	"time"
 )
 
 // define a set of elements that can be used across tests.
@@ -283,7 +285,10 @@ func TestAsyncProcess(t *testing.T) {
 			// examine the update we get back
 			if !tc.skipUpdate {
 				update := <-updates
-				if !updatesEqual(update, tc.expected) {
+				if len(update) != 1 {
+					t.Errorf("Expected 1 pending update, got %d", len(update))
+				}
+				if !updatesEqual(update[0], tc.expected) {
 					t.Errorf("Expected %v, got %v", tc.expected, update)
 				}
 			}
@@ -305,4 +310,73 @@ func updatesEqual(a, b stateUpdate) bool {
 		return false
 	}
 	return reflect.DeepEqual(a.SerialToIndex, b.SerialToIndex)
+}
+
+// TestCanModifyWhenIdle ensures that updates are queued if the reading
+// side is idle (e.g. list manager is not currently being laid out).
+func TestCanModifyWhenIdle(t *testing.T) {
+	requests, viewports, updates := asyncProcess(4, testHooks)
+
+	viewports <- viewport{
+		Start: "0",
+		End:   "5",
+	}
+
+	// Update with some number of elements.
+	// The manager is not being laid out so
+	// we expect these to queue up.
+	requests <- modificationRequest{
+		NewOrUpdate: []Element{testElement{serial: "1", synthCount: 0}},
+		UpdateOnly:  []Element{},
+		Remove:      []Serial{},
+	}
+	requests <- modificationRequest{
+		NewOrUpdate: []Element{testElement{serial: "2", synthCount: 0}},
+		UpdateOnly:  []Element{},
+		Remove:      []Serial{},
+	}
+	requests <- modificationRequest{
+		NewOrUpdate: []Element{testElement{serial: "3", synthCount: 0}},
+		UpdateOnly:  []Element{},
+		Remove:      []Serial{},
+	}
+	requests <- modificationRequest{
+		NewOrUpdate: []Element{testElement{serial: "4", synthCount: 0}},
+		UpdateOnly:  []Element{},
+		Remove:      []Serial{},
+	}
+
+	close(requests)
+
+	// Give time for async to shutdown.
+	time.Sleep(time.Millisecond)
+
+	// updates should have a queued value.
+	if len(updates) != 1 {
+		t.Fatalf("updates channel: expected 1 queued value, got %d", len(updates))
+	}
+
+	// We should recieve update elements 1, 2, 3, 4.
+	total := 0
+	for pending := range updates {
+		t.Log(pending)
+		for ii := range pending {
+			su := pending[ii]
+			total++
+			if su.Type != push {
+				t.Errorf("expected push update, got %v", su.Type)
+			}
+			got := su.Synthesis.Source
+			want := []Element{testElement{
+				serial:     strconv.Itoa(total),
+				synthCount: 0,
+			}}
+			if !reflect.DeepEqual(got, want) {
+				t.Errorf("state update: want %+v, got %+v", want, got)
+			}
+		}
+	}
+	if total != 4 {
+		t.Fatalf("expected 4 pending updates, got %d", total)
+	}
 }

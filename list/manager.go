@@ -80,7 +80,7 @@ type Manager struct {
 
 	// stateUpdates is a buffered channel that receives changes in the managed
 	// elements from the state management goroutine.
-	stateUpdates <-chan stateUpdate
+	stateUpdates <-chan []stateUpdate
 
 	// viewports provides a channel that the manager can use to inform the
 	// asynchronous processing goroutine of changes in the viewport. This
@@ -306,65 +306,68 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 func (m *Manager) UpdatedLen(list *layout.List) int {
 	// Update the state of the manager in response to any loads.
 	select {
-	case su := <-m.stateUpdates:
-		m.ignoring = su.Ignore
-		if len(m.elements.Elements) > 0 {
-			// Resolve the current element at the start of the viewport within
-			// the old element list.
-			listStart := min(list.Position.First, len(m.elements.Elements)-1)
-			startSerial := m.elements.Elements[listStart].Serial()
+	case pending := <-m.stateUpdates:
+		for ii := range pending {
+			su := pending[ii]
+			m.ignoring = su.Ignore
+			if len(m.elements.Elements) > 0 {
+				// Resolve the current element at the start of the viewport within
+				// the old element list.
+				listStart := min(list.Position.First, len(m.elements.Elements)-1)
+				startSerial := m.elements.Elements[listStart].Serial()
 
-			// Find that start element within the new element list and set the
-			// list position to match it if possible.
-			newStartIndex, ok := su.SerialToIndex[startSerial]
-			if !ok {
-				// The element that was previously at the top of the viewport
-				// is no longer within the list. Walk backwards towards the
-				// beginning of the list, searching for an element that is
-				// both in the old state list and in the updated one.
-				// If this fails to find a matching element, just set the
-				// viewport to start on the first element.
-				for ii := listStart - 1; (startSerial == NoSerial || !ok) && ii >= 0; ii-- {
-					startSerial = m.elements.Elements[ii].Serial()
-					newStartIndex, ok = su.SerialToIndex[startSerial]
+				// Find that start element within the new element list and set the
+				// list position to match it if possible.
+				newStartIndex, ok := su.SerialToIndex[startSerial]
+				if !ok {
+					// The element that was previously at the top of the viewport
+					// is no longer within the list. Walk backwards towards the
+					// beginning of the list, searching for an element that is
+					// both in the old state list and in the updated one.
+					// If this fails to find a matching element, just set the
+					// viewport to start on the first element.
+					for ii := listStart - 1; (startSerial == NoSerial || !ok) && ii >= 0; ii-- {
+						startSerial = m.elements.Elements[ii].Serial()
+						newStartIndex, ok = su.SerialToIndex[startSerial]
+					}
+				}
+				// Check whether the final list element is visible before modifying
+				// the list's position.
+				firstElementVisible := list.Position.First == 0
+				lastElementVisible := list.Position.First+list.Position.Count == len(m.elements.Elements)
+				stickToEnd := lastElementVisible && m.Stickiness.Contains(After) && (m.ignoring.Contains(After) || su.Type == push)
+				stickToBeginning := firstElementVisible && m.Stickiness.Contains(Before) && (m.ignoring.Contains(Before) || su.Type == push)
+
+				if !stickToBeginning {
+					// Update the list position to match the new set of elements.
+					list.Position.First = newStartIndex
+				} else {
+					list.Position.First = 0
+					list.Position.Offset = 0
+				}
+
+				if !stickToEnd {
+					// Ensure that the list considers the possibility that new content
+					// has changed the end of the list.
+					list.Position.BeforeEnd = true
+				} else {
+					// If we are attempting to preserve the end of the list, and the
+					// end is currently on the final element, jump to the new final
+					// element.
+					list.ScrollToEnd = true
+					list.Position.BeforeEnd = false
+					list.Position.OffsetLast = 0
 				}
 			}
-			// Check whether the final list element is visible before modifying
-			// the list's position.
-			firstElementVisible := list.Position.First == 0
-			lastElementVisible := list.Position.First+list.Position.Count == len(m.elements.Elements)
-			stickToEnd := lastElementVisible && m.Stickiness.Contains(After) && (m.ignoring.Contains(After) || su.Type == push)
-			stickToBeginning := firstElementVisible && m.Stickiness.Contains(Before) && (m.ignoring.Contains(Before) || su.Type == push)
-
-			if !stickToBeginning {
-				// Update the list position to match the new set of elements.
-				list.Position.First = newStartIndex
-			} else {
-				list.Position.First = 0
-				list.Position.Offset = 0
+			m.elements = su.Synthesis
+			// Delete the persistent widget state for any compacted element.
+			for _, serial := range su.CompactedSerials {
+				delete(m.elementState, serial)
 			}
 
-			if !stickToEnd {
-				// Ensure that the list considers the possibility that new content
-				// has changed the end of the list.
-				list.Position.BeforeEnd = true
-			} else {
-				// If we are attempting to preserve the end of the list, and the
-				// end is currently on the final element, jump to the new final
-				// element.
-				list.ScrollToEnd = true
-				list.Position.BeforeEnd = false
-				list.Position.OffsetLast = 0
-			}
+			// Capture the current viewport in terms of the range of visible elements.
+			m.viewport.Start, m.viewport.End = su.ViewportToSerials(list.Position)
 		}
-		m.elements = su.Synthesis
-		// Delete the persistent widget state for any compacted element.
-		for _, serial := range su.CompactedSerials {
-			delete(m.elementState, serial)
-		}
-
-		// Capture the current viewport in terms of the range of visible elements.
-		m.viewport.Start, m.viewport.End = su.ViewportToSerials(list.Position)
 	default:
 	}
 	if len(m.elements.Elements) == 0 {
