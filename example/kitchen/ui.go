@@ -304,7 +304,7 @@ func (ui *UI) layoutChat(gtx C) D {
 						func(gtx C) D {
 							return ui.layoutEditor(gtx)
 						},
-						material.IconButton(th.Theme, &ui.AddBtn, Send).Layout,
+						material.IconButton(th.Theme, &ui.AddBtn, Send, "Send").Layout,
 					)
 				})
 			})
@@ -334,7 +334,7 @@ func (ui *UI) layoutTopbar(gtx C) D {
 			}.Layout(
 				gtx,
 				layout.Rigid(func(gtx C) D {
-					btn := material.IconButton(th.Theme, &ui.Back, NavBack)
+					btn := material.IconButton(th.Theme, &ui.Back, NavBack, "Back")
 					btn.Color = th.Fg
 					btn.Background = color.NRGBA{}
 					return btn.Layout(gtx)

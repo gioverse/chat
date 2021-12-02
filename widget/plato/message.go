@@ -157,50 +157,45 @@ func (m MessageStyle) Layout(gtx C) (d D) {
 		return m.Content.Layout(gtx)
 	})
 	macro.Stop()
-	return layout.Stack{}.Layout(gtx,
-		layout.Expanded(func(gtx C) D {
-			if !m.Clickable {
-				return D{}
-			}
-			return m.Interaction.Clickable.Layout(gtx)
-		}),
-		layout.Stacked(func(gtx C) D {
-			return surface(gtx, func(gtx C) D {
-				return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
-					layout.Rigid(func(gtx C) D {
-						return layout.Inset{
-							Top:  m.ContentPadding.Top,
-							Left: m.ContentPadding.Left,
-						}.Layout(gtx, m.Content.Layout)
-					}),
-					layout.Rigid(func(gtx C) D {
-						width := gtx.Px(m.MinMessageWidth)
-						if dims.Size.X > width {
-							width = dims.Size.X
-						}
-						gtx.Constraints.Max.X = gtx.Constraints.Constrain(image.Pt(width, 0)).X
-						return layout.Inset{
-							Bottom: m.ContentPadding.Right,
-							Right:  m.ContentPadding.Bottom,
-						}.Layout(gtx, func(gtx C) D {
-							return layout.Flex{
-								Axis:      layout.Horizontal,
-								Alignment: layout.Middle,
-							}.Layout(gtx,
-								layout.Flexed(1, func(gtx C) D {
-									return D{Size: gtx.Constraints.Min}
-								}),
-								layout.Rigid(func(gtx C) D {
-									return m.Time.Layout(gtx)
-								}),
-								layout.Rigid(func(gtx C) D {
-									return m.Receipt.Layout(gtx, m.TickIconColor)
-								}),
-							)
-						})
-					}),
-				)
-			})
-		}),
-	)
+	if !m.Clickable {
+		return D{}
+	}
+	return m.Interaction.Clickable.Layout(gtx, func(gtx C) D {
+		return surface(gtx, func(gtx C) D {
+			return layout.Flex{Axis: layout.Vertical}.Layout(gtx,
+				layout.Rigid(func(gtx C) D {
+					return layout.Inset{
+						Top:  m.ContentPadding.Top,
+						Left: m.ContentPadding.Left,
+					}.Layout(gtx, m.Content.Layout)
+				}),
+				layout.Rigid(func(gtx C) D {
+					width := gtx.Px(m.MinMessageWidth)
+					if dims.Size.X > width {
+						width = dims.Size.X
+					}
+					gtx.Constraints.Max.X = gtx.Constraints.Constrain(image.Pt(width, 0)).X
+					return layout.Inset{
+						Bottom: m.ContentPadding.Right,
+						Right:  m.ContentPadding.Bottom,
+					}.Layout(gtx, func(gtx C) D {
+						return layout.Flex{
+							Axis:      layout.Horizontal,
+							Alignment: layout.Middle,
+						}.Layout(gtx,
+							layout.Flexed(1, func(gtx C) D {
+								return D{Size: gtx.Constraints.Min}
+							}),
+							layout.Rigid(func(gtx C) D {
+								return m.Time.Layout(gtx)
+							}),
+							layout.Rigid(func(gtx C) D {
+								return m.Receipt.Layout(gtx, m.TickIconColor)
+							}),
+						)
+					})
+				}),
+			)
+		})
+	})
 }

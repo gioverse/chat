@@ -321,7 +321,7 @@ func (ui *UI) layoutControls(gtx C) D {
 					return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
 				}),
 				layout.Rigid(func(gtx C) D {
-					return material.Switch(th.Theme, &ui.TextContent).Layout(gtx)
+					return material.Switch(th.Theme, &ui.TextContent, "Show Text").Layout(gtx)
 				}),
 			)
 		}),
