@@ -1,4 +1,4 @@
-package main
+package ui
 
 import (
 	"context"
@@ -7,11 +7,10 @@ import (
 	"image/color"
 	"image/png"
 	"log"
-	"math/rand"
 	"strconv"
 	"time"
 
-	"gioui.org/app"
+	"gioui.org/font/gofont"
 	"gioui.org/layout"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
@@ -31,6 +30,31 @@ import (
 	chatwidget "git.sr.ht/~gioverse/chat/widget"
 	matchat "git.sr.ht/~gioverse/chat/widget/material"
 	"git.sr.ht/~gioverse/chat/widget/plato"
+)
+
+type (
+	C = layout.Context
+	D = layout.Dimensions
+)
+
+type Config struct {
+	// theme to use {light,dark}.
+	Theme string
+	// usePlato to use plato themed widgets.
+	UsePlato bool
+	// latency specifies maximum latency (in millis) to simulate
+	Latency int
+	// loadSize specifies maximum number of items to load at a time.
+	LoadSize int
+	// bufferSize specifies how many elements to hold in memory before
+	// compacting the list.
+	BufferSize int
+}
+
+// th is the active theme object.
+var (
+	fonts = gofont.Collection()
+	th    = apptheme.NewTheme(fonts)
 )
 
 var (
@@ -78,6 +102,8 @@ type UI struct {
 	// ContextMenuTarget tracks the message state on which the context
 	// menu is currently acting.
 	ContextMenuTarget *model.Message
+
+	usePlato bool
 }
 
 // loadNinePatch from the embedded resources package.
@@ -100,8 +126,17 @@ var (
 )
 
 // NewUI constructs a UI and populates it with dummy data.
-func NewUI(w *app.Window) *UI {
+func NewUI(invalidator func(), conf Config) *UI {
 	var ui UI
+
+	ui.usePlato = conf.UsePlato
+
+	switch conf.Theme {
+	case "light":
+		th.UsePalette(apptheme.Light)
+	case "dark":
+		th.UsePalette(apptheme.Dark)
+	}
 
 	ui.Modal.VisibilityAnimation.Duration = time.Millisecond * 250
 
@@ -130,9 +165,9 @@ func NewUI(w *app.Window) *UI {
 
 	for _, r := range rooms.List() {
 		rt := NewExampleData(users, local, g, 100)
-		rt.SimulateLatency = latency
-		rt.MaxLoads = loadSize
-		lm := list.NewManager(bufferSize,
+		rt.SimulateLatency = conf.Latency
+		rt.MaxLoads = conf.LoadSize
+		lm := list.NewManager(conf.BufferSize,
 			list.Hooks{
 				// Define an allocator function that can instaniate the appropriate
 				// state type for each kind of row data in our list.
@@ -151,7 +186,7 @@ func NewUI(w *app.Window) *UI {
 				Loader:      rt.Load,
 				Synthesizer: synth,
 				Comparator:  rowLessThan,
-				Invalidator: w.Invalidate,
+				Invalidator: invalidator,
 			},
 		)
 		lm.Stickiness = list.After
@@ -171,8 +206,8 @@ func NewUI(w *app.Window) *UI {
 		go func() {
 			for {
 				var (
-					respond = time.Second * time.Duration(rand.Intn(58)+2)
-					compose = time.Second * time.Duration(rand.Intn(30)+2)
+					respond = time.Second * time.Duration(1)
+					compose = time.Second * time.Duration(1)
 					room    = ui.Rooms.Random()
 				)
 				func() {
@@ -492,7 +527,7 @@ func (ui *UI) presentChatRow(data list.Element, state interface{}) layout.Widget
 				// taken within that menu.
 				ui.ContextMenuTarget = &data
 			}
-			return ui.row(usePlato, data, state)(gtx)
+			return ui.row(ui.usePlato, data, state)(gtx)
 		}
 	case model.DateBoundary:
 		return matchat.DateSeparator(th.Theme, data.Date).Layout

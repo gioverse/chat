@@ -11,53 +11,30 @@ import (
 	_ "image/jpeg"
 
 	"gioui.org/app"
-	"gioui.org/font/gofont"
 	"gioui.org/io/system"
 	"gioui.org/layout"
 	"gioui.org/op"
 	"gioui.org/unit"
-	"git.sr.ht/~gioverse/chat/example/kitchen/appwidget/apptheme"
+	"git.sr.ht/~gioverse/chat/example/kitchen/ui"
 	"git.sr.ht/~gioverse/chat/profile"
 )
 
 var (
-	// theme to use {light,dark}.
-	theme string
-	// usePlato to use plato themed widgets.
-	usePlato bool
-	// latency specifies maximum latency (in millis) to simulate
-	latency int
+	config ui.Config
 	// profileOpt specifies what to profile.
 	profileOpt string
-	// loadSize specifies maximum number of items to load at a time.
-	loadSize int
-	// bufferSize specifies how many elements to hold in memory before
-	// compacting the list.
-	bufferSize int
-)
-
-// th is the active theme object.
-var (
-	fonts = gofont.Collection()
-	th    = apptheme.NewTheme(fonts)
 )
 
 func init() {
 	rand.Seed(time.Now().UnixNano())
-	flag.StringVar(&theme, "theme", "light", "theme to use {light,dark}")
+	flag.StringVar(&config.Theme, "theme", "light", "theme to use {light,dark}")
 	flag.StringVar(&profileOpt, "profile", "none", "create the provided kind of profile. Use one of [none, cpu, mem, block, goroutine, mutex, trace, gio]")
-	flag.BoolVar(&usePlato, "plato", false, "use Plato Team Inc themed widgets")
-	flag.IntVar(&latency, "latency", 1000, "maximum latency (in millis) to simulate")
-	flag.IntVar(&loadSize, "load-size", 30, "number of items to load at a time")
-	flag.IntVar(&bufferSize, "buffer-size", 30, "number of elements to hold in memory before compacting")
+	flag.BoolVar(&config.UsePlato, "plato", false, "use Plato Team Inc themed widgets")
+	flag.IntVar(&config.Latency, "latency", 1000, "maximum latency (in millis) to simulate")
+	flag.IntVar(&config.LoadSize, "load-size", 30, "number of items to load at a time")
+	flag.IntVar(&config.BufferSize, "buffer-size", 30, "number of elements to hold in memory before compacting")
 
 	flag.Parse()
-	switch theme {
-	case "light":
-		th.UsePalette(apptheme.Light)
-	case "dark":
-		th.UsePalette(apptheme.Dark)
-	}
 }
 
 type (
@@ -75,7 +52,7 @@ func main() {
 		// Define an operation list for gio.
 		ops op.Ops
 		// Instantiate our UI state.
-		ui = NewUI(w)
+		ui = ui.NewUI(w.Invalidate, config)
 	)
 	go func() {
 		profiler := profile.Opt(profileOpt).NewProfiler()
