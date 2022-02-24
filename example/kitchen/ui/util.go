@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/draw"
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
@@ -81,7 +82,13 @@ func randomImage(sz image.Point) (image.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decoding image: %w", err)
 	}
-	return img, nil
+	// Copy the image into a GPU friendly format.
+	dst := image.NewRGBA(image.Rectangle{
+		Max: img.Bounds().Size(),
+	})
+	draw.Draw(dst, dst.Bounds(), img, img.Bounds().Min, draw.Src)
+
+	return dst, nil
 }
 
 // isFile filters out non-file entries.
@@ -170,5 +177,11 @@ func fetch(id, u string) (image.Image, error) {
 	if err != nil {
 		return nil, fmt.Errorf("decoding image: %w", err)
 	}
-	return img, nil
+	// Copy the image into a GPU friendly format.
+	dst := image.NewRGBA(image.Rectangle{
+		Max: img.Bounds().Size(),
+	})
+	draw.Draw(dst, dst.Bounds(), img, img.Bounds().Min, draw.Src)
+
+	return dst, nil
 }
