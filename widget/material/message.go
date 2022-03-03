@@ -4,7 +4,6 @@ import (
 	"image"
 	"image/color"
 
-	"gioui.org/io/pointer"
 	"gioui.org/layout"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
@@ -195,7 +194,6 @@ func (m MessageStyle) Layout(gtx C) D {
 			})
 		})
 	}
-	defer pointer.CursorNameOp{Name: pointer.CursorPointer}.Add(gtx.Ops)
 	return material.Clickable(gtx, &m.Interaction.Clickable, func(gtx C) D {
 		gtx.Constraints.Max.Y = gtx.Px(m.MaxImageHeight)
 		return m.Image.Layout(gtx)

@@ -12,6 +12,7 @@ import (
 
 	"gioui.org/font/gofont"
 	"gioui.org/layout"
+	"gioui.org/op/clip"
 	"gioui.org/op/paint"
 	"gioui.org/unit"
 	"gioui.org/widget"
@@ -250,7 +251,7 @@ func (ui *UI) layout(gtx C) D {
 	if ui.Back.Clicked() {
 		ui.InsideRoom = false
 	}
-	paint.Fill(gtx.Ops, ui.Bg)
+	paint.FillShape(gtx.Ops, ui.Bg, clip.Rect(image.Rectangle{Max: gtx.Constraints.Max}).Op())
 	if small {
 		if !ui.InsideRoom {
 			return ui.layoutRoomList(gtx)
