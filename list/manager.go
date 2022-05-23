@@ -307,6 +307,14 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 	// Update the state of the manager in response to any loads.
 	select {
 	case pending := <-m.stateUpdates:
+		var (
+			// Whether to force the viewport to stick to the end or beginning
+			// of the list. This value must be accumulated across all state
+			// updates for the frame, otherwise the first update may conclude
+			// that the end should stick, but a subsequent update will potentially
+			// cancel that operation.
+			stickToEnd, stickToBeginning bool
+		)
 		for ii := range pending {
 			su := pending[ii]
 			m.ignoring = su.Ignore
@@ -335,8 +343,8 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 				// the list's position.
 				firstElementVisible := list.Position.First == 0
 				lastElementVisible := list.Position.First+list.Position.Count == len(m.elements.Elements)
-				stickToEnd := lastElementVisible && m.Stickiness.Contains(After) && (m.ignoring.Contains(After) || su.Type == push)
-				stickToBeginning := firstElementVisible && m.Stickiness.Contains(Before) && (m.ignoring.Contains(Before) || su.Type == push)
+				stickToEnd = stickToEnd || (lastElementVisible && m.Stickiness.Contains(After) && (m.ignoring.Contains(After) || su.Type == push))
+				stickToBeginning = stickToBeginning || (firstElementVisible && m.Stickiness.Contains(Before) && (m.ignoring.Contains(Before) || su.Type == push))
 
 				if !stickToBeginning {
 					// Update the list position to match the new set of elements.
@@ -357,6 +365,7 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 					list.ScrollToEnd = true
 					list.Position.BeforeEnd = false
 					list.Position.OffsetLast = 0
+
 				}
 			}
 			m.elements = su.Synthesis
