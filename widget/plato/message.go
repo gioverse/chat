@@ -22,12 +22,12 @@ type MessageStyle struct {
 	// Interaction holds the stateful parts of this message.
 	Interaction *chatwidget.Message
 	// MaxMessageWidth constrains the display width of the message's background.
-	MaxMessageWidth unit.Value
+	MaxMessageWidth unit.Dp
 	// MinMessageWidth constrains the display width of the message's background.
-	MinMessageWidth unit.Value
+	MinMessageWidth unit.Dp
 	// MaxImageHeight constrains the maximum height of an image message. The image
 	// will be scaled to fit within this height.
-	MaxImageHeight unit.Value
+	MaxImageHeight unit.Dp
 	// ContentPadding separates the Content field from the edges of the background.
 	// If using a NinePatch background, this field will be ignored in favor of the
 	// content padding encoded within the ninepatch image.
@@ -133,7 +133,7 @@ func (c *MessageStyle) TextColor(cl color.NRGBA) {
 // Layout the message atop its background.
 func (m MessageStyle) Layout(gtx C) (d D) {
 	gtx.Constraints.Max.X = int(float32(gtx.Constraints.Max.X) * 0.8)
-	max := gtx.Px(m.MaxMessageWidth)
+	max := gtx.Dp(m.MaxMessageWidth)
 	if gtx.Constraints.Max.X > max {
 		gtx.Constraints.Max.X = max
 	}
@@ -170,7 +170,7 @@ func (m MessageStyle) Layout(gtx C) (d D) {
 					}.Layout(gtx, m.Content.Layout)
 				}),
 				layout.Rigid(func(gtx C) D {
-					width := gtx.Px(m.MinMessageWidth)
+					width := gtx.Dp(m.MinMessageWidth)
 					if dims.Size.X > width {
 						width = dims.Size.X
 					}

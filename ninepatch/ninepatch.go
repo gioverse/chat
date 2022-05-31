@@ -12,6 +12,7 @@ import (
 	"gioui.org/op"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
+	"gioui.org/unit"
 )
 
 type (
@@ -31,10 +32,15 @@ type NinePatch struct {
 	Grid Grid
 	// Inset describes content insets defined by the black lines on the bottom
 	// and right of the 9-Patch image.
-	Content layout.Inset
+	Content PxInset
 	// Cache the image.
 	cache paint.ImageOp
 	once  sync.Once
+}
+
+// PxInset describes an inset in pixels.
+type PxInset struct {
+	Top, Bottom, Left, Right int
 }
 
 // Patch describes the position and size of single patch in a 9-Patch image.
@@ -69,7 +75,7 @@ func (r Region) Layout(gtx C, src paint.ImageOp) D {
 	// for the fact that we're going to be reaching to an arbitrary point in the
 	// source image. This logic aligns the origin of the important region of the
 	// source image with the origin of the region that we're laying out.
-	defer op.Offset(layout.FPt(r.Stretched.Offset.Sub(r.Source.Offset))).Push(gtx.Ops).Pop()
+	defer op.Offset(r.Stretched.Offset.Sub(r.Source.Offset)).Push(gtx.Ops).Pop()
 
 	// Clip the scaled image to the bounds of the area we need to cover.
 	defer clip.Rect(image.Rectangle{
@@ -113,10 +119,10 @@ func (n NinePatch) Layout(gtx C, w layout.Widget) D {
 			Y2: int(math.Round(float64(src.Y2) * float64(scale))),
 		}
 		inset = layout.Inset{
-			Left:   n.Content.Left.Scale(scale),
-			Right:  n.Content.Right.Scale(scale),
-			Top:    n.Content.Top.Scale(scale),
-			Bottom: n.Content.Bottom.Scale(scale),
+			Left:   unit.Dp(float32(n.Content.Left) * scale),
+			Right:  unit.Dp(float32(n.Content.Right) * scale),
+			Top:    unit.Dp(float32(n.Content.Top) * scale),
+			Bottom: unit.Dp(float32(n.Content.Bottom) * scale),
 		}
 	)
 

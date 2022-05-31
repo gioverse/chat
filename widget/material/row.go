@@ -29,7 +29,7 @@ type RowStyle struct {
 	// StatusIconColor is the color of the status icon, if any is set.
 	StatusIconColor color.NRGBA
 	// IconSize defines the size of the StatusIcon (if it is set).
-	IconSize unit.Value
+	IconSize unit.Dp
 	// StatusMessage defines a warning message to be displayed beneath the
 	// chat message.
 	StatusMessage material.LabelStyle
@@ -122,7 +122,7 @@ func (c RowStyle) layoutTimeOrIcon(gtx C) D {
 		if c.StatusIcon == nil {
 			return c.Time.Layout(gtx)
 		}
-		sideLength := gtx.Px(c.IconSize)
+		sideLength := gtx.Dp(c.IconSize)
 		gtx.Constraints.Max.X = sideLength
 		gtx.Constraints.Max.Y = sideLength
 		gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)

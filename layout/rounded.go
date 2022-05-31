@@ -10,15 +10,15 @@ import (
 )
 
 // Rounded lays out a widget with rounded corners.
-type Rounded unit.Value
+type Rounded unit.Dp
 
 func (r Rounded) Layout(gtx layout.Context, w layout.Widget) layout.Dimensions {
 	macro := op.Record(gtx.Ops)
 	dims := w(gtx)
 	call := macro.Stop()
-	radii := float32(gtx.Px(unit.Value(r)))
+	radii := gtx.Dp(unit.Dp(r))
 	defer clip.RRect{
-		Rect: layout.FRect(image.Rectangle{Max: dims.Size}),
+		Rect: image.Rectangle{Max: dims.Size},
 		NE:   radii,
 		NW:   radii,
 		SW:   radii,

@@ -8,8 +8,8 @@ import (
 // GutterStyle configures a gutter on either side of a horizontal row of content.
 // Both sides can optionally display a widget atop the gutter space.
 type GutterStyle struct {
-	LeftWidth  unit.Value
-	RightWidth unit.Value
+	LeftWidth  unit.Dp
+	RightWidth unit.Dp
 	layout.Alignment
 }
 
@@ -41,7 +41,7 @@ func (g GutterStyle) Layout(gtx layout.Context, left, center, right layout.Widge
 
 // layoutGutterSide lays out a spacer with a given width, and stacks another
 // widget on top.
-func layoutGutterSide(gtx layout.Context, width unit.Value, widget layout.Widget) layout.Dimensions {
+func layoutGutterSide(gtx layout.Context, width unit.Dp, widget layout.Widget) layout.Dimensions {
 	spacer := layout.Spacer{Width: width}
 	if widget == nil {
 		return spacer.Layout(gtx)

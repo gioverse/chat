@@ -73,7 +73,7 @@ func (room RoomStyle) Layout(gtx C) D {
 			// else.
 			component.Rect{
 				Size: image.Point{
-					X: gtx.Px(unit.Dp(3)),
+					X: gtx.Dp(unit.Dp(3)),
 					Y: dims.Size.Y,
 				},
 				Color: room.Indicator,

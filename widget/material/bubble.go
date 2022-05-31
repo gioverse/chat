@@ -1,9 +1,9 @@
 package material
 
 import (
+	"image"
 	"image/color"
 
-	"gioui.org/f32"
 	"gioui.org/layout"
 	"gioui.org/op/clip"
 	"gioui.org/op/paint"
@@ -15,7 +15,7 @@ import (
 type BubbleStyle struct {
 	// The radius of the corners of the surface.
 	// Non-rounded rectangles can just provide a zero.
-	CornerRadius unit.Value
+	CornerRadius unit.Dp
 	Color        color.NRGBA
 }
 
@@ -32,9 +32,9 @@ func Bubble(th *material.Theme) BubbleStyle {
 func (c BubbleStyle) Layout(gtx layout.Context, w layout.Widget) layout.Dimensions {
 	return layout.Stack{}.Layout(gtx,
 		layout.Expanded(func(gtx layout.Context) layout.Dimensions {
-			surface := clip.UniformRRect(f32.Rectangle{
-				Max: layout.FPt(gtx.Constraints.Min),
-			}, float32(gtx.Px(c.CornerRadius)))
+			surface := clip.UniformRRect(image.Rectangle{
+				Max: gtx.Constraints.Min,
+			}, gtx.Dp(c.CornerRadius))
 			paint.FillShape(gtx.Ops, c.Color, surface.Op(gtx.Ops))
 			return layout.Dimensions{Size: gtx.Constraints.Min}
 		}),

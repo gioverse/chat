@@ -235,7 +235,7 @@ func (reel *Reel) Layout(gtx C, loader *async.Loader) D {
 			}
 			return layout.UniformInset(unit.Dp(8)).Layout(gtx,
 				func(gtx C) D {
-					px := gtx.Px(unit.Dp(64))
+					px := gtx.Dp(unit.Dp(64))
 					size := image.Point{X: px, Y: px}
 					gtx.Constraints = layout.Exact(size)
 

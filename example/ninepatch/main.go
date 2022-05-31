@@ -208,7 +208,7 @@ func (ui *UI) layoutContent(gtx C) D {
 	var (
 		axis = layout.Vertical
 	)
-	if gtx.Constraints.Max.X > gtx.Px(unit.Dp(breakpoint)) {
+	if gtx.Constraints.Max.X > gtx.Dp(unit.Dp(breakpoint)) {
 		axis = layout.Horizontal
 	}
 	return layout.UniformInset(unit.Dp(12)).Layout(gtx, func(gtx C) D {
@@ -216,7 +216,7 @@ func (ui *UI) layoutContent(gtx C) D {
 			Axis: axis,
 		}.Layout(gtx,
 			layout.Flexed(1, func(gtx C) D {
-				gtx.Constraints.Max.X = gtx.Px(unit.Dp(400))
+				gtx.Constraints.Max.X = gtx.Dp(unit.Dp(400))
 				ui.ControlContainer.Axis = layout.Vertical
 				return material.List(th.Theme, &ui.ControlContainer).Layout(gtx, 1, func(gtx C, _ int) D {
 					return layout.E.Layout(gtx, func(gtx C) D {
@@ -270,14 +270,14 @@ func (ui *UI) layoutControls(gtx C) D {
 		layout.Rigid(func(gtx C) D {
 			px, dp := DP(gtx.Metric.PxPerDp, ui.Constraints.X.Value)
 			return LabeledSliderStyle{
-				Label:  material.Body1(th.Theme, fmt.Sprintf("X Constraint: %s (%s)", px, dp)),
+				Label:  material.Body1(th.Theme, fmt.Sprintf("X Constraint: %d (%f)", px, dp)),
 				Slider: material.Slider(th.Theme, &ui.Constraints.X, 0, 700),
 			}.Layout(gtx)
 		}),
 		layout.Rigid(func(gtx C) D {
 			px, dp := DP(gtx.Metric.PxPerDp, ui.Constraints.Y.Value)
 			return LabeledSliderStyle{
-				Label:  material.Body1(th.Theme, fmt.Sprintf("Y Constraint: %s (%s)", px, dp)),
+				Label:  material.Body1(th.Theme, fmt.Sprintf("Y Constraint: %d (%f)", px, dp)),
 				Slider: material.Slider(th.Theme, &ui.Constraints.Y, 0, 700),
 			}.Layout(gtx)
 		}),
@@ -285,14 +285,14 @@ func (ui *UI) layoutControls(gtx C) D {
 		layout.Rigid(func(gtx C) D {
 			px, dp := DP(gtx.Metric.PxPerDp, ui.Content.Width.Value)
 			return LabeledSliderStyle{
-				Label:  material.Body1(th.Theme, fmt.Sprintf("Content Width: %s (%s)", px, dp)),
+				Label:  material.Body1(th.Theme, fmt.Sprintf("Content Width: %d (%f)", px, dp)),
 				Slider: material.Slider(th.Theme, &ui.Content.Width, 0, 700),
 			}.Layout(gtx)
 		}),
 		layout.Rigid(func(gtx C) D {
 			px, dp := DP(gtx.Metric.PxPerDp, ui.Content.Height.Value)
 			return LabeledSliderStyle{
-				Label:  material.Body1(th.Theme, fmt.Sprintf("Content Height: %s (%s)", px, dp)),
+				Label:  material.Body1(th.Theme, fmt.Sprintf("Content Height: %d (%f)", px, dp)),
 				Slider: material.Slider(th.Theme, &ui.Content.Height, 0, 700),
 			}.Layout(gtx)
 		}),
@@ -318,7 +318,7 @@ func (ui *UI) layoutControls(gtx C) D {
 					return material.Body1(th.Theme, "Show Text").Layout(gtx)
 				}),
 				layout.Rigid(func(gtx C) D {
-					return D{Size: image.Point{X: gtx.Px(unit.Dp(10))}}
+					return D{Size: image.Point{X: gtx.Dp(unit.Dp(10))}}
 				}),
 				layout.Rigid(func(gtx C) D {
 					return material.Switch(th.Theme, &ui.TextContent, "Show Text").Layout(gtx)
@@ -424,7 +424,7 @@ func (slider LabeledSliderStyle) Layout(gtx C) D {
 //
 // Note: This helper is for display purposes. Pixels are rounded for clarity,
 // therefore do not use results as "real" units in layout.
-func DP(pixelperdp float32, pixels float32) (px unit.Value, dp unit.Value) {
+func DP(pixelperdp float32, pixels float32) (px int, dp unit.Dp) {
 	pixels = float32(math.Round(float64(pixels)))
-	return unit.Px(pixels), unit.Dp(pixels / pixelperdp)
+	return int(pixels), unit.Dp(pixels / pixelperdp)
 }

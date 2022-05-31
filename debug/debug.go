@@ -34,10 +34,10 @@ func Outline(gtx C, w func(gtx C) D) D {
 // similar thin, blue rectangle at the minimum constraints. It is best used deferred, to ensure
 // the rectangles appear atop other widget content.
 func Gtx(gtx C) {
-	widget.Border{Color: color.NRGBA{R: 255, A: 128}, Width: unit.Px(1)}.Layout(gtx, func(gtx C) D {
+	widget.Border{Color: color.NRGBA{R: 255, A: 128}, Width: unit.Dp(1)}.Layout(gtx, func(gtx C) D {
 		return D{Size: gtx.Constraints.Max}
 	})
-	widget.Border{Color: color.NRGBA{B: 255, A: 128}, Width: unit.Px(1)}.Layout(gtx, func(gtx C) D {
+	widget.Border{Color: color.NRGBA{B: 255, A: 128}, Width: unit.Dp(1)}.Layout(gtx, func(gtx C) D {
 		return D{Size: gtx.Constraints.Min}
 	})
 }
@@ -45,7 +45,7 @@ func Gtx(gtx C) {
 // Sz draws a thing, translucent, green rectangle at the size of the given widget. It is designed
 // to easily wrap invocations of layout and pass through the dimensions.
 func Sz(gtx C, dims D) D {
-	widget.Border{Color: color.NRGBA{G: 255, A: 128}, Width: unit.Px(1)}.Layout(gtx, func(gtx C) D {
+	widget.Border{Color: color.NRGBA{G: 255, A: 128}, Width: unit.Dp(1)}.Layout(gtx, func(gtx C) D {
 		return dims
 	})
 	return dims

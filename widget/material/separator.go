@@ -16,7 +16,7 @@ type SeparatorStyle struct {
 	Message    material.LabelStyle
 	TextMargin layout.Inset
 	LineMargin layout.Inset
-	LineWidth  unit.Value
+	LineWidth  unit.Dp
 }
 
 // UnreadSeparator fills in a SeparatorStyle with sensible defaults.
@@ -48,7 +48,7 @@ func (u SeparatorStyle) Layout(gtx layout.Context) layout.Dimensions {
 		return u.LineMargin.Layout(gtx, func(gtx layout.Context) layout.Dimensions {
 			size := image.Point{
 				X: gtx.Constraints.Max.X,
-				Y: gtx.Px(u.LineWidth),
+				Y: gtx.Dp(u.LineWidth),
 			}
 			paint.FillShape(gtx.Ops, u.Message.Color, clip.Rect(image.Rectangle{Max: size}).Op())
 			return layout.Dimensions{Size: size}

@@ -59,7 +59,7 @@ type Theme struct {
 	// chosen to represent that user.
 	UserColors map[string]UserColorData
 	// AvatarSize specifies how large the avatar image should be.
-	AvatarSize unit.Value
+	AvatarSize unit.Dp
 	// Palette specifies semantic colors.
 	Palette Palette
 }

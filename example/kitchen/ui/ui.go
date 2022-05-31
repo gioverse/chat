@@ -239,7 +239,7 @@ func (ui *UI) Layout(gtx C) D {
 }
 
 func (ui *UI) layout(gtx C) D {
-	small := gtx.Constraints.Max.X < gtx.Px(Breakpoint)
+	small := gtx.Constraints.Max.X < gtx.Dp(Breakpoint)
 	for ii := range ui.Rooms.List {
 		r := &ui.Rooms.List[ii]
 		if r.Interact.Clicked() {
@@ -281,7 +281,7 @@ func (ui *UI) layout(gtx C) D {
 	}.Layout(
 		gtx,
 		layout.Rigid(func(gtx C) D {
-			gtx.Constraints.Max.X = gtx.Px(SidebarMaxWidth)
+			gtx.Constraints.Max.X = gtx.Dp(SidebarMaxWidth)
 			gtx.Constraints.Min = gtx.Constraints.Constrain(gtx.Constraints.Min)
 			return ui.layoutRoomList(gtx)
 		}),
@@ -303,12 +303,12 @@ func (ui *UI) layout(gtx C) D {
 func (ui *UI) layoutChat(gtx C) D {
 	room := ui.Rooms.Active()
 	var (
-		scrollWidth unit.Value
+		scrollWidth unit.Dp
 		list        = &room.List
 		state       = room.ListState
 	)
 	listStyle := material.List(th.Theme, list)
-	scrollWidth = listStyle.ScrollbarStyle.Width(gtx.Metric)
+	scrollWidth = listStyle.ScrollbarStyle.Width()
 	return layout.Flex{
 		Axis: layout.Vertical,
 	}.Layout(gtx,
@@ -334,7 +334,7 @@ func (ui *UI) layoutChat(gtx C) D {
 					Top:    unit.Dp(8),
 				}.Layout(gtx, func(gtx C) D {
 					gutter := chatlayout.Gutter()
-					gutter.RightWidth = unit.Add(gtx.Metric, gutter.RightWidth, scrollWidth)
+					gutter.RightWidth = gutter.RightWidth + scrollWidth
 					return gutter.Layout(gtx,
 						nil,
 						func(gtx C) D {

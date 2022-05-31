@@ -72,8 +72,8 @@ func NewRow(
 			Margin:         chatlayout.VerticalMargin(),
 			InternalMargin: chatlayout.VerticalMargin(),
 			Gutter: chatlayout.GutterStyle{
-				LeftWidth:  unit.Dp(unit.Dp(12).V + DefaultAvatarSize.V),
-				RightWidth: unit.Dp(unit.Dp(12).V + DefaultAvatarSize.V),
+				LeftWidth:  unit.Dp(12) + DefaultAvatarSize,
+				RightWidth: unit.Dp(12) + DefaultAvatarSize,
 				Alignment:  layout.Start,
 			},
 			Direction: layout.W,
@@ -88,7 +88,7 @@ func NewRow(
 				Position: layout.Center,
 			},
 			// Half size radius makes for a circle.
-			Radii:  unit.Dp(DefaultAvatarSize.V * 0.5),
+			Radii:  unit.Dp(DefaultAvatarSize * 0.5),
 			Width:  DefaultAvatarSize,
 			Height: DefaultAvatarSize,
 		},

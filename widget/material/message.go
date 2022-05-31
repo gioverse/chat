@@ -95,10 +95,10 @@ type MessageStyle struct {
 	// Interaction holds the stateful parts of this message.
 	Interaction *chatwidget.Message
 	// MaxMessageWidth constrains the display width of the message's background.
-	MaxMessageWidth unit.Value
+	MaxMessageWidth unit.Dp
 	// MaxImageHeight constrains the maximum height of an image message. The image
 	// will be scaled to fit within this height.
-	MaxImageHeight unit.Value
+	MaxImageHeight unit.Dp
 	// ContentPadding separates the Content field from the edges of the background.
 	ContentPadding layout.Inset
 	// BubbleStyle configures a chat bubble beneath the message. If NinePatch is
@@ -179,7 +179,7 @@ func (c MessageStyle) WithBubbleColor(th *material.Theme, col color.NRGBA, lumin
 // Layout the message atop its background.
 func (m MessageStyle) Layout(gtx C) D {
 	gtx.Constraints.Max.X = int(float32(gtx.Constraints.Max.X) * 0.8)
-	max := gtx.Px(m.MaxMessageWidth)
+	max := gtx.Dp(m.MaxMessageWidth)
 	if gtx.Constraints.Max.X > max {
 		gtx.Constraints.Max.X = max
 	}
@@ -195,7 +195,7 @@ func (m MessageStyle) Layout(gtx C) D {
 		})
 	}
 	return material.Clickable(gtx, &m.Interaction.Clickable, func(gtx C) D {
-		gtx.Constraints.Max.Y = gtx.Px(m.MaxImageHeight)
+		gtx.Constraints.Max.Y = gtx.Dp(m.MaxImageHeight)
 		return m.Image.Layout(gtx)
 	})
 }

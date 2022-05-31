@@ -5,7 +5,6 @@ import (
 	"image/color"
 
 	"gioui.org/layout"
-	"gioui.org/unit"
 )
 
 // DecodeNinePatch from source image.
@@ -14,19 +13,19 @@ import (
 func DecodeNinePatch(src image.Image) NinePatch {
 	var (
 		b      = src.Bounds()
-		inset  = layout.Inset{}
+		inset  = PxInset{}
 		x1, x2 = 0, 0
 		y1, y2 = 0, 0
 	)
 	right := walk(src, b.Max.X-1, layout.Vertical)
 	if right.IsValid() {
-		inset.Top = unit.Px(float32(right.Start))
-		inset.Bottom = unit.Px(float32(b.Max.Y - right.End))
+		inset.Top = right.Start
+		inset.Bottom = b.Max.Y - right.End
 	}
 	bottom := walk(src, b.Max.Y-1, layout.Horizontal)
 	if bottom.IsValid() {
-		inset.Left = unit.Px(float32(bottom.Start))
-		inset.Right = unit.Px(float32(b.Max.X - bottom.End))
+		inset.Left = bottom.Start
+		inset.Right = b.Max.X - bottom.End
 	}
 	top := walk(src, 0, layout.Vertical)
 	if top.IsValid() {

@@ -11,7 +11,7 @@ import (
 // ensure that they are spaced evenly and no part of their content
 // crowds that of the message above and below.
 type VerticalMarginStyle struct {
-	Size unit.Value
+	Size unit.Dp
 }
 
 // VerticalMargin configures a vertical margin with a sensible default
