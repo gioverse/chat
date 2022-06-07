@@ -61,13 +61,9 @@ type Manager struct {
 	// directions are eligible to load.
 	lastRequest Direction
 
-	// presenter is a function that can transform a single Element into
-	// a presentable widget.
-	presenter Presenter
-
-	// allocator is a function that can instantiate the state for a particular
-	// Element.
-	allocator Allocator
+	// Cached parameters useful for restarting the async process.
+	hooks   Hooks
+	maxSize int
 
 	// elementState is a map storing the state for the elements managed
 	// by the manager.
@@ -149,9 +145,9 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 		panic(fmt.Errorf("must provide an implementation of Invalidator"))
 	}
 	rm := &Manager{
-		presenter:    hooks.Presenter,
-		allocator:    hooks.Allocator,
 		elementState: make(map[Serial]interface{}),
+		hooks:        hooks,
+		maxSize:      maxSize,
 	}
 
 	rm.requests, rm.viewports, rm.stateUpdates = asyncProcess(maxSize, hooks)
@@ -237,6 +233,17 @@ func (m *Manager) Remove(remove []Serial) {
 	}
 }
 
+// Reset empties the element contents of the Manager and restarts the async worker
+// process to clear its state. This is useful when reusing a Manager but switching
+// between multiple similar contexts of data to display.
+func (m *Manager) Reset() {
+	if m.requests != nil {
+		close(m.requests)
+	}
+	m.requests, m.viewports, m.stateUpdates = asyncProcess(m.maxSize, m.hooks)
+	m.elementState = make(map[Serial]interface{})
+}
+
 // Layout the element at the given index.
 func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 	if index < 0 {
@@ -289,10 +296,10 @@ func (m *Manager) Layout(gtx layout.Context, index int) layout.Dimensions {
 	id := data.Serial()
 	state, ok := m.elementState[id]
 	if !ok && id != NoSerial {
-		state = m.allocator(data)
+		state = m.hooks.Allocator(data)
 		m.elementState[id] = state
 	}
-	widget := m.presenter(data, state)
+	widget := m.hooks.Presenter(data, state)
 	return widget(gtx)
 }
 
@@ -307,14 +314,13 @@ func (m *Manager) UpdatedLen(list *layout.List) int {
 	// Update the state of the manager in response to any loads.
 	select {
 	case pending := <-m.stateUpdates:
-		var (
-			// Whether to force the viewport to stick to the end or beginning
-			// of the list. This value must be accumulated across all state
-			// updates for the frame, otherwise the first update may conclude
-			// that the end should stick, but a subsequent update will potentially
-			// cancel that operation.
-			stickToEnd, stickToBeginning bool
-		)
+
+		// Whether to force the viewport to stick to the end or beginning
+		// of the list. This value must be accumulated across all state
+		// updates for the frame, otherwise the first update may conclude
+		// that the end should stick, but a subsequent update will potentially
+		// cancel that operation.
+		var stickToEnd, stickToBeginning bool
 		for ii := range pending {
 			su := pending[ii]
 			m.ignoring = su.Ignore
