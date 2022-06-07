@@ -43,6 +43,15 @@ type PxInset struct {
 	Top, Bottom, Left, Right int
 }
 
+func (p PxInset) ToDp(m unit.Metric) layout.Inset {
+	return layout.Inset{
+		Top:    unit.Dp(float32(p.Top) * m.PxPerDp),
+		Bottom: unit.Dp(float32(p.Bottom) * m.PxPerDp),
+		Left:   unit.Dp(float32(p.Left) * m.PxPerDp),
+		Right:  unit.Dp(float32(p.Right) * m.PxPerDp),
+	}
+}
+
 // Patch describes the position and size of single patch in a 9-Patch image.
 type Patch struct {
 	Offset image.Point

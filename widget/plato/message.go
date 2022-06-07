@@ -143,7 +143,7 @@ func (m MessageStyle) Layout(gtx C) (d D) {
 		surface = m.NinePatch.Layout
 		// Override ContentPadding if using a ninepatch background, as it has
 		// its own internal padding.
-		contentInset = m.NinePatch.Content
+		contentInset = m.NinePatch.Content.ToDp(gtx.Metric)
 	}
 	if m.Compact {
 		return surface(gtx, func(gtx C) D {
