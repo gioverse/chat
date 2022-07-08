@@ -58,10 +58,10 @@ func TestDecodeNinePatch(t *testing.T) {
 			Src:   NewImg(image.Pt(100, 100)).BottomBorder(25, 50).RightBorder(25, 50),
 			NP: NP{
 				Content: layout.Inset{
-					Top:    unit.Px(25),
-					Right:  unit.Px(25),
-					Bottom: unit.Px(25),
-					Left:   unit.Px(25),
+					Top:    unit.Dp(25),
+					Right:  unit.Dp(25),
+					Bottom: unit.Dp(25),
+					Left:   unit.Dp(25),
 				},
 				Grid: Grid{Size: image.Point{X: 100, Y: 100}},
 			},
@@ -75,10 +75,10 @@ func TestDecodeNinePatch(t *testing.T) {
 				RightBorder(25, 50),
 			NP: NP{
 				Content: layout.Inset{
-					Top:    unit.Px(25),
-					Right:  unit.Px(25),
-					Bottom: unit.Px(25),
-					Left:   unit.Px(25),
+					Top:    unit.Dp(25),
+					Right:  unit.Dp(25),
+					Bottom: unit.Dp(25),
+					Left:   unit.Dp(25),
 				},
 				Grid: Grid{
 					Size: image.Point{X: 100, Y: 100},
@@ -92,10 +92,10 @@ func TestDecodeNinePatch(t *testing.T) {
 			Src:   platocookie,
 			NP: NP{
 				Content: layout.Inset{
-					Top:    unit.Px(31),
-					Right:  unit.Px(70),
-					Bottom: unit.Px(27),
-					Left:   unit.Px(70),
+					Top:    unit.Dp(31),
+					Right:  unit.Dp(70),
+					Bottom: unit.Dp(27),
+					Left:   unit.Dp(70),
 				},
 				Grid: Grid{
 					Size: image.Point{
@@ -112,10 +112,10 @@ func TestDecodeNinePatch(t *testing.T) {
 			Src:   hotdog,
 			NP: NP{
 				Content: layout.Inset{
-					Top:    unit.Px(31),
-					Right:  unit.Px(70),
-					Bottom: unit.Px(27),
-					Left:   unit.Px(70),
+					Top:    unit.Dp(31),
+					Right:  unit.Dp(70),
+					Bottom: unit.Dp(27),
+					Left:   unit.Dp(70),
 				},
 				Grid: Grid{
 					Size: image.Point{
@@ -131,8 +131,11 @@ func TestDecodeNinePatch(t *testing.T) {
 		t.Run(tt.Label, func(t *testing.T) {
 			np := DecodeNinePatch(tt.Src)
 			got := NP{
-				Content: np.Content,
-				Grid:    np.Grid,
+				Content: np.Content.ToDp(unit.Metric{
+					PxPerDp: 1,
+					PxPerSp: 1,
+				}),
+				Grid: np.Grid,
 			}
 			want := tt.NP
 			if got != want {
