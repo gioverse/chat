@@ -225,9 +225,6 @@ func (l *Loader) initialize() {
 	l.loader.lookup = make(map[Tag]*resource)
 	l.loader.refresh.L = &l.loader.mu
 	if l.Scheduler == nil {
-		// 128 is a magic number of maximum workers we will allow.
-		// This would translate to "max number of network requests", if all
-		// work were to be network-bound.
 		l.Scheduler = &FixedWorkerPool{Workers: l.MaxLoaded}
 	}
 	// TODO(jfm): expose context in the public api so that loads can be
