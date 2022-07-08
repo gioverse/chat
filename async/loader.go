@@ -182,6 +182,7 @@ type loader struct {
 //		w.Invalidate()
 //
 func (l *Loader) Updated() <-chan struct{} {
+	l.init.Do(l.initialize)
 	return l.updated
 }
 
@@ -212,27 +213,29 @@ const DefaultMaxLoaded = 10
 // The first call will queue up the load, subsequent calls will poll for the
 // status.
 func (l *Loader) Schedule(tag Tag, load LoadFunc) Resource {
-	l.init.Do(func() {
-		if l.MaxLoaded == 0 {
-			l.MaxLoaded = DefaultMaxLoaded
-		}
-		l.updated = make(chan struct{}, 1)
-		l.loader.lookup = make(map[Tag]*resource)
-		l.loader.refresh.L = &l.loader.mu
-		if l.Scheduler == nil {
-			// 128 is a magic number of maximum workers we will allow.
-			// This would translate to "max number of network requests", if all
-			// work were to be network-bound.
-			l.Scheduler = &FixedWorkerPool{Workers: l.MaxLoaded}
-		}
-		// TODO(jfm): expose context in the public api so that loads can be
-		// cancelled by it.
-		// Egon's example ran this at the top of the event loop. By placing it
-		// here we achieve useful zero-value but since the context is not
-		// exposed, it's useless.
-		go l.run(context.Background())
-	})
+	l.init.Do(l.initialize)
 	return l.loader.establish(tag, load, atomic.LoadInt64(&l.active))
+}
+
+func (l *Loader) initialize() {
+	if l.MaxLoaded == 0 {
+		l.MaxLoaded = DefaultMaxLoaded
+	}
+	l.updated = make(chan struct{}, 1)
+	l.loader.lookup = make(map[Tag]*resource)
+	l.loader.refresh.L = &l.loader.mu
+	if l.Scheduler == nil {
+		// 128 is a magic number of maximum workers we will allow.
+		// This would translate to "max number of network requests", if all
+		// work were to be network-bound.
+		l.Scheduler = &FixedWorkerPool{Workers: l.MaxLoaded}
+	}
+	// TODO(jfm): expose context in the public api so that loads can be
+	// cancelled by it.
+	// Egon's example ran this at the top of the event loop. By placing it
+	// here we achieve useful zero-value but since the context is not
+	// exposed, it's useless.
+	go l.run(context.Background())
 }
 
 // LoaderStats tracks some stats about the loader.
