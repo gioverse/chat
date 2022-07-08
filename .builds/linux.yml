@@ -12,6 +12,7 @@ packages:
  - libegl1-mesa-dev
  - libffi-dev
  - libxcursor-dev
+ - libvulkan-dev
 sources:
  - https://git.sr.ht/~gioverse/chat
 environment:
