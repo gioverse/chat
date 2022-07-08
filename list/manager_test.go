@@ -236,10 +236,20 @@ func TestManagerPrefetch(t *testing.T) {
 			expect:   nil,
 		},
 		{
-			name:     "index on prefetch boundary: no prefetch",
+			// This case used to not prefetch, but Gio's list now lays out one element
+			// above and below the visible viewport in order to implement proper focus
+			// navigation to off-screen elements.
+			name:     "index on prefetch boundary: prefetch due to list impl",
 			prefetch: 0.2,
 			elements: 10,
 			index:    2,
+			expect:   &loadRequest{Direction: Before},
+		},
+		{
+			name:     "index on one after prefetch boundary: no prefetch",
+			prefetch: 0.2,
+			elements: 10,
+			index:    3,
 			expect:   nil,
 		},
 		{
@@ -340,9 +350,8 @@ func TestManagerPrefetch(t *testing.T) {
 			// Manually allocate list manager.
 			// Constructor doesn't help with testing.
 			m := Manager{
+				hooks:        testHooks,
 				Prefetch:     tc.prefetch,
-				presenter:    testHooks.Presenter,
-				allocator:    testHooks.Allocator,
 				requests:     requests,
 				stateUpdates: stateUpdates,
 				elementState: make(map[Serial]interface{}),
