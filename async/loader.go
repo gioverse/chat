@@ -60,6 +60,8 @@ type Loader struct {
 	init sync.Once
 	// loader contains the queue and lookup map.
 	loader
+	// cancel can, if non-nil, shut down the background worker loop for the loader.
+	cancel func()
 }
 
 // Scheduler schedules work according to some strategy.
@@ -178,9 +180,8 @@ type loader struct {
 // Updated returns a channel that reports whether loader has been updated.
 // Integrate this into gio event loop to, for example, invalidate the window.
 //
-// 	case <-loader.Updated():
+//	case <-loader.Updated():
 //		w.Invalidate()
-//
 func (l *Loader) Updated() <-chan struct{} {
 	l.init.Do(l.initialize)
 	return l.updated
@@ -232,7 +233,9 @@ func (l *Loader) initialize() {
 	// Egon's example ran this at the top of the event loop. By placing it
 	// here we achieve useful zero-value but since the context is not
 	// exposed, it's useless.
-	go l.run(context.Background())
+	ctx, cancel := context.WithCancel(context.Background())
+	l.cancel = cancel
+	go l.run(ctx)
 }
 
 // LoaderStats tracks some stats about the loader.
@@ -260,6 +263,13 @@ func (l *Loader) update() {
 	select {
 	case l.updated <- struct{}{}:
 	default:
+	}
+}
+
+// Shutdown ends the background processing of the loader, if any is happening.
+func (l *Loader) Shutdown() {
+	if l.cancel != nil {
+		l.cancel()
 	}
 }
 
