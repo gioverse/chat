@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"runtime"
+	"sync"
 
 	"gioui.org/layout"
 )
@@ -84,6 +85,9 @@ type Manager struct {
 	// (read old values out and discard them before sending new ones).
 	viewports    chan viewport
 	lastPosition layout.Position
+
+	// shutdown ensures that the Manager is only shut down once.
+	shutdown sync.Once
 }
 
 // tryRequest will send the loadRequest if and only if the background processing
@@ -155,14 +159,22 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 	// Ensure that the asynchronous processing goroutine is shut down when
 	// the manager is garbage collected.
 	runtime.SetFinalizer(rm, func(m *Manager) {
+		m.Shutdown()
+	})
+
+	return rm
+}
+
+// Shutdown kills the asynchronous goroutine powering the list. After this, the
+// Manager can no longer be used.
+func (m *Manager) Shutdown() {
+	m.shutdown.Do(func() {
 		if m.requests != nil {
 			// Check if nil because some test cases override this channel with
 			// nil.
 			close(m.requests)
 		}
 	})
-
-	return rm
 }
 
 // DefaultPrefetch is the default prefetching threshold.
@@ -231,17 +243,6 @@ func (m *Manager) Remove(remove []Serial) {
 		UpdateOnly:  nil,
 		Remove:      remove,
 	}
-}
-
-// Reset empties the element contents of the Manager and restarts the async worker
-// process to clear its state. This is useful when reusing a Manager but switching
-// between multiple similar contexts of data to display.
-func (m *Manager) Reset() {
-	if m.requests != nil {
-		close(m.requests)
-	}
-	m.requests, m.viewports, m.stateUpdates = asyncProcess(m.maxSize, m.hooks)
-	m.elementState = make(map[Serial]interface{})
 }
 
 // Layout the element at the given index.
