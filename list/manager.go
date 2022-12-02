@@ -3,7 +3,6 @@ package list
 import (
 	"fmt"
 	"math"
-	"runtime"
 	"sync"
 
 	"gioui.org/layout"
@@ -155,12 +154,6 @@ func NewManager(maxSize int, hooks Hooks) *Manager {
 	}
 
 	rm.requests, rm.viewports, rm.stateUpdates = asyncProcess(maxSize, hooks)
-
-	// Ensure that the asynchronous processing goroutine is shut down when
-	// the manager is garbage collected.
-	runtime.SetFinalizer(rm, func(m *Manager) {
-		m.Shutdown()
-	})
 
 	return rm
 }
