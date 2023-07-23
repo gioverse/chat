@@ -168,6 +168,7 @@ func NewUI(invalidator func(), conf Config) *UI {
 		rt := NewExampleData(users, local, g, 100)
 		rt.SimulateLatency = conf.Latency
 		rt.MaxLoads = conf.LoadSize
+		rt.ScrollToEnd = false
 		lm := list.NewManager(conf.BufferSize,
 			list.Hooks{
 				// Define an allocator function that can instaniate the appropriate
@@ -224,7 +225,7 @@ func NewUI(invalidator func(), conf Config) *UI {
 
 	ui.Rooms.Select(0)
 	for ii := range ui.Rooms.List {
-		ui.Rooms.List[ii].List.ScrollToEnd = true
+		ui.Rooms.List[ii].List.ScrollToEnd = ui.Rooms.List[ii].Messages.ScrollToEnd
 		ui.Rooms.List[ii].List.Axis = layout.Vertical
 	}
 
