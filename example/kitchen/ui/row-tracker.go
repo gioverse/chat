@@ -29,7 +29,8 @@ type RowTracker struct {
 	Generator     *gen.Generator
 	// MaxLoads specifies the number of elements a given load in either
 	// direction can return.
-	MaxLoads int
+	MaxLoads    int
+	ScrollToEnd bool
 }
 
 // NewExampleData constructs a RowTracker populated with the provided
@@ -117,7 +118,17 @@ func (r *RowTracker) Load(dir list.Direction, relativeTo list.Serial) (loaded []
 		// If loading relative to nothing, likely the chat interface is empty.
 		// We should load the most recent messages first in this case, regardless
 		// of the direction parameter.
-		return r.Rows[numRows-min(r.MaxLoads, numRows):], numRows > r.MaxLoads
+		if r.ScrollToEnd {
+			return r.Rows[numRows-min(r.MaxLoads, numRows):], numRows > r.MaxLoads
+		} else {
+			var res int
+			if numRows < r.MaxLoads {
+				res = numRows
+			} else {
+				res = r.MaxLoads
+			}
+			return r.Rows[:res], numRows > r.MaxLoads
+		}
 	}
 	idx := r.SerialToIndex[relativeTo]
 	if dir == list.After {
